@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PharmBot — ฝึกซักประวัติจ่ายยา</title>
+<title>PharmBot — ฝึกซักประวัติจ่ายยา (Groq)</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -243,9 +243,9 @@
 
   <!-- API KEY -->
   <div class="api-section">
-    <label>🔑 Gemini API Key:</label>
-    <input type="password" id="apiKey" placeholder="AIza..." oninput="checkApiKey()">
-    <span class="api-hint">สมัครฟรีที่ aistudio.google.com → Get API Key</span>
+    <label>🔑 Groq API Key:</label>
+    <input type="password" id="apiKey" placeholder="gsk_..." oninput="checkApiKey()">
+    <span class="api-hint">สมัครฟรีที่ console.groq.com → API Keys</span>
     <span class="api-status" id="apiStatus">ยังไม่ได้ใส่</span>
   </div>
 
@@ -269,7 +269,7 @@
         <div class="patient-avatar" id="patientAvatar">👤</div>
         <div>
           <div class="patient-name" id="patientName">รอเริ่มเคส...</div>
-          <div class="patient-role">ผู้ป่วยจำลอง (ขับเคลื่อนด้วย Gemini AI)</div>
+          <div class="patient-role">ผู้ป่วยจำลอง (ขับเคลื่อนด้วย Groq AI)</div>
         </div>
       </div>
       <div class="status-dot" id="statusDot"></div>
@@ -342,7 +342,7 @@ let thinkingCounter = 0;
 function checkApiKey() {
   const key = document.getElementById('apiKey').value.trim();
   const status = document.getElementById('apiStatus');
-  if (key.startsWith('AIza') && key.length > 20) {
+  if (key.startsWith('gsk_') && key.length > 20) {
     status.textContent = '✓ พร้อมใช้งาน';
     status.className = 'api-status ok';
   } else if (key.length > 0) {
@@ -359,7 +359,7 @@ function getApiKey() { return document.getElementById('apiKey').value.trim(); }
 async function startSession() {
   const apiKey = getApiKey();
   if (!apiKey.startsWith('AIza')) {
-    alert('กรุณาใส่ Gemini API Key ที่ถูกต้องก่อนครับ\nสมัครฟรีที่ aistudio.google.com');
+    alert('กรุณาใส่ Groq API Key ที่ถูกต้องก่อนครับ\nสมัครฟรีที่ console.groq.com');
     return;
   }
   currentScenario = document.getElementById('scenarioSelect').value;
@@ -381,7 +381,7 @@ async function startSession() {
   messages.innerHTML = '';
   addSystemMessage(`📋 เคส: ${sc.name} | ซักประวัติให้ครบแล้วกด "ประเมินผล"`);
 
-  const opening = await callGemini(sc.system, [
+  const opening = await callGroq(sc.system, [
     { role: 'user', parts: [{ text: 'สวัสดีครับ มีอะไรให้ช่วยไหมครับ?' }] }
   ]);
   addMessage('patient', opening, sc.emoji);
@@ -405,7 +405,7 @@ async function sendMessage() {
   document.getElementById('sendBtn').disabled = true;
   const thinkingId = addThinking(sc.emoji);
 
-  const response = await callGemini(sc.system, conversationHistory);
+  const response = await callGroq(sc.system, conversationHistory);
   removeThinking(thinkingId);
   document.getElementById('sendBtn').disabled = false;
 
@@ -437,7 +437,7 @@ ${chatLog}
 ตอบเป็น JSON เท่านั้น ห้ามใส่ backtick หรือ markdown:
 {"history_score":0-100,"drug_score":0-100,"overall":0-100,"missed_items":["..."],"good_points":"...","improvements":"...","drug_feedback":"...","summary":"..."}`;
 
-  const result = await callGemini('คุณเป็นผู้ประเมินการเรียนรู้ด้านเภสัชศาสตร์ ตอบเป็น JSON เท่านั้น', [
+  const result = await callGroq('คุณเป็นผู้ประเมินการเรียนรู้ด้านเภสัชศาสตร์ ตอบเป็น JSON เท่านั้น', [
     { role: 'user', parts: [{ text: evalPrompt }] }
   ]);
 
@@ -470,19 +470,29 @@ function renderEval(data) {
     <button class="btn-new" onclick="newSession()">🔄 เริ่มเคสใหม่</button>`;
 }
 
-async function callGemini(systemInstruction, messages) {
+async function callGroq(systemInstruction, messages) {
   const apiKey = getApiKey();
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
+  // Convert Gemini-style messages to OpenAI format
+  const openaiMessages = [{ role: 'system', content: systemInstruction }];
+  for (const m of messages) {
+    openaiMessages.push({
+      role: m.role === 'model' ? 'assistant' : 'user',
+      content: m.parts[0].text
+    });
+  }
   try {
-    const body = {
-      system_instruction: { parts: [{ text: systemInstruction }] },
-      contents: messages,
-      generationConfig: { maxOutputTokens: 500, temperature: 0.7 }
-    };
-    const res = await fetch(url, {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: 'llama-3.3-70b-versatile',
+        messages: openaiMessages,
+        max_tokens: 500,
+        temperature: 0.7
+      })
     });
     if (!res.ok) {
       const err = await res.json();
@@ -490,7 +500,7 @@ async function callGemini(systemInstruction, messages) {
       return `[ข้อผิดพลาด: ${err.error?.message || res.status}]`;
     }
     const data = await res.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || '[ไม่มีคำตอบ]';
+    return data.choices?.[0]?.message?.content || '[ไม่มีคำตอบ]';
   } catch (e) {
     return `[Connection error: ${e.message}]`;
   }
