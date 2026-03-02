@@ -252,14 +252,42 @@
   <!-- SCENARIO -->
   <div class="scenario-section">
     <label>🏥 เลือก Scenario:</label>
-    <select id="scenarioSelect">
+    <select id="scenarioSelect" onchange="onScenarioChange()">
       <option value="fever">🤒 ไข้ / หวัด / ปวดศีรษะ</option>
       <option value="stomach">🤢 ปวดท้อง / ท้องเสีย / คลื่นไส้</option>
       <option value="cough">😷 ไอ / เจ็บคอ / มีเสมหะ</option>
       <option value="allergy">🤧 แพ้อาหาร / ผื่นคัน</option>
       <option value="pain">🦵 ปวดกล้ามเนื้อ / ปวดข้อ</option>
+      <option value="custom">✏️ กำหนดเอง (Custom)</option>
     </select>
     <button class="btn-start" id="startBtn" onclick="startSession()">▶ เริ่มเคส</button>
+  </div>
+
+  <!-- CUSTOM PROMPT PANEL -->
+  <div id="customPanel" style="display:none; background:rgba(255,255,255,0.05); border:1px solid rgba(82,183,136,0.2); border-radius:16px; padding:16px 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+      <span style="color:rgba(255,255,255,0.8); font-size:14px; font-weight:600;">✏️ Custom Patient Prompt</span>
+      <div style="display:flex;gap:8px;">
+        <button onclick="loadDefaultPrompt()" style="background:rgba(82,183,136,0.2);color:#52b788;border:none;border-radius:8px;padding:6px 12px;font-family:'Sarabun',sans-serif;font-size:12px;cursor:pointer;">📋 โหลด Template</button>
+        <button onclick="clearPrompt()" style="background:rgba(231,111,81,0.15);color:#e76f51;border:none;border-radius:8px;padding:6px 12px;font-family:'Sarabun',sans-serif;font-size:12px;cursor:pointer;">🗑 ล้าง</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="color:rgba(255,255,255,0.6);font-size:13px;">ชื่อผู้ป่วย:</span>
+        <input id="customName" type="text" placeholder="เช่น สมหญิง ใจดี" style="background:rgba(0,0,0,0.3);border:1px solid rgba(82,183,136,0.25);border-radius:8px;padding:6px 10px;color:white;font-family:'Sarabun',sans-serif;font-size:13px;outline:none;width:160px;">
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="color:rgba(255,255,255,0.6);font-size:13px;">Emoji:</span>
+        <input id="customEmoji" type="text" placeholder="🤒" style="background:rgba(0,0,0,0.3);border:1px solid rgba(82,183,136,0.25);border-radius:8px;padding:6px 10px;color:white;font-family:'Sarabun',sans-serif;font-size:13px;outline:none;width:60px;text-align:center;">
+      </div>
+    </div>
+    <textarea id="customPrompt" 
+      placeholder="วาง Prompt ผู้ป่วยที่นี่ หรือกด 'โหลด Template' เพื่อดูตัวอย่าง..."
+      style="width:100%;height:220px;background:rgba(0,0,0,0.3);border:1px solid rgba(82,183,136,0.25);border-radius:10px;padding:12px;color:white;font-family:'Sarabun',sans-serif;font-size:13px;line-height:1.7;resize:vertical;outline:none;"></textarea>
+    <div style="margin-top:8px;color:rgba(255,255,255,0.35);font-size:11px;">
+      💡 แก้ไข prompt แล้วกด "เริ่มเคส" ได้เลย — หรือบันทึกเป็นไฟล์ .txt ด้วย Notepad แล้ว copy-paste มาครั้งหน้า
+    </div>
   </div>
 
   <!-- CHAT -->
@@ -300,37 +328,9 @@
 
 </div>
 
+<script src="scenarios.js"></script>
 <script>
-const SCENARIOS = {
-  fever: {
-    emoji: '🤒', name: 'สมชาย ใจดี',
-    system: `คุณเล่นบทเป็น สมชาย อายุ 35 ปี พนักงานออฟฟิศ มาที่ร้านยาเพราะมีไข้ต่ำๆ ปวดหัว และน้ำมูกไหลมา 2 วัน ไม่มีโรคประจำตัว ไม่แพ้ยา ไม่ได้กินยาอะไรอยู่ อุณหภูมิประมาณ 37.8 องศา ไม่มีอาการหายใจลำบาก ไม่มีผื่น กฎ: ตอบเป็นภาษาไทยสั้นๆ เป็นธรรมชาติ บอกข้อมูลเฉพาะเมื่อถูกถาม ห้ามพูดชื่อยาหรือ diagnosis เอง ตอบไม่เกิน 2-3 ประโยค`
-  },
-  stomach: {
-    emoji: '🤢', name: 'มาลี รักสุข',
-    system: `คุณเล่นบทเป็น มาลี อายุ 28 ปี มาร้านยาเพราะปวดท้อง ท้องเสีย ถ่ายเหลว 4-5 ครั้งวันนี้ ไม่มีเลือดในอุจจาระ คลื่นไส้เล็กน้อย เพิ่งกินอาหารทะเลเมื่อคืน ไม่มีไข้ ไม่แพ้ยา ไม่มีโรคประจำตัว ไม่ตั้งครรภ์ กฎ: ตอบสั้นๆ เป็นธรรมชาติ บอกข้อมูลเมื่อถูกถามเท่านั้น ตอบไม่เกิน 2-3 ประโยค`
-  },
-  cough: {
-    emoji: '😷', name: 'วิชัย มั่นคง',
-    system: `คุณเล่นบทเป็น วิชัย อายุ 45 ปี มาร้านยาเพราะไอมา 3 วัน มีเสมหะสีเหลืองเล็กน้อย เจ็บคอ ไม่มีไข้ ไม่มีหายใจลำบาก สูบบุหรี่วันละ 5 มวนมาหลายปี ไม่แพ้ยา ไม่มีโรคประจำตัว กฎ: ตอบสั้นๆ เป็นธรรมชาติ บอกข้อมูลเมื่อถูกถามเท่านั้น ตอบไม่เกิน 2-3 ประโยค`
-  },
-  allergy: {
-    emoji: '🤧', name: 'นภา สดใส',
-    system: `คุณเล่นบทเป็น นภา อายุ 22 ปี นักศึกษา มีผื่นคันขึ้นที่แขนและขาหลังกินกุ้งเมื่อ 2 ชั่วโมงก่อน ผื่นนูนแดง คันมาก ไม่มีหายใจลำบาก ไม่มีบวมที่ปาก/ลำคอ เคยแพ้กุ้งมาครั้งหนึ่งแต่ไม่รุนแรง ไม่แพ้ยา กฎ: ตอบสั้นๆ เป็นธรรมชาติ บอกข้อมูลเมื่อถูกถามเท่านั้น ตอบไม่เกิน 2-3 ประโยค`
-  },
-  pain: {
-    emoji: '🦵', name: 'ประสิทธิ์ แข็งแรง',
-    system: `คุณเล่นบทเป็น ประสิทธิ์ อายุ 52 ปี ออกกำลังกายเมื่อวานแล้วปวดน่องและต้นขา ปวดระดับ 5/10 ไม่มีบวม ไม่มีแดง เดินได้ปกติ ไม่มีประวัติเจ็บออก ไม่แพ้ยา มีความดันโลหิตสูง กินยา Amlodipine อยู่ กฎ: ตอบสั้นๆ เป็นธรรมชาติ บอกข้อมูลเมื่อถูกถามเท่านั้น ตอบไม่เกิน 2-3 ประโยค`
-  }
-};
 
-const EVAL_CHECKLIST = {
-  fever: { history: ['ระยะเวลาที่มีอาการ','ระดับไข้/อุณหภูมิ','อาการร่วม (ไอ/เจ็บคอ/น้ำมูก)','โรคประจำตัว','ยาที่ใช้อยู่','ประวัติแพ้ยา'], drug: 'Paracetamol และยาแก้หวัดตามอาการ ไม่ควรให้ NSAIDs โดยไม่จำเป็น' },
-  stomach: { history: ['จำนวนครั้งที่ถ่าย','ลักษณะอุจจาระ (มีเลือด/เมือก?)','ประวัติอาหาร','มีคลื่นไส้/อาเจียน?','มีไข้?','ไม่ตั้งครรภ์?'], drug: 'ORS เป็นหลัก อาจให้ Loperamide ถ้าไม่มีไข้/เลือด' },
-  cough: { history: ['ระยะเวลาไอ','ลักษณะเสมหะ (สี/ปริมาณ)','มีไข้?','หายใจลำบาก?','ประวัติสูบบุหรี่','โรคประจำตัว'], drug: 'ยาละลายเสมหะ ± ยาแก้อักเสบ ถ้าเสมหะเหลืองควรพิจารณาส่งแพทย์' },
-  allergy: { history: ['สิ่งที่กิน/สัมผัส','ลักษณะผื่น','มีหายใจลำบาก/บวม?','ระยะเวลา','ประวัติแพ้ก่อนหน้า'], drug: 'Antihistamine (CPM หรือ Loratadine) ไม่ใช่ Steroid ในกรณีเบา' },
-  pain: { history: ['สาเหตุ/กิจกรรม','ตำแหน่งปวด','ระดับความปวด (0-10)','มีบวม/แดง?','ยาที่ใช้อยู่ (สำคัญมาก!)'], drug: 'Paracetamol ก่อน (ผู้ป่วยกิน Amlodipine — ระวัง NSAIDs เรื่อง interaction)' }
-};
 
 let conversationHistory = [];
 let currentScenario = null;
@@ -363,6 +363,16 @@ async function startSession() {
     return;
   }
   currentScenario = document.getElementById('scenarioSelect').value;
+
+  // Handle custom scenario
+  if (currentScenario === 'custom') {
+    const customSys = document.getElementById('customPrompt').value.trim();
+    const customName = document.getElementById('customName').value.trim() || 'ผู้ป่วย Custom';
+    const customEmoji = document.getElementById('customEmoji').value.trim() || '🧑';
+    if (!customSys) { alert('กรุณาใส่ Prompt ผู้ป่วยก่อนครับ'); return; }
+    SCENARIOS['custom'] = { emoji: customEmoji, name: customName, system: customSys };
+  }
+
   const sc = SCENARIOS[currentScenario];
   conversationHistory = [];
   sessionActive = true;
@@ -567,6 +577,46 @@ function addThinking(avatar) {
 function removeThinking(id) { document.getElementById(id)?.remove(); }
 function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
 function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+
+function onScenarioChange() {
+  const val = document.getElementById('scenarioSelect').value;
+  document.getElementById('customPanel').style.display = val === 'custom' ? 'block' : 'none';
+}
+
+function loadDefaultPrompt() {
+  document.getElementById('customName').value = 'สมหญิง ใจดี';
+  document.getElementById('customEmoji').value = '🤒';
+  document.getElementById('customPrompt').value = `คุณเล่นบทเป็น สมหญิง อายุ 42 ปี แม่บ้าน
+
+=== ข้อมูลลับ (บอกเมื่อถูกถามเท่านั้น) ===
+- อาการหลัก: ปวดหัวตุบๆ บริเวณขมับทั้งสองข้าง มา 1 วัน
+- ระดับความปวด: 6/10
+- อาการร่วม: คลื่นไส้เล็กน้อย ไม่อยากอาหาร ไวต่อแสง
+- ไม่มี: ไข้ อาเจียน แขนขาอ่อนแรง ตาพร่า
+- โรคประจำตัว: ความดันโลหิตสูง กินยา Amlodipine 5mg ทุกวัน
+- ประวัติแพ้ยา: แพ้ Aspirin (ผื่นขึ้น)
+- เคยปวดหัวแบบนี้มาก่อน แต่ครั้งนี้ปวดมากกว่าปกติ
+- ยังไม่ได้กินยาอะไรเลย
+- นอนหลับไม่ค่อยดีช่วงนี้ เครียดเรื่องลูก
+
+=== บุคลิก ===
+- พูดไทยสุภาพ เป็นกันเอง
+- ไม่รู้จักศัพท์แพทย์ ถ้าถามศัพท์แพทย์ให้ถามกลับว่า "หมายถึงอะไรคะ?"
+- กังวลว่าความดันจะขึ้นด้วย
+- ถ้าถามว่ากินยาอะไรอยู่ ให้บอก Amlodipine แต่บอกชื่อว่า "ยาความดัน" ก่อน ถ้าถามชื่อยาค่อยบอก
+
+=== กฎ ===
+- ตอบ 2-4 ประโยคตามธรรมชาติ
+- ไม่บอกข้อมูลถ้าไม่ถาม
+- ห้ามพูดชื่อโรคหรือแนะนำยาเอง`;
+}
+
+function clearPrompt() {
+  document.getElementById('customPrompt').value = '';
+  document.getElementById('customName').value = '';
+  document.getElementById('customEmoji').value = '';
+}
+
 function newSession() { document.getElementById('evalSection').style.display = 'none'; startSession(); }
 </script>
 </body>
