@@ -342,7 +342,7 @@ let thinkingCounter = 0;
 function checkApiKey() {
   const key = document.getElementById('apiKey').value.trim();
   const status = document.getElementById('apiStatus');
-  if (key.startsWith('gsk_') && key.length > 20) {
+  if (key.length > 20) {
     status.textContent = '✓ พร้อมใช้งาน';
     status.className = 'api-status ok';
   } else if (key.length > 0) {
@@ -358,7 +358,7 @@ function getApiKey() { return document.getElementById('apiKey').value.trim(); }
 
 async function startSession() {
   const apiKey = getApiKey();
-  if (!apiKey.startsWith('AIza')) {
+  if (apiKey.length < 20) {
     alert('กรุณาใส่ Groq API Key ที่ถูกต้องก่อนครับ\nสมัครฟรีที่ console.groq.com');
     return;
   }
