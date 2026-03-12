@@ -384,9 +384,9 @@ async function requestEvaluation() {
     .join('\n');
 
   const evalPrompt = buildEvalPrompt(currentCase, chatLog, dispensedDrugs);
-  const result = await callGroq('คุณเป็นผู้ประเมินการเรียนรู้ด้านเภสัชศาสตร์ ตอบเป็น JSON เท่านั้น ห้ามใส่ backtick', [
+  const result = await callGroq('คุณเป็นผู้ประเมินการเรียนรู้ด้านเภสัชศาสตร์ ตอบเป็น JSON เท่านั้น ห้ามใส่ backtick หรือ markdown ใดๆ ทั้งสิ้น', [
     { role: 'user', parts: [{ text: evalPrompt }] }
-  ]);
+  ], 1500);
 
   try {
     const data = JSON.parse(result.replace(/```json?|```/g, '').trim());
@@ -442,7 +442,7 @@ function renderEval(d) {
 }
 
 // ── Groq API ──────────────────────────────────────────────────
-async function callGroq(systemInstruction, messages) {
+async function callGroq(systemInstruction, messages, maxTokens = 300) {
   const apiKey = getApiKey();
   const openaiMessages = [{ role: 'system', content: systemInstruction }];
   for (const m of messages) {
@@ -452,7 +452,7 @@ async function callGroq(systemInstruction, messages) {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
-      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: openaiMessages, max_tokens: 300, temperature: 0.75 })
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: openaiMessages, max_tokens: maxTokens, temperature: 0.75 })
     });
     if (!res.ok) {
       const err = await res.json();
