@@ -3,138 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PharmBot — ฝึกซักประวัติจ่ายยา (Groq)</title>
+<title>PharmBot — ฝึกซักประวัติจ่ายยา</title>
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Noto+Serif+Thai:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root {
-    --green-dark: #1a3a2a;
-    --green-mid: #2d6a4f;
-    --green-light: #52b788;
-    --green-pale: #d8f3dc;
-    --cream: #fefae0;
-    --amber: #dda15e;
-    --red-soft: #e76f51;
-    --text: #1b2e23;
-    --text-muted: #4a7c5f;
-    --white: #ffffff;
-    --shadow: 0 4px 24px rgba(26,58,42,0.12);
+    --green-dark: #1a3a2a; --green-mid: #2d6a4f; --green-light: #52b788;
+    --green-pale: #d8f3dc; --cream: #fefae0; --amber: #dda15e;
+    --red-soft: #e76f51; --text: #1b2e23; --text-muted: #4a7c5f;
+    --white: #ffffff; --shadow: 0 4px 24px rgba(26,58,42,0.12);
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: 'Sarabun', sans-serif;
-    background: var(--green-dark);
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-    background-image: 
-      radial-gradient(ellipse at 20% 50%, rgba(82,183,136,0.08) 0%, transparent 60%),
-      radial-gradient(ellipse at 80% 20%, rgba(221,161,94,0.06) 0%, transparent 50%);
-  }
+  body { font-family: 'Sarabun', sans-serif; background: var(--green-dark); min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; background-image: radial-gradient(ellipse at 20% 50%, rgba(82,183,136,0.08) 0%, transparent 60%), radial-gradient(ellipse at 80% 20%, rgba(221,161,94,0.06) 0%, transparent 50%); }
   .app { width: 100%; max-width: 820px; display: flex; flex-direction: column; gap: 16px; }
 
-  .header {
-    background: linear-gradient(135deg, var(--green-mid), var(--green-dark));
-    border: 1px solid rgba(82,183,136,0.3);
-    border-radius: 20px;
-    padding: 20px 28px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: var(--shadow);
-  }
+  /* HEADER */
+  .header { background: linear-gradient(135deg, var(--green-mid), var(--green-dark)); border: 1px solid rgba(82,183,136,0.3); border-radius: 20px; padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow); }
   .header-left { display: flex; align-items: center; gap: 14px; }
   .logo { width: 48px; height: 48px; background: var(--green-light); border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 24px; }
-  .header h1 { font-family: 'Noto Serif Thai', serif; color: var(--white); font-size: 20px; font-weight: 700; line-height: 1.2; }
+  .header h1 { font-family: 'Noto Serif Thai', serif; color: var(--white); font-size: 20px; font-weight: 700; }
   .header p { color: rgba(255,255,255,0.6); font-size: 13px; margin-top: 2px; }
+  .btn-eval { background: var(--amber); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-family: 'Sarabun', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
+  .btn-eval:hover { opacity: 0.85; }
+  .btn-eval:disabled { opacity: 0.4; cursor: not-allowed; }
 
-  .api-section {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(82,183,136,0.2);
-    border-radius: 16px;
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
+  /* API */
+  .api-section { background: rgba(255,255,255,0.05); border: 1px solid rgba(82,183,136,0.2); border-radius: 16px; padding: 16px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .api-section label { color: rgba(255,255,255,0.7); font-size: 13px; white-space: nowrap; }
-  .api-section input {
-    flex: 1;
-    min-width: 200px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid rgba(82,183,136,0.25);
-    border-radius: 10px;
-    padding: 10px 14px;
-    color: white;
-    font-family: 'Sarabun', monospace;
-    font-size: 13px;
-    outline: none;
-    transition: border-color 0.2s;
-  }
+  .api-section input { flex: 1; min-width: 200px; background: rgba(0,0,0,0.3); border: 1px solid rgba(82,183,136,0.25); border-radius: 10px; padding: 10px 14px; color: white; font-family: monospace; font-size: 13px; outline: none; }
   .api-section input:focus { border-color: var(--green-light); }
   .api-section input::placeholder { color: rgba(255,255,255,0.3); }
-  .api-hint { color: rgba(255,255,255,0.45); font-size: 12px; }
   .api-status { font-size: 11px; white-space: nowrap; padding: 4px 10px; border-radius: 20px; }
   .api-status.ok { background: rgba(82,183,136,0.2); color: var(--green-light); }
   .api-status.err { background: rgba(231,111,81,0.2); color: var(--red-soft); }
+  .btn-sm { border: none; border-radius: 8px; padding: 8px 14px; font-family: 'Sarabun', sans-serif; font-size: 13px; cursor: pointer; white-space: nowrap; }
+  .btn-save { background: rgba(82,183,136,0.25); color: #52b788; border: 1px solid rgba(82,183,136,0.3); }
+  .btn-del { background: rgba(231,111,81,0.15); color: #e76f51; border: 1px solid rgba(231,111,81,0.2); }
 
-  .scenario-section {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid rgba(82,183,136,0.2);
-    border-radius: 16px;
-    padding: 16px 20px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-  }
+  /* SCENARIO */
+  .scenario-section { background: rgba(255,255,255,0.05); border: 1px solid rgba(82,183,136,0.2); border-radius: 16px; padding: 16px 20px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .scenario-section label { color: rgba(255,255,255,0.7); font-size: 13px; white-space: nowrap; }
-  .scenario-section select {
-    flex: 1;
-    min-width: 200px;
-    background: rgba(0,0,0,0.3);
-    border: 1px solid rgba(82,183,136,0.25);
-    border-radius: 10px;
-    padding: 10px 14px;
-    color: white;
-    font-family: 'Sarabun', sans-serif;
-    font-size: 14px;
-    outline: none;
-    cursor: pointer;
-  }
-  .btn-start {
-    background: var(--green-light);
-    color: var(--green-dark);
-    border: none;
-    border-radius: 10px;
-    padding: 10px 22px;
-    font-family: 'Sarabun', sans-serif;
-    font-size: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-  }
+  .scenario-section select { flex: 1; min-width: 220px; background: rgba(0,0,0,0.3); border: 1px solid rgba(82,183,136,0.25); border-radius: 10px; padding: 10px 14px; color: white; font-family: 'Sarabun', sans-serif; font-size: 14px; outline: none; cursor: pointer; }
+  .btn-start { background: var(--green-light); color: var(--green-dark); border: none; border-radius: 10px; padding: 10px 22px; font-family: 'Sarabun', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
   .btn-start:hover { background: #74c69d; transform: translateY(-1px); }
   .btn-start:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 
-  .chat-container {
-    background: var(--cream);
-    border-radius: 20px;
-    overflow: hidden;
-    box-shadow: var(--shadow);
-    display: flex;
-    flex-direction: column;
-    min-height: 420px;
-  }
-  .chat-header {
-    background: var(--green-mid);
-    padding: 14px 20px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+  /* CHAT */
+  .chat-container { background: var(--cream); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow); display: flex; flex-direction: column; min-height: 480px; }
+  .chat-header { background: var(--green-mid); padding: 14px 20px; display: flex; align-items: center; justify-content: space-between; }
   .patient-info { display: flex; align-items: center; gap: 10px; }
   .patient-avatar { width: 38px; height: 38px; background: var(--green-pale); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 18px; }
   .patient-name { color: white; font-weight: 600; font-size: 15px; }
@@ -142,16 +57,7 @@
   .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #aaa; transition: background 0.3s; }
   .status-dot.active { background: #69d38e; box-shadow: 0 0 8px #69d38e; }
 
-  .messages {
-    flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 14px;
-    min-height: 300px;
-    max-height: 420px;
-  }
+  .messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 14px; min-height: 320px; max-height: 420px; }
   .messages::-webkit-scrollbar { width: 4px; }
   .messages::-webkit-scrollbar-thumb { background: rgba(45,106,79,0.3); border-radius: 4px; }
 
@@ -162,11 +68,10 @@
   .msg.patient .msg-avatar { background: var(--green-pale); }
   .msg.user .msg-avatar { background: rgba(221,161,94,0.2); }
   .msg.system .msg-avatar { background: rgba(231,111,81,0.15); }
-
-  .msg-bubble { max-width: 70%; padding: 12px 16px; border-radius: 16px; font-size: 15px; line-height: 1.6; color: var(--text); }
+  .msg-bubble { max-width: 72%; padding: 12px 16px; border-radius: 16px; font-size: 15px; line-height: 1.6; color: var(--text); }
   .msg.patient .msg-bubble { background: white; border-bottom-left-radius: 4px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .msg.user .msg-bubble { background: var(--green-mid); color: white; border-bottom-right-radius: 4px; }
-  .msg.system .msg-bubble { background: rgba(231,111,81,0.1); border: 1px solid rgba(231,111,81,0.2); color: #c1440e; font-size: 13px; border-radius: 12px; max-width: 100%; width: 100%; text-align: center; }
+  .msg.system .msg-bubble { background: rgba(82,183,136,0.08); border: 1px solid rgba(82,183,136,0.2); color: var(--green-mid); font-size: 13px; border-radius: 12px; max-width: 100%; width: 100%; text-align: center; }
   .msg-time { font-size: 11px; color: var(--text-muted); margin-top: 4px; }
   .msg.user .msg-time { text-align: right; }
 
@@ -174,62 +79,67 @@
   .thinking span { width: 7px; height: 7px; border-radius: 50%; background: var(--green-light); animation: bounce 1.2s infinite; }
   .thinking span:nth-child(2) { animation-delay: 0.2s; }
   .thinking span:nth-child(3) { animation-delay: 0.4s; }
-  @keyframes bounce { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
+  @keyframes bounce { 0%,60%,100% { transform: translateY(0); } 30% { transform: translateY(-6px); } }
 
+  /* DISPENSE UI */
+  .dispense-bar { background: white; border-top: 2px solid var(--amber); padding: 14px 16px; display: none; gap: 10px; align-items: center; flex-wrap: wrap; }
+  .dispense-bar.show { display: flex; }
+  .dispense-bar label { color: var(--amber); font-weight: 700; font-size: 14px; white-space: nowrap; }
+  .dispense-bar input { flex: 1; min-width: 200px; border: 1.5px solid var(--amber); border-radius: 10px; padding: 10px 14px; font-family: 'Sarabun', sans-serif; font-size: 14px; color: var(--text); outline: none; }
+  .dispense-bar input::placeholder { color: #bbb; }
+  .btn-dispense { background: var(--amber); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-family: 'Sarabun', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+  .dispense-hint { width: 100%; font-size: 12px; color: #aaa; }
+
+  /* INPUT */
   .input-area { border-top: 1px solid rgba(45,106,79,0.1); padding: 14px 16px; display: flex; gap: 10px; align-items: flex-end; background: white; }
-  #textInput {
-    flex: 1;
-    border: 1px solid rgba(45,106,79,0.2);
-    border-radius: 14px;
-    padding: 12px 16px;
-    font-family: 'Sarabun', sans-serif;
-    font-size: 15px;
-    color: var(--text);
-    resize: none;
-    outline: none;
-    line-height: 1.5;
-    max-height: 120px;
-    transition: border-color 0.2s;
-  }
+  #textInput { flex: 1; border: 1px solid rgba(45,106,79,0.2); border-radius: 14px; padding: 12px 16px; font-family: 'Sarabun', sans-serif; font-size: 15px; color: var(--text); resize: none; outline: none; line-height: 1.5; max-height: 120px; transition: border-color 0.2s; }
   #textInput:focus { border-color: var(--green-light); }
   #textInput::placeholder { color: #aaa; }
   #textInput:disabled { background: #f5f5f5; }
-
   .btn-icon { width: 46px; height: 46px; border-radius: 14px; border: none; display: flex; align-items: center; justify-content: center; font-size: 20px; cursor: pointer; transition: all 0.2s; flex-shrink: 0; }
   .btn-mic { background: var(--green-pale); color: var(--green-mid); }
   .btn-mic:hover { background: var(--green-light); color: white; }
   .btn-mic.recording { background: var(--red-soft); color: white; animation: pulse 1s infinite; }
-  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.05); } }
   .btn-send { background: var(--green-mid); color: white; }
   .btn-send:hover { background: var(--green-dark); }
   .btn-send:disabled { opacity: 0.3; cursor: not-allowed; }
 
+  /* EVAL */
   .eval-section { display: none; background: var(--cream); border-radius: 20px; overflow: hidden; box-shadow: var(--shadow); }
-  .eval-header { background: var(--green-dark); padding: 16px 24px; color: white; font-size: 16px; font-weight: 700; display: flex; align-items: center; gap: 8px; }
+  .eval-header { background: var(--green-dark); padding: 16px 24px; color: white; font-size: 16px; font-weight: 700; }
   .eval-body { padding: 20px 24px; }
-  .eval-loading { text-align: center; padding: 30px; color: var(--text-muted); }
-  .score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
-  .score-card { background: white; border-radius: 14px; padding: 14px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
-  .score-num { font-size: 32px; font-weight: 700; font-family: 'Noto Serif Thai', serif; }
-  .score-label { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+  .eval-loading { text-align: center; padding: 40px; color: var(--text-muted); }
+  .score-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 20px; }
+  @media(max-width:600px){ .score-grid { grid-template-columns: repeat(2,1fr); } }
+  .score-card { background: white; border-radius: 14px; padding: 14px 10px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  .score-num { font-size: 28px; font-weight: 700; font-family: 'Noto Serif Thai', serif; }
+  .score-max { font-size: 12px; color: #bbb; }
+  .score-label { font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.3; }
+  .score-total { grid-column: 1/-1; background: var(--green-mid); color: white; }
+  .score-total .score-num { color: white; font-size: 36px; }
+  .score-total .score-label { color: rgba(255,255,255,0.8); }
   .score-green { color: var(--green-mid); }
   .score-amber { color: var(--amber); }
   .score-red { color: var(--red-soft); }
-  .feedback-block { background: white; border-radius: 14px; padding: 16px; margin-bottom: 12px; font-size: 14px; line-height: 1.8; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.06); white-space: pre-wrap; }
+  .feedback-block { background: white; border-radius: 14px; padding: 16px; margin-bottom: 12px; font-size: 14px; line-height: 1.8; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
   .feedback-block h3 { font-size: 14px; font-weight: 700; color: var(--green-mid); margin-bottom: 8px; }
-  .btn-new { width: 100%; background: var(--green-mid); color: white; border: none; border-radius: 12px; padding: 14px; font-family: 'Sarabun', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; transition: background 0.2s; }
+  .missed-item { color: var(--red-soft); }
+  .btn-new { width: 100%; background: var(--green-mid); color: white; border: none; border-radius: 12px; padding: 14px; font-family: 'Sarabun', sans-serif; font-size: 15px; font-weight: 700; cursor: pointer; }
   .btn-new:hover { background: var(--green-dark); }
-  .btn-eval { background: var(--amber); color: white; border: none; border-radius: 10px; padding: 10px 20px; font-family: 'Sarabun', sans-serif; font-size: 14px; font-weight: 700; cursor: pointer; transition: all 0.2s; }
-  .btn-eval:hover { opacity: 0.85; }
-  .btn-eval:disabled { opacity: 0.4; cursor: not-allowed; }
+
   .empty-state { text-align: center; padding: 60px 20px; color: var(--text-muted); }
   .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
-  .empty-state p { font-size: 15px; }
+
+  /* DISPENSE LOG */
+  .dispense-log { background: rgba(221,161,94,0.08); border: 1px solid rgba(221,161,94,0.3); border-radius: 10px; padding: 10px 14px; margin: 0 20px 10px; font-size: 13px; color: var(--amber); display: none; }
+  .dispense-log.show { display: block; }
 </style>
 </head>
 <body>
 <div class="app">
 
+  <!-- HEADER -->
   <div class="header">
     <div class="header-left">
       <div class="logo">💊</div>
@@ -245,49 +155,22 @@
   <div class="api-section">
     <label>🔑 Groq API Key:</label>
     <input type="password" id="apiKey" placeholder="gsk_..." oninput="checkApiKey()">
-    <span class="api-hint">สมัครฟรีที่ console.groq.com → API Keys</span>
+    <button class="btn-sm btn-save" onclick="saveApiKey()">💾 จำไว้</button>
+    <button class="btn-sm btn-del" onclick="clearApiKey()">🗑 ลบ</button>
     <span class="api-status" id="apiStatus">ยังไม่ได้ใส่</span>
   </div>
 
   <!-- SCENARIO -->
   <div class="scenario-section">
-    <label>🏥 เลือก Scenario:</label>
+    <label>🏥 เลือกเคส:</label>
     <select id="scenarioSelect" onchange="onScenarioChange()">
-      <option value="fever">🤒 ไข้ / หวัด / ปวดศีรษะ</option>
-      <option value="stomach">🤢 ปวดท้อง / ท้องเสีย / คลื่นไส้</option>
-      <option value="cough">😷 ไอ / เจ็บคอ / มีเสมหะ</option>
-      <option value="allergy">🤧 แพ้อาหาร / ผื่นคัน</option>
-      <option value="pain">🦵 ปวดกล้ามเนื้อ / ปวดข้อ</option>
-      <option value="custom">✏️ กำหนดเอง (Custom)</option>
+      <option value="case001">🤒 เคส 1 — ไข้/หวัด/ปวดหัว [ง่าย]</option>
+      <option value="case002">🤢 เคส 2 — ปวดท้อง/ท้องเสีย [ง่าย]</option>
+      <option value="case003">😷 เคส 3 — ไอ/เจ็บคอ [กลาง]</option>
+      <option value="case004">🤧 เคส 4 — ผื่นแพ้ยา [ยาก]</option>
+      <option value="case005">🦵 เคส 5 — ปวดกล้ามเนื้อ Polypharmacy [ยาก]</option>
     </select>
     <button class="btn-start" id="startBtn" onclick="startSession()">▶ เริ่มเคส</button>
-  </div>
-
-  <!-- CUSTOM PROMPT PANEL -->
-  <div id="customPanel" style="display:none; background:rgba(255,255,255,0.05); border:1px solid rgba(82,183,136,0.2); border-radius:16px; padding:16px 20px;">
-    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-      <span style="color:rgba(255,255,255,0.8); font-size:14px; font-weight:600;">✏️ Custom Patient Prompt</span>
-      <div style="display:flex;gap:8px;">
-        <button onclick="loadDefaultPrompt()" style="background:rgba(82,183,136,0.2);color:#52b788;border:none;border-radius:8px;padding:6px 12px;font-family:'Sarabun',sans-serif;font-size:12px;cursor:pointer;">📋 โหลด Template</button>
-        <button onclick="clearPrompt()" style="background:rgba(231,111,81,0.15);color:#e76f51;border:none;border-radius:8px;padding:6px 12px;font-family:'Sarabun',sans-serif;font-size:12px;cursor:pointer;">🗑 ล้าง</button>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span style="color:rgba(255,255,255,0.6);font-size:13px;">ชื่อผู้ป่วย:</span>
-        <input id="customName" type="text" placeholder="เช่น สมหญิง ใจดี" style="background:rgba(0,0,0,0.3);border:1px solid rgba(82,183,136,0.25);border-radius:8px;padding:6px 10px;color:white;font-family:'Sarabun',sans-serif;font-size:13px;outline:none;width:160px;">
-      </div>
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span style="color:rgba(255,255,255,0.6);font-size:13px;">Emoji:</span>
-        <input id="customEmoji" type="text" placeholder="🤒" style="background:rgba(0,0,0,0.3);border:1px solid rgba(82,183,136,0.25);border-radius:8px;padding:6px 10px;color:white;font-family:'Sarabun',sans-serif;font-size:13px;outline:none;width:60px;text-align:center;">
-      </div>
-    </div>
-    <textarea id="customPrompt" 
-      placeholder="วาง Prompt ผู้ป่วยที่นี่ หรือกด 'โหลด Template' เพื่อดูตัวอย่าง..."
-      style="width:100%;height:220px;background:rgba(0,0,0,0.3);border:1px solid rgba(82,183,136,0.25);border-radius:10px;padding:12px;color:white;font-family:'Sarabun',sans-serif;font-size:13px;line-height:1.7;resize:vertical;outline:none;"></textarea>
-    <div style="margin-top:8px;color:rgba(255,255,255,0.35);font-size:11px;">
-      💡 แก้ไข prompt แล้วกด "เริ่มเคส" ได้เลย — หรือบันทึกเป็นไฟล์ .txt ด้วย Notepad แล้ว copy-paste มาครั้งหน้า
-    </div>
   </div>
 
   <!-- CHAT -->
@@ -297,7 +180,7 @@
         <div class="patient-avatar" id="patientAvatar">👤</div>
         <div>
           <div class="patient-name" id="patientName">รอเริ่มเคส...</div>
-          <div class="patient-role">ผู้ป่วยจำลอง (ขับเคลื่อนด้วย Groq AI)</div>
+          <div class="patient-role" id="patientMeta">เลือกเคสแล้วกด "เริ่มเคส"</div>
         </div>
       </div>
       <div class="status-dot" id="statusDot"></div>
@@ -306,99 +189,121 @@
     <div class="messages" id="messages">
       <div class="empty-state">
         <div class="icon">🩺</div>
-        <p>ใส่ Gemini API Key แล้วเลือก Scenario<br>กด <strong>"เริ่มเคส"</strong> เพื่อเริ่มฝึกซักประวัติ</p>
+        <p>เลือกเคส แล้วกด <strong>"เริ่มเคส"</strong><br>คนไข้จะเป็นฝ่ายเปิดบทสนทนาก่อน</p>
       </div>
     </div>
 
+    <!-- DISPENSE LOG -->
+    <div class="dispense-log" id="dispenseLog"></div>
+
+    <!-- DISPENSE UI -->
+    <div class="dispense-bar" id="dispenseBar">
+      <label>💊 จ่ายยา:</label>
+      <input type="text" id="dispenseInput" placeholder="เช่น Paracetamol 500mg + CPM 4mg">
+      <button class="btn-dispense" onclick="confirmDispense()">✓ ยืนยัน</button>
+      <span class="dispense-hint">คั่นหลายตัวด้วย + เช่น Paracetamol 500mg + CPM 4mg</span>
+    </div>
+
+    <!-- INPUT -->
     <div class="input-area">
-      <textarea id="textInput" rows="1" placeholder="พิมพ์คำถาม หรือกดไมค์เพื่อพูด..." 
-        onkeydown="handleKey(event)" oninput="autoResize(this)" disabled></textarea>
-      <button class="btn-icon btn-mic" id="micBtn" title="กดพูด" onclick="toggleMic()" disabled>🎤</button>
+      <textarea id="textInput" rows="1" placeholder="พิมพ์ หรือกดไมค์พูด..." onkeydown="handleKey(event)" oninput="autoResize(this)" disabled></textarea>
+      <button class="btn-icon btn-mic" id="micBtn" onclick="toggleMic()" disabled>🎤</button>
       <button class="btn-icon btn-send" id="sendBtn" onclick="sendMessage()" disabled>➤</button>
     </div>
   </div>
 
-  <!-- EVAL -->
+  <!-- EVAL SECTION -->
   <div class="eval-section" id="evalSection">
     <div class="eval-header">📊 ผลการประเมิน</div>
-    <div class="eval-body" id="evalBody">
-      <div class="eval-loading">⏳ กำลังวิเคราะห์...</div>
-    </div>
+    <div class="eval-body" id="evalBody"></div>
   </div>
 
 </div>
 
-<script src="scenarios.js"></script>
+<script src="core.js"></script>
+<script src="cases/case001_fever.js"></script>
+<script src="cases/case002_to_005.js"></script>
 <script>
 
+// ── Case registry ─────────────────────────────────────────────
+const CASE_REGISTRY = {
+  case001: CASE_001,
+  case002: CASE_002,
+  case003: CASE_003,
+  case004: CASE_004,
+  case005: CASE_005
+};
 
+// ── State ─────────────────────────────────────────────────────
 let conversationHistory = [];
-let currentScenario = null;
+let currentCase = null;
 let sessionActive = false;
+let dispensedDrugs = '';
 let recognition = null;
 let isRecording = false;
 let thinkingCounter = 0;
 
+// ── API Key ───────────────────────────────────────────────────
 function checkApiKey() {
   const key = document.getElementById('apiKey').value.trim();
   const status = document.getElementById('apiStatus');
-  if (key.length > 20) {
-    status.textContent = '✓ พร้อมใช้งาน';
-    status.className = 'api-status ok';
-  } else if (key.length > 0) {
-    status.textContent = '✗ รูปแบบไม่ถูกต้อง';
-    status.className = 'api-status err';
-  } else {
-    status.textContent = 'ยังไม่ได้ใส่';
-    status.className = 'api-status';
-  }
+  if (key.length > 20) { status.textContent = '✓ พร้อมใช้งาน'; status.className = 'api-status ok'; }
+  else if (key.length > 0) { status.textContent = '✗ ไม่ถูกต้อง'; status.className = 'api-status err'; }
+  else { status.textContent = 'ยังไม่ได้ใส่'; status.className = 'api-status'; }
 }
-
 function getApiKey() { return document.getElementById('apiKey').value.trim(); }
+function saveApiKey() {
+  const key = getApiKey();
+  if (key.length < 20) { alert('กรุณาใส่ API Key ก่อนครับ'); return; }
+  localStorage.setItem('groq_api_key', key);
+  event.target.textContent = '✓ บันทึกแล้ว';
+  setTimeout(() => event.target.textContent = '💾 จำไว้', 1500);
+}
+function clearApiKey() {
+  localStorage.removeItem('groq_api_key');
+  document.getElementById('apiKey').value = '';
+  checkApiKey();
+  event.target.textContent = '✓ ลบแล้ว';
+  setTimeout(() => event.target.textContent = '🗑 ลบ', 1500);
+}
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = localStorage.getItem('groq_api_key');
+  if (saved) { document.getElementById('apiKey').value = saved; checkApiKey(); }
+});
 
+// ── Session ───────────────────────────────────────────────────
 async function startSession() {
-  const apiKey = getApiKey();
-  if (apiKey.length < 20) {
-    alert('กรุณาใส่ Groq API Key ที่ถูกต้องก่อนครับ\nสมัครฟรีที่ console.groq.com');
-    return;
-  }
-  currentScenario = document.getElementById('scenarioSelect').value;
-
-  // Handle custom scenario
-  if (currentScenario === 'custom') {
-    const customSys = document.getElementById('customPrompt').value.trim();
-    const customName = document.getElementById('customName').value.trim() || 'ผู้ป่วย Custom';
-    const customEmoji = document.getElementById('customEmoji').value.trim() || '🧑';
-    if (!customSys) { alert('กรุณาใส่ Prompt ผู้ป่วยก่อนครับ'); return; }
-    SCENARIOS['custom'] = { emoji: customEmoji, name: customName, system: customSys };
-  }
-
-  const sc = SCENARIOS[currentScenario];
+  if (getApiKey().length < 20) { alert('กรุณาใส่ Groq API Key ก่อนครับ\nสมัครฟรีที่ console.groq.com'); return; }
+  const caseId = document.getElementById('scenarioSelect').value;
+  currentCase = CASE_REGISTRY[caseId];
   conversationHistory = [];
+  dispensedDrugs = '';
   sessionActive = true;
 
-  document.getElementById('patientAvatar').textContent = sc.emoji;
-  document.getElementById('patientName').textContent = sc.name;
+  document.getElementById('patientAvatar').textContent = currentCase.emoji;
+  document.getElementById('patientName').textContent = currentCase.name;
+  document.getElementById('patientMeta').textContent = `${currentCase.age} ปี | ${currentCase.occupation} | ระดับ: ${currentCase.difficulty}`;
   document.getElementById('statusDot').className = 'status-dot active';
   document.getElementById('evalSection').style.display = 'none';
+  document.getElementById('dispenseBar').className = 'dispense-bar';
+  document.getElementById('dispenseLog').className = 'dispense-log';
+  document.getElementById('dispenseLog').textContent = '';
   document.getElementById('textInput').disabled = false;
   document.getElementById('sendBtn').disabled = false;
   document.getElementById('micBtn').disabled = false;
   document.getElementById('evalBtn').disabled = false;
   document.getElementById('startBtn').textContent = '🔄 เริ่มใหม่';
+  document.getElementById('messages').innerHTML = '';
 
-  const messages = document.getElementById('messages');
-  messages.innerHTML = '';
-  addSystemMessage(`📋 เคส: ${sc.name} | ซักประวัติให้ครบแล้วกด "ประเมินผล"`);
+  addSystemMessage(`📋 เคส ${currentCase.name} | ${currentCase.difficulty} | คนไข้จะเปิดบทสนทนาก่อน`);
 
-  const opening = await callGroq(sc.system, [
-    { role: 'user', parts: [{ text: 'สวัสดีครับ มีอะไรให้ช่วยไหมครับ?' }] }
-  ]);
-  addMessage('patient', opening, sc.emoji);
-  conversationHistory.push(
-    { role: 'user', parts: [{ text: 'สวัสดีครับ มีอะไรให้ช่วยไหมครับ?' }] },
-    { role: 'model', parts: [{ text: opening }] }
+  const systemPrompt = buildSystemPrompt(currentCase);
+  const opening = await callGroq(
+    systemPrompt + '\n\nตอนนี้คุณเพิ่งเดินเข้ามาที่เคาน์เตอร์ร้านยาและเห็นเภสัชกร ให้คุณเป็นฝ่ายทักทายและบอกอาการหรือความต้องการก่อน ทีละ 1 ประโยค',
+    [{ role: 'user', parts: [{ text: 'เริ่ม' }] }]
   );
+  addMessage('patient', opening, currentCase.emoji);
+  conversationHistory.push({ role: 'model', parts: [{ text: opening }] });
 }
 
 async function sendMessage() {
@@ -408,22 +313,65 @@ async function sendMessage() {
   input.value = '';
   autoResize(input);
 
-  const sc = SCENARIOS[currentScenario];
   addMessage('user', text, '🧑‍⚕️');
   conversationHistory.push({ role: 'user', parts: [{ text }] });
 
-  document.getElementById('sendBtn').disabled = true;
-  const thinkingId = addThinking(sc.emoji);
+  // Detect dispense trigger
+  if (detectDispense(text) && !dispensedDrugs) {
+    document.getElementById('dispenseBar').className = 'dispense-bar show';
+    document.getElementById('dispenseInput').focus();
+  }
 
-  const response = await callGroq(sc.system, conversationHistory);
-  removeThinking(thinkingId);
+  document.getElementById('sendBtn').disabled = true;
+  const tid = addThinking(currentCase.emoji);
+  const systemPrompt = buildSystemPrompt(currentCase);
+  const response = await callGroq(systemPrompt, conversationHistory);
+  removeThinking(tid);
   document.getElementById('sendBtn').disabled = false;
 
-  addMessage('patient', response, sc.emoji);
+  addMessage('patient', response, currentCase.emoji);
   conversationHistory.push({ role: 'model', parts: [{ text: response }] });
   speakText(response);
+
+  // Detect closing
+  if (detectClosing(response)) {
+    setTimeout(() => {
+      addSystemMessage('✅ การสนทนาจบลงแล้ว กด "ประเมินผล" เพื่อดูคะแนน');
+      sessionActive = false;
+      document.getElementById('textInput').disabled = true;
+      document.getElementById('sendBtn').disabled = true;
+      document.getElementById('micBtn').disabled = true;
+    }, 800);
+  }
 }
 
+function confirmDispense() {
+  const drugs = document.getElementById('dispenseInput').value.trim();
+  if (!drugs) { alert('กรุณาระบุชื่อยาก่อนครับ'); return; }
+  dispensedDrugs = drugs;
+  document.getElementById('dispenseBar').className = 'dispense-bar';
+  document.getElementById('dispenseInput').value = '';
+
+  const log = document.getElementById('dispenseLog');
+  log.className = 'dispense-log show';
+  log.innerHTML = `💊 จ่ายยา: <strong>${drugs}</strong>`;
+
+  // Inject dispense info into conversation so patient can ask about each drug
+  const dispenseMsg = `[เภสัชกรจ่ายยา: ${drugs}]`;
+  conversationHistory.push({ role: 'user', parts: [{ text: dispenseMsg }] });
+
+  // Get patient response
+  ;(async () => {
+    const tid = addThinking(currentCase.emoji);
+    const response = await callGroq(buildSystemPrompt(currentCase), conversationHistory);
+    removeThinking(tid);
+    addMessage('patient', response, currentCase.emoji);
+    conversationHistory.push({ role: 'model', parts: [{ text: response }] });
+    speakText(response);
+  })();
+}
+
+// ── Evaluation ────────────────────────────────────────────────
 async function requestEvaluation() {
   if (conversationHistory.length < 2) { alert('ลองซักประวัติก่อนนะครับ'); return; }
   const evalSection = document.getElementById('evalSection');
@@ -431,192 +379,137 @@ async function requestEvaluation() {
   document.getElementById('evalBody').innerHTML = '<div class="eval-loading">⏳ กำลังวิเคราะห์การสนทนา...</div>';
   evalSection.scrollIntoView({ behavior: 'smooth' });
 
-  const sc = SCENARIOS[currentScenario];
-  const checklist = EVAL_CHECKLIST[currentScenario];
-  const chatLog = conversationHistory.map(m => `[${m.role === 'user' ? 'นศ.เภสัช' : 'ผู้ป่วย'}]: ${m.parts[0].text}`).join('\n');
+  const chatLog = conversationHistory
+    .map(m => `[${m.role === 'user' ? 'เภสัชกร' : 'ผู้ป่วย'}]: ${m.parts[0].text}`)
+    .join('\n');
 
-  const evalPrompt = `คุณเป็นผู้เชี่ยวชาญประเมินทักษะการซักประวัติจ่ายยาของนักศึกษาเภสัชศาสตร์
-
-Scenario: ${sc.name}
-Checklist ที่ควรถาม: ${checklist.history.join(', ')}
-ยาที่ควรแนะนำ: ${checklist.drug}
-
-บทสนทนา:
-${chatLog}
-
-ตอบเป็น JSON เท่านั้น ห้ามใส่ backtick หรือ markdown:
-{"history_score":0-100,"drug_score":0-100,"overall":0-100,"missed_items":["..."],"good_points":"...","improvements":"...","drug_feedback":"...","summary":"..."}`;
-
-  const result = await callGroq('คุณเป็นผู้ประเมินการเรียนรู้ด้านเภสัชศาสตร์ ตอบเป็น JSON เท่านั้น', [
+  const evalPrompt = buildEvalPrompt(currentCase, chatLog, dispensedDrugs);
+  const result = await callGroq('คุณเป็นผู้ประเมินการเรียนรู้ด้านเภสัชศาสตร์ ตอบเป็น JSON เท่านั้น ห้ามใส่ backtick', [
     { role: 'user', parts: [{ text: evalPrompt }] }
   ]);
 
   try {
-    const clean = result.replace(/```json?|```/g, '').trim();
-    const data = JSON.parse(clean);
+    const data = JSON.parse(result.replace(/```json?|```/g, '').trim());
     renderEval(data);
   } catch {
     document.getElementById('evalBody').innerHTML = `<div class="feedback-block">${result}</div>`;
   }
 }
 
-function renderEval(data) {
-  const getColor = s => s >= 75 ? 'score-green' : s >= 50 ? 'score-amber' : 'score-red';
-  const missedHTML = data.missed_items?.length
-    ? `<div class="feedback-block"><h3>❌ ประเด็นที่ยังไม่ได้ถาม</h3>${data.missed_items.map(i => `• ${i}`).join('\n')}</div>`
-    : `<div class="feedback-block"><h3>✅ ถามครบทุกประเด็น!</h3></div>`;
+function renderEval(d) {
+  const col = (s, max) => s >= max*0.75 ? 'score-green' : s >= max*0.5 ? 'score-amber' : 'score-red';
+  const missed = (arr, label) => arr?.length
+    ? `<div class="feedback-block"><h3>${label}</h3>${arr.map(i=>`<div class="missed-item">• ${i}</div>`).join('')}</div>` : '';
 
   document.getElementById('evalBody').innerHTML = `
     <div class="score-grid">
-      <div class="score-card"><div class="score-num ${getColor(data.history_score)}">${data.history_score}</div><div class="score-label">การซักประวัติ</div></div>
-      <div class="score-card"><div class="score-num ${getColor(data.drug_score)}">${data.drug_score}</div><div class="score-label">การจ่ายยา</div></div>
-      <div class="score-card"><div class="score-num ${getColor(data.overall)}">${data.overall}</div><div class="score-label">ภาพรวม</div></div>
+      <div class="score-card">
+        <div class="score-num ${col(d.history_score,30)}">${d.history_score}</div>
+        <div class="score-max">/30</div>
+        <div class="score-label">การซักประวัติ</div>
+      </div>
+      <div class="score-card">
+        <div class="score-num ${col(d.diagnosis_score,20)}">${d.diagnosis_score}</div>
+        <div class="score-max">/20</div>
+        <div class="score-label">การวินิจฉัย/ระบุอาการ</div>
+      </div>
+      <div class="score-card">
+        <div class="score-num ${col(d.drug_score,25)}">${d.drug_score}</div>
+        <div class="score-max">/25</div>
+        <div class="score-label">การเลือกยา</div>
+      </div>
+      <div class="score-card">
+        <div class="score-num ${col(d.counseling_score,25)}">${d.counseling_score}</div>
+        <div class="score-max">/25</div>
+        <div class="score-label">Counseling</div>
+      </div>
+      <div class="score-card score-total">
+        <div class="score-num">${d.overall}</div>
+        <div class="score-max" style="color:rgba(255,255,255,0.6)">/100</div>
+        <div class="score-label">คะแนนรวม</div>
+      </div>
     </div>
-    ${missedHTML}
-    <div class="feedback-block"><h3>👍 จุดเด่น</h3>${data.good_points}</div>
-    <div class="feedback-block"><h3>💡 ควรปรับปรุง</h3>${data.improvements}</div>
-    <div class="feedback-block"><h3>💊 การจ่ายยา</h3>${data.drug_feedback}</div>
-    <div class="feedback-block"><h3>📝 สรุป</h3>${data.summary}</div>
+
+    <div class="feedback-block"><h3>🩺 การซักประวัติ</h3>${d.history_feedback}</div>
+    ${missed(d.history_missed, '❌ ประเด็นที่ยังไม่ได้ถาม')}
+    <div class="feedback-block"><h3>🔍 การวินิจฉัย/ระบุอาการ</h3>${d.diagnosis_feedback}</div>
+    <div class="feedback-block"><h3>💊 การเลือกยา</h3>${d.drug_feedback}</div>
+    <div class="feedback-block"><h3>📖 Counseling & Regimen</h3>${d.counseling_feedback}</div>
+    ${missed(d.counseling_missed, '❌ Counseling point ที่ขาดไป')}
+    ${d.behavior_note ? `<div class="feedback-block"><h3>🗣️ พฤติกรรมการสนทนา</h3>${d.behavior_note}</div>` : ''}
+    <div class="feedback-block"><h3>📝 สรุปภาพรวม</h3>${d.summary}</div>
     <button class="btn-new" onclick="newSession()">🔄 เริ่มเคสใหม่</button>`;
 }
 
+// ── Groq API ──────────────────────────────────────────────────
 async function callGroq(systemInstruction, messages) {
   const apiKey = getApiKey();
-  // Convert Gemini-style messages to OpenAI format
   const openaiMessages = [{ role: 'system', content: systemInstruction }];
   for (const m of messages) {
-    openaiMessages.push({
-      role: m.role === 'model' ? 'assistant' : 'user',
-      content: m.parts[0].text
-    });
+    openaiMessages.push({ role: m.role === 'model' ? 'assistant' : 'user', content: m.parts[0].text });
   }
   try {
     const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
-        messages: openaiMessages,
-        max_tokens: 500,
-        temperature: 0.7
-      })
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({ model: 'llama-3.3-70b-versatile', messages: openaiMessages, max_tokens: 300, temperature: 0.75 })
     });
     if (!res.ok) {
       const err = await res.json();
-      if (res.status === 429) return '[เกินขีดจำกัด free tier — รอสักครู่แล้วลองใหม่ครับ]';
+      if (res.status === 429) return '[เกินขีดจำกัด rate limit — รอสักครู่แล้วลองใหม่ครับ]';
       return `[ข้อผิดพลาด: ${err.error?.message || res.status}]`;
     }
     const data = await res.json();
     return data.choices?.[0]?.message?.content || '[ไม่มีคำตอบ]';
-  } catch (e) {
-    return `[Connection error: ${e.message}]`;
-  }
+  } catch(e) { return `[Connection error: ${e.message}]`; }
 }
 
-// Speech
+// ── Speech ────────────────────────────────────────────────────
 function toggleMic() {
-  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-    alert('กรุณาใช้ Chrome เพื่อรองรับการพูดภาษาไทยครับ');
-    return;
-  }
+  if (!('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) { alert('กรุณาใช้ Chrome ครับ'); return; }
   if (isRecording) { recognition?.stop(); return; }
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   recognition = new SR();
-  recognition.lang = 'th-TH';
-  recognition.continuous = false;
-  recognition.interimResults = false;
+  recognition.lang = 'th-TH'; recognition.continuous = false; recognition.interimResults = false;
   recognition.onstart = () => { isRecording = true; document.getElementById('micBtn').className = 'btn-icon btn-mic recording'; document.getElementById('micBtn').textContent = '⏹'; };
   recognition.onend = () => { isRecording = false; document.getElementById('micBtn').className = 'btn-icon btn-mic'; document.getElementById('micBtn').textContent = '🎤'; };
-  recognition.onresult = e => { const text = e.results[0][0].transcript; document.getElementById('textInput').value = text; autoResize(document.getElementById('textInput')); sendMessage(); };
+  recognition.onresult = e => { const t = e.results[0][0].transcript; document.getElementById('textInput').value = t; autoResize(document.getElementById('textInput')); sendMessage(); };
   recognition.onerror = () => { isRecording = false; document.getElementById('micBtn').className = 'btn-icon btn-mic'; document.getElementById('micBtn').textContent = '🎤'; };
   recognition.start();
 }
-
 function speakText(text) {
-  if ('speechSynthesis' in window) {
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.lang = 'th-TH';
-    window.speechSynthesis.speak(utter);
-  }
+  if ('speechSynthesis' in window) { window.speechSynthesis.cancel(); const u = new SpeechSynthesisUtterance(text); u.lang = 'th-TH'; window.speechSynthesis.speak(u); }
 }
 
+// ── UI helpers ────────────────────────────────────────────────
 function addMessage(type, text, avatar) {
-  const messages = document.getElementById('messages');
+  const msgs = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = `msg ${type}`;
   const time = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
   div.innerHTML = `<div class="msg-avatar">${avatar}</div><div><div class="msg-bubble">${text}</div><div class="msg-time">${time}</div></div>`;
-  messages.appendChild(div);
-  messages.scrollTop = messages.scrollHeight;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
 }
-
 function addSystemMessage(text) {
-  const messages = document.getElementById('messages');
+  const msgs = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = 'msg system';
   div.innerHTML = `<div class="msg-avatar">ℹ️</div><div class="msg-bubble">${text}</div>`;
-  messages.appendChild(div);
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
 }
-
 function addThinking(avatar) {
-  const id = `thinking-${++thinkingCounter}`;
-  const messages = document.getElementById('messages');
+  const id = `t${++thinkingCounter}`;
+  const msgs = document.getElementById('messages');
   const div = document.createElement('div');
-  div.className = 'msg patient';
-  div.id = id;
+  div.className = 'msg patient'; div.id = id;
   div.innerHTML = `<div class="msg-avatar">${avatar}</div><div class="msg-bubble"><div class="thinking"><span></span><span></span><span></span></div></div>`;
-  messages.appendChild(div);
-  messages.scrollTop = messages.scrollHeight;
+  msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
   return id;
 }
-
 function removeThinking(id) { document.getElementById(id)?.remove(); }
 function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
 function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
-
-function onScenarioChange() {
-  const val = document.getElementById('scenarioSelect').value;
-  document.getElementById('customPanel').style.display = val === 'custom' ? 'block' : 'none';
-}
-
-function loadDefaultPrompt() {
-  document.getElementById('customName').value = 'สมหญิง ใจดี';
-  document.getElementById('customEmoji').value = '🤒';
-  document.getElementById('customPrompt').value = `คุณเล่นบทเป็น สมหญิง อายุ 42 ปี แม่บ้าน
-
-=== ข้อมูลลับ (บอกเมื่อถูกถามเท่านั้น) ===
-- อาการหลัก: ปวดหัวตุบๆ บริเวณขมับทั้งสองข้าง มา 1 วัน
-- ระดับความปวด: 6/10
-- อาการร่วม: คลื่นไส้เล็กน้อย ไม่อยากอาหาร ไวต่อแสง
-- ไม่มี: ไข้ อาเจียน แขนขาอ่อนแรง ตาพร่า
-- โรคประจำตัว: ความดันโลหิตสูง กินยา Amlodipine 5mg ทุกวัน
-- ประวัติแพ้ยา: แพ้ Aspirin (ผื่นขึ้น)
-- เคยปวดหัวแบบนี้มาก่อน แต่ครั้งนี้ปวดมากกว่าปกติ
-- ยังไม่ได้กินยาอะไรเลย
-- นอนหลับไม่ค่อยดีช่วงนี้ เครียดเรื่องลูก
-
-=== บุคลิก ===
-- พูดไทยสุภาพ เป็นกันเอง
-- ไม่รู้จักศัพท์แพทย์ ถ้าถามศัพท์แพทย์ให้ถามกลับว่า "หมายถึงอะไรคะ?"
-- กังวลว่าความดันจะขึ้นด้วย
-- ถ้าถามว่ากินยาอะไรอยู่ ให้บอก Amlodipine แต่บอกชื่อว่า "ยาความดัน" ก่อน ถ้าถามชื่อยาค่อยบอก
-
-=== กฎ ===
-- ตอบ 2-4 ประโยคตามธรรมชาติ
-- ไม่บอกข้อมูลถ้าไม่ถาม
-- ห้ามพูดชื่อโรคหรือแนะนำยาเอง`;
-}
-
-function clearPrompt() {
-  document.getElementById('customPrompt').value = '';
-  document.getElementById('customName').value = '';
-  document.getElementById('customEmoji').value = '';
-}
-
+function onScenarioChange() {}
 function newSession() { document.getElementById('evalSection').style.display = 'none'; startSession(); }
 </script>
 </body>
