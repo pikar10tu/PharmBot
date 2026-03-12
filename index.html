@@ -299,7 +299,7 @@ async function startSession() {
 
   const systemPrompt = buildSystemPrompt(currentCase);
   const opening = await callGroq(
-    systemPrompt + '\n\nตอนนี้คุณเพิ่งเดินเข้ามาที่เคาน์เตอร์ร้านยาและเห็นเภสัชกร ให้คุณเป็นฝ่ายทักทายและบอกอาการหรือความต้องการก่อน ทีละ 1 ประโยค',
+    systemPrompt + '\n\nตอนนี้คุณเพิ่งเดินเข้ามาที่เคาน์เตอร์ร้านยาและเห็นเภสัชกร ให้ทักทายสั้นๆ แค่ว่ามาซื้อยา เช่น "สวัสดีครับ มาซื้อยาครับ" หรือ "สวัสดีครับ ขอซื้อยาหน่อยได้ไหมครับ" ห้ามบอกอาการในประโยคแรกเด็ดขาด รอให้เภสัชกรถามก่อน',
     [{ role: 'user', parts: [{ text: 'เริ่ม' }] }]
   );
   addMessage('patient', opening, currentCase.emoji);
