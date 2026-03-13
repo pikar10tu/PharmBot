@@ -148,7 +148,7 @@
         <p>ระบบฝึกซักประวัติและจ่ายยา สำหรับนักศึกษาเภสัชศาสตร์</p>
       </div>
     </div>
-    <button class="btn-eval" id="evalBtn" disabled onclick="requestEvaluation()">📋 ประเมินผล</button>
+    <span id="timerDisplay" style="color:rgba(255,255,255,0.5);font-size:13px;font-family:monospace;margin-right:8px;"></span><button class="btn-eval" id="evalBtn" disabled onclick="requestEvaluation()">📋 ประเมินผล</button>
   </div>
 
   <!-- API KEY -->
@@ -199,8 +199,9 @@
     <!-- DISPENSE UI -->
     <div class="dispense-bar" id="dispenseBar">
       <label>💊 จ่ายยา:</label>
-      <input type="text" id="dispenseInput" placeholder="เช่น Paracetamol 500mg + CPM 4mg">
+      <input type="text" id="dispenseInput" placeholder="รูปแบบ: ชื่อยา ความแรง เช่น Paracetamol 500mg + CPM 4mg">
       <button class="btn-dispense" onclick="confirmDispense()">✓ ยืนยัน</button>
+      <button onclick="cancelDispense()" style="background:rgba(231,111,81,0.15);color:#e76f51;border:1px solid rgba(231,111,81,0.3);border-radius:10px;padding:10px 16px;font-family:'Sarabun',sans-serif;font-size:14px;cursor:pointer;">✕ ยกเลิก</button>
       <span class="dispense-hint">คั่นหลายตัวด้วย + เช่น Paracetamol 500mg + CPM 4mg</span>
     </div>
 
@@ -239,9 +240,12 @@ let conversationHistory = [];
 let currentCase = null;
 let sessionActive = false;
 let dispensedDrugs = '';
+let counselingDone = false;
 let recognition = null;
 let isRecording = false;
 let thinkingCounter = 0;
+let sessionStartTime = null;
+let timerInterval = null;
 
 // ── API Key ───────────────────────────────────────────────────
 function checkApiKey() {
@@ -278,6 +282,7 @@ async function startSession() {
   currentCase = CASE_REGISTRY[caseId];
   conversationHistory = [];
   dispensedDrugs = '';
+  counselingDone = false;
   sessionActive = true;
 
   document.getElementById('patientAvatar').textContent = currentCase.emoji;
@@ -294,6 +299,16 @@ async function startSession() {
   document.getElementById('evalBtn').disabled = false;
   document.getElementById('startBtn').textContent = '🔄 เริ่มใหม่';
   document.getElementById('messages').innerHTML = '';
+  // Start timer
+  sessionStartTime = Date.now();
+  if (timerInterval) clearInterval(timerInterval);
+  timerInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - sessionStartTime) / 1000);
+    const m = String(Math.floor(elapsed / 60)).padStart(2,'0');
+    const s = String(elapsed % 60).padStart(2,'0');
+    document.getElementById('timerDisplay').textContent = `⏱ ${m}:${s}`;
+  }, 1000);
+  document.getElementById('timerDisplay').textContent = '⏱ 00:00';
 
   addSystemMessage(`📋 เคส ${currentCase.name} | ${currentCase.difficulty} | คนไข้จะเปิดบทสนทนาก่อน`);
 
@@ -316,10 +331,15 @@ async function sendMessage() {
   addMessage('user', text, '🧑‍⚕️');
   conversationHistory.push({ role: 'user', parts: [{ text }] });
 
-  // Detect dispense trigger
+  // Bug 1 fix: ถ้า detect คำจ่ายยา → แสดง dispense bar แล้วหยุด รอ confirmDispense() แทน
   if (detectDispense(text) && !dispensedDrugs) {
     document.getElementById('dispenseBar').className = 'dispense-bar show';
     document.getElementById('dispenseInput').focus();
+    document.getElementById('textInput').disabled = true;
+    document.getElementById('textInput').placeholder = 'กรอกชื่อยาในช่องด้านบนก่อนนะครับ';
+    document.getElementById('sendBtn').disabled = true;
+    document.getElementById('micBtn').disabled = true;
+    return;
   }
 
   document.getElementById('sendBtn').disabled = true;
@@ -333,16 +353,28 @@ async function sendMessage() {
   conversationHistory.push({ role: 'model', parts: [{ text: response }] });
   speakText(response);
 
-  // Detect closing
-  if (detectClosing(response)) {
+  // Bug 3 fix: ปิดจบได้ก็ต่อเมื่อจ่ายยาแล้ว และ counseling จบแล้วเท่านั้น
+  if (detectCounselingDone(text)) counselingDone = true;
+  if (detectClosing(response) && dispensedDrugs && counselingDone) {
     setTimeout(() => {
       addSystemMessage('✅ การสนทนาจบลงแล้ว กด "ประเมินผล" เพื่อดูคะแนน');
       sessionActive = false;
+      if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
       document.getElementById('textInput').disabled = true;
       document.getElementById('sendBtn').disabled = true;
       document.getElementById('micBtn').disabled = true;
     }, 800);
   }
+}
+
+function cancelDispense() {
+  document.getElementById('dispenseBar').className = 'dispense-bar';
+  document.getElementById('dispenseInput').value = '';
+  document.getElementById('textInput').disabled = false;
+  document.getElementById('textInput').placeholder = 'พิมพ์ หรือกดไมค์พูด...';
+  document.getElementById('sendBtn').disabled = false;
+  document.getElementById('micBtn').disabled = false;
+  document.getElementById('textInput').focus();
 }
 
 function confirmDispense() {
@@ -352,19 +384,26 @@ function confirmDispense() {
   document.getElementById('dispenseBar').className = 'dispense-bar';
   document.getElementById('dispenseInput').value = '';
 
+  // re-enable input
+  document.getElementById('textInput').disabled = false;
+  document.getElementById('textInput').placeholder = 'พิมพ์ หรือกดไมค์พูด...';
+  document.getElementById('micBtn').disabled = false;
+
   const log = document.getElementById('dispenseLog');
   log.className = 'dispense-log show';
   log.innerHTML = `💊 จ่ายยา: <strong>${drugs}</strong>`;
 
-  // Inject dispense info into conversation so patient can ask about each drug
-  const dispenseMsg = `[เภสัชกรจ่ายยา: ${drugs}]`;
+  addSystemMessage(`💊 เภสัชกรจ่ายยา: ${drugs}`);
+
+  const dispenseMsg = `[เภสัชกรจ่ายยา: ${drugs} พร้อมอธิบายวิธีใช้]`;
   conversationHistory.push({ role: 'user', parts: [{ text: dispenseMsg }] });
 
-  // Get patient response
   ;(async () => {
+    document.getElementById('sendBtn').disabled = true;
     const tid = addThinking(currentCase.emoji);
     const response = await callGroq(buildSystemPrompt(currentCase), conversationHistory);
     removeThinking(tid);
+    document.getElementById('sendBtn').disabled = false;
     addMessage('patient', response, currentCase.emoji);
     conversationHistory.push({ role: 'model', parts: [{ text: response }] });
     speakText(response);
@@ -374,6 +413,9 @@ function confirmDispense() {
 // ── Evaluation ────────────────────────────────────────────────
 async function requestEvaluation() {
   if (conversationHistory.length < 2) { alert('ลองซักประวัติก่อนนะครับ'); return; }
+  const evalBtn = document.getElementById('evalBtn');
+  evalBtn.disabled = true;
+  evalBtn.textContent = '⏳ กำลังประเมิน...';
   const evalSection = document.getElementById('evalSection');
   evalSection.style.display = 'block';
   document.getElementById('evalBody').innerHTML = '<div class="eval-loading">⏳ กำลังวิเคราะห์การสนทนา...</div>';
@@ -392,7 +434,10 @@ async function requestEvaluation() {
     const data = JSON.parse(result.replace(/```json?|```/g, '').trim());
     renderEval(data);
   } catch {
-    document.getElementById('evalBody').innerHTML = `<div class="feedback-block">${result}</div>`;
+    document.getElementById('evalBody').innerHTML = `<div class="feedback-block">${escapeHtml(result)}</div>`;
+  } finally {
+    evalBtn.disabled = false;
+    evalBtn.textContent = '📋 ประเมินผล';
   }
 }
 
@@ -482,12 +527,15 @@ function speakText(text) {
 }
 
 // ── UI helpers ────────────────────────────────────────────────
+function escapeHtml(str) {
+  return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
 function addMessage(type, text, avatar) {
   const msgs = document.getElementById('messages');
   const div = document.createElement('div');
   div.className = `msg ${type}`;
   const time = new Date().toLocaleTimeString('th-TH', { hour: '2-digit', minute: '2-digit' });
-  div.innerHTML = `<div class="msg-avatar">${avatar}</div><div><div class="msg-bubble">${text}</div><div class="msg-time">${time}</div></div>`;
+  div.innerHTML = `<div class="msg-avatar">${avatar}</div><div><div class="msg-bubble">${escapeHtml(text)}</div><div class="msg-time">${time}</div></div>`;
   msgs.appendChild(div); msgs.scrollTop = msgs.scrollHeight;
 }
 function addSystemMessage(text) {
@@ -509,6 +557,17 @@ function addThinking(avatar) {
 function removeThinking(id) { document.getElementById(id)?.remove(); }
 function handleKey(e) { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); } }
 function autoResize(el) { el.style.height = 'auto'; el.style.height = Math.min(el.scrollHeight, 120) + 'px'; }
+
+// detect ว่าเภสัชกร counseling จบแล้ว
+function detectCounselingDone(text) {
+  const triggers = [
+    'เรียบร้อย', 'มีอะไรอีกไหม', 'ไม่มีอะไรแล้ว', 'โชคดีนะ',
+    'หายไวๆนะ', 'หายไวๆ', 'ดูแลตัวเองด้วย', 'ฝากดูแลตัวเองด้วย',
+    'ถ้ามีอะไรก็แวะมาใหม่', 'สอบถามเพิ่มเติมได้', 'มีคำถามอะไรอีกไหม'
+  ];
+  return triggers.some(t => text.includes(t));
+}
+
 function onScenarioChange() {}
 function newSession() { document.getElementById('evalSection').style.display = 'none'; startSession(); }
 </script>
