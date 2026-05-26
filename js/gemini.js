@@ -16,6 +16,9 @@ function clearGeminiConfig() {
   _geminiModel = 'gemini-2.5-flash';
 }
 
+// Expose key for Gemini Live client (read-only accessor)
+function getGeminiKey() { return _geminiKey; }
+
 // Send a single-turn completion (used for evaluation)
 async function geminiComplete(prompt) {
   if (!_geminiKey) throw new Error('Gemini API key not loaded');

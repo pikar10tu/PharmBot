@@ -14,6 +14,8 @@ let _dispensedDrugs    = [];
 let _aiTyping          = false;
 let _ttsEnabled        = false;
 let _recognition       = null;
+let _liveClient        = null; // GeminiLiveClient instance (voice mode)
+let _voiceMode         = false; // true = Live voice, false = text
 
 const _synth = window.speechSynthesis || null;
 
@@ -30,9 +32,11 @@ async function renderChat(container, params = {}) {
   // Reset all state
   _recognition?.stop();
   _synth?.cancel();
+  _liveClient?.disconnect();
   _caseData = null; _session = null; _step = 1;
   _chatHistory = []; _counselingHistory = []; _dispensedDrugs = [];
   _aiTyping = false; _ttsEnabled = false; _recognition = null;
+  _liveClient = null; _voiceMode = false;
 
   container.innerHTML = `
     ${renderNavbar(pid)}
@@ -100,17 +104,36 @@ function _renderChatUI(container, pid) {
 
       <!-- ═══ Panel 1: History Taking ═══ -->
       <div id="panel-1">
+
+        <!-- Mode toggle bar -->
+        <div class="voice-mode-bar mb-2">
+          <button class="voice-mode-tab active" id="tab-text-1" onclick="_switchMode(1,'text')">💬 ข้อความ</button>
+          <button class="voice-mode-tab" id="tab-voice-1" onclick="_switchMode(1,'voice')">🎙️ สนทนาเสียง</button>
+        </div>
+
+        <!-- Chat messages (shared by both modes) -->
         <div class="chat-wrap" style="border:1px solid var(--glass-border);border-radius:var(--radius);background:rgba(255,255,255,0.03);">
           <div class="chat-messages" id="chat-messages"></div>
-          <div class="chat-input-row">
+
+          <!-- Text input row (text mode) -->
+          <div id="text-input-row-1" class="chat-input-row">
             <input class="input chat-input" id="chat-input" type="text"
               placeholder="พิมพ์ข้อความหรือกดไมค์…" autocomplete="off" />
             <button class="btn-mic" id="mic-btn" title="Push to Talk (กดพูด)">🎤</button>
             <button class="btn btn-primary btn-sm" id="send-btn">ส่ง</button>
           </div>
+
+          <!-- Voice status row (voice mode) -->
+          <div id="voice-input-row-1" class="voice-input-row hidden">
+            <div class="voice-waveform" id="waveform-1">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="voice-status-text" id="voice-status-1">⏳ กำลังเชื่อมต่อ…</div>
+          </div>
         </div>
+
         <div class="flex items-center mt-2" style="justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
-          <label class="flex items-center gap-1 text-sm text-dim" style="cursor:pointer;">
+          <label class="flex items-center gap-1 text-sm text-dim" id="tts-label" style="cursor:pointer;">
             <input type="checkbox" id="tts-toggle" /> อ่านออกเสียงอัตโนมัติ
           </label>
           <button class="btn btn-success btn-sm" id="done-history-btn">ซักประวัติเสร็จแล้ว → จ่ายยา</button>
@@ -133,15 +156,33 @@ function _renderChatUI(container, pid) {
       <!-- ═══ Panel 3: Counseling ═══ -->
       <div id="panel-3" class="hidden">
         <div id="dispensed-summary" class="alert alert-info mb-2 text-sm"></div>
+
+        <!-- Mode toggle bar -->
+        <div class="voice-mode-bar mb-2">
+          <button class="voice-mode-tab active" id="tab-text-3" onclick="_switchMode(3,'text')">💬 ข้อความ</button>
+          <button class="voice-mode-tab" id="tab-voice-3" onclick="_switchMode(3,'voice')">🎙️ สนทนาเสียง</button>
+        </div>
+
         <div class="chat-wrap" style="border:1px solid var(--glass-border);border-radius:var(--radius);background:rgba(255,255,255,0.03);">
           <div class="chat-messages" id="counsel-messages"></div>
-          <div class="chat-input-row">
+
+          <!-- Text input row -->
+          <div id="text-input-row-3" class="chat-input-row">
             <input class="input chat-input" id="counsel-input" type="text"
               placeholder="อธิบายยาและคำแนะนำให้ผู้ป่วย…" autocomplete="off" />
             <button class="btn-mic" id="mic-btn-3" title="Push to Talk">🎤</button>
             <button class="btn btn-primary btn-sm" id="send-counsel-btn">ส่ง</button>
           </div>
+
+          <!-- Voice status row -->
+          <div id="voice-input-row-3" class="voice-input-row hidden">
+            <div class="voice-waveform" id="waveform-3">
+              <span></span><span></span><span></span><span></span><span></span>
+            </div>
+            <div class="voice-status-text" id="voice-status-3">⏳ กำลังเชื่อมต่อ…</div>
+          </div>
         </div>
+
         <div class="flex mt-2" style="justify-content:flex-end;">
           <button class="btn btn-success btn-sm" id="done-counsel-btn">ให้คำแนะนำเสร็จแล้ว → ประเมินผล</button>
         </div>
@@ -215,6 +256,121 @@ function _attachEvents() {
   document.getElementById('done-counsel-btn')?.addEventListener('click', _goStep4);
 }
 
+// ── Voice Mode (Gemini Live) ───────────────────────────────────
+
+async function _switchMode(panelStep, mode) {
+  // Update tab UI
+  const textTab  = document.getElementById(`tab-text-${panelStep}`);
+  const voiceTab = document.getElementById(`tab-voice-${panelStep}`);
+  const textRow  = document.getElementById(`text-input-row-${panelStep}`);
+  const voiceRow = document.getElementById(`voice-input-row-${panelStep}`);
+  const ttsLabel = document.getElementById('tts-label'); // only panel 1
+
+  if (mode === 'voice') {
+    textTab?.classList.remove('active');
+    voiceTab?.classList.add('active');
+    textRow?.classList.add('hidden');
+    voiceRow?.classList.remove('hidden');
+    if (ttsLabel) ttsLabel.style.visibility = 'hidden';
+    await _startLive(panelStep);
+  } else {
+    voiceTab?.classList.remove('active');
+    textTab?.classList.add('active');
+    voiceRow?.classList.add('hidden');
+    textRow?.classList.remove('hidden');
+    if (ttsLabel) ttsLabel.style.visibility = '';
+    _stopLive();
+  }
+}
+
+async function _startLive(panelStep) {
+  _voiceMode = true;
+  _setVoiceStatus(panelStep, '⏳ กำลังเชื่อมต่อ…', false);
+
+  const voiceName = _caseData?.gender === 'male' ? 'Puck' : 'Aoede';
+  const sysPrompt = panelStep === 1
+    ? buildSystemPrompt(_caseData)
+    : buildCounselingPrompt(_caseData, _dispensedDrugs);
+
+  // Disconnect old client if any
+  _liveClient?.disconnect();
+  _liveClient = new GeminiLiveClient();
+
+  const msgId  = panelStep === 1 ? 'chat-messages'   : 'counsel-messages';
+  const histArr = panelStep === 1 ? _chatHistory       : _counselingHistory;
+  const saveFn  = panelStep === 1
+    ? () => updateSessionChat(_session.id, _chatHistory)
+    : () => updateSessionCounseling(_session.id, _counselingHistory);
+
+  _liveClient.onUserTranscript = (text) => {
+    if (!text) return;
+    histArr.push({ role: 'user', text });
+    _addMsg(msgId, 'user', text);
+    saveFn().catch(() => {});
+  };
+
+  _liveClient.onModelTranscript = (text) => {
+    if (!text) return;
+    histArr.push({ role: 'model', text });
+    _addMsg(msgId, 'model', text);
+    saveFn().catch(() => {});
+  };
+
+  _liveClient.onStateChange = (state) => {
+    const waveform = document.getElementById(`waveform-${panelStep}`);
+    if (state === 'connecting') {
+      _setVoiceStatus(panelStep, '⏳ กำลังเชื่อมต่อ…', false);
+    } else if (state === 'ready') {
+      _setVoiceStatus(panelStep, '🎙️ กำลังฟัง…', false);
+      waveform?.classList.remove('wave-ai', 'wave-active');
+    } else if (state === 'ai-speaking') {
+      _setVoiceStatus(panelStep, '🔊 ผู้ป่วยกำลังพูด…', true);
+      waveform?.classList.add('wave-ai');
+      waveform?.classList.remove('wave-active');
+    } else if (state === 'listening') {
+      _setVoiceStatus(panelStep, '🎙️ กำลังฟัง…', false);
+      waveform?.classList.remove('wave-ai');
+    } else if (state === 'disconnected') {
+      if (_voiceMode) _setVoiceStatus(panelStep, '🔴 หลุดการเชื่อมต่อ', false);
+    }
+  };
+
+  _liveClient.onError = (msg) => {
+    _addMsg(msgId, 'system', `⚠️ ${msg}`);
+    _switchMode(panelStep, 'text'); // fallback to text
+  };
+
+  try {
+    const _geminiKey = getGeminiKey();
+    if (!_geminiKey) throw new Error('ยังไม่ได้โหลด Gemini API Key');
+    await _liveClient.connect(_geminiKey, sysPrompt, voiceName);
+    await _liveClient.startMic();
+
+    // Trigger first AI response
+    const trigger = panelStep === 1
+      ? 'สวัสดีครับ มีอะไรให้ช่วยไหมครับ?'
+      : 'โอเครับ จะขอแนะนำยาและวิธีใช้ยาให้นะครับ';
+    _liveClient.sendText(trigger);
+
+  } catch (e) {
+    _addMsg(msgId, 'system', `⚠️ เชื่อมต่อ Live API ไม่ได้: ${e.message}`);
+    _switchMode(panelStep, 'text'); // fallback
+  }
+}
+
+function _stopLive() {
+  _voiceMode = false;
+  _liveClient?.disconnect();
+  _liveClient = null;
+}
+
+function _setVoiceStatus(panelStep, text, animate) {
+  const el = document.getElementById(`voice-status-${panelStep}`);
+  if (el) el.textContent = text;
+  const wv = document.getElementById(`waveform-${panelStep}`);
+  if (wv) wv.classList.toggle('wave-active', animate);
+}
+
 // ── Step 1: History Taking ─────────────────────────────────────
 
 async function _initConversation() {
@@ -274,6 +430,7 @@ async function _sendChat() {
 }
 
 function _goStep2() {
+  _stopLive(); // stop voice mode if active
   _step = 2;
   _updateStepper();
   _renderChips();
@@ -375,6 +532,7 @@ async function _sendCounseling() {
 // ── Step 4: Evaluation ─────────────────────────────────────────
 
 async function _goStep4() {
+  _stopLive(); // stop voice mode if active
   _step = 4;
   _updateStepper();
   _synth?.cancel();

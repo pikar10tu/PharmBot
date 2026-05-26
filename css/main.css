@@ -438,3 +438,95 @@ p  { line-height: 1.7; color: var(--text-dim); }
   .chat-wrap  { height: calc(100vh - 240px); }
   .modal      { max-height: 95vh; }
 }
+
+/* ── Voice Mode (Gemini Live) ─────────────────────────────── */
+.voice-mode-bar {
+  display: flex;
+  gap: 0.25rem;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem;
+}
+.voice-mode-tab {
+  flex: 1;
+  padding: 0.4rem 0.75rem;
+  border-radius: calc(var(--radius-sm) - 2px);
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: 'Sarabun', sans-serif;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.voice-mode-tab.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+.voice-mode-tab:hover:not(.active) {
+  background: rgba(255,255,255,0.08);
+  color: var(--text);
+}
+
+/* Voice input row (inside chat-wrap, replaces text input row) */
+.voice-input-row {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1rem 1rem 0.75rem;
+  gap: 0.5rem;
+  border-top: 1px solid var(--glass-border);
+}
+
+/* Waveform bars */
+.voice-waveform {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+  height: 44px;
+}
+.voice-waveform span {
+  display: block;
+  width: 5px;
+  height: 6px;
+  background: var(--accent);
+  border-radius: 3px;
+  opacity: 0.4;
+  transition: height 0.15s, opacity 0.15s;
+}
+
+/* Listening animation (user speaking) */
+.voice-waveform.wave-active span {
+  opacity: 1;
+  animation: voiceBar 0.7s ease-in-out infinite alternate;
+}
+.voice-waveform.wave-active span:nth-child(1) { animation-delay: 0.0s; }
+.voice-waveform.wave-active span:nth-child(2) { animation-delay: 0.1s; }
+.voice-waveform.wave-active span:nth-child(3) { animation-delay: 0.2s; }
+.voice-waveform.wave-active span:nth-child(4) { animation-delay: 0.1s; }
+.voice-waveform.wave-active span:nth-child(5) { animation-delay: 0.0s; }
+
+/* AI speaking animation (different color + faster) */
+.voice-waveform.wave-ai span {
+  opacity: 1;
+  background: var(--success);
+  animation: voiceBar 0.45s ease-in-out infinite alternate;
+}
+.voice-waveform.wave-ai span:nth-child(1) { animation-delay: 0.00s; }
+.voice-waveform.wave-ai span:nth-child(2) { animation-delay: 0.09s; }
+.voice-waveform.wave-ai span:nth-child(3) { animation-delay: 0.18s; }
+.voice-waveform.wave-ai span:nth-child(4) { animation-delay: 0.09s; }
+.voice-waveform.wave-ai span:nth-child(5) { animation-delay: 0.00s; }
+
+@keyframes voiceBar {
+  from { height: 5px;  }
+  to   { height: 36px; }
+}
+
+.voice-status-text {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
+}
