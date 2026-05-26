@@ -45,32 +45,36 @@ async function renderDashboard(container) {
     </div>
   `;
 
-  // Load rate limit
-  try {
-    const uid   = getCurrentUser().uid;
-    const count = await getTodaySessionCount(uid);
-    const max   = 5;
-    const left  = max - count;
+  // Load rate limit (admin has no limit)
+  if (isAdm) {
+    document.getElementById('rate-display').innerHTML =
+      `<div class="text-sm text-dim">👑 Admin — ไม่จำกัดจำนวนครั้ง</div>`;
+  } else {
+    try {
+      const uid   = getCurrentUser().uid;
+      const count = await getTodaySessionCount(uid);
+      const max   = 5;
 
-    const pips = Array.from({ length: max }, (_, i) =>
-      `<div class="rate-pip ${i < count ? (count >= max ? 'full' : 'used') : ''}"></div>`
-    ).join('');
+      const pips = Array.from({ length: max }, (_, i) =>
+        `<div class="rate-pip ${i < count ? (count >= max ? 'full' : 'used') : ''}"></div>`
+      ).join('');
 
-    document.getElementById('rate-display').innerHTML = `
-      <div>
-        <div class="text-sm text-dim mb-1">วันนี้ใช้ไป ${count}/${max} ครั้ง</div>
-        <div class="rate-bar">${pips}</div>
-      </div>
-    `;
+      document.getElementById('rate-display').innerHTML = `
+        <div>
+          <div class="text-sm text-dim mb-1">วันนี้ใช้ไป ${count}/${max} ครั้ง</div>
+          <div class="rate-bar">${pips}</div>
+        </div>
+      `;
 
-    if (count >= max) {
-      document.getElementById('rate-alert').className = 'alert alert-warning mb-3';
-      document.getElementById('rate-alert').innerHTML =
-        '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้';
-      document.getElementById('btn-start').style.opacity = '0.4';
-      document.getElementById('btn-start').style.cursor  = 'not-allowed';
-    }
-  } catch (e) { console.warn('rate limit check failed', e); }
+      if (count >= max) {
+        document.getElementById('rate-alert').className = 'alert alert-warning mb-3';
+        document.getElementById('rate-alert').innerHTML =
+          '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้';
+        document.getElementById('btn-start').style.opacity = '0.4';
+        document.getElementById('btn-start').style.cursor  = 'not-allowed';
+      }
+    } catch (e) { console.warn('rate limit check failed', e); }
+  }
 
   // Hover effect on cards
   document.querySelectorAll('.card[id]').forEach(el => {
@@ -79,9 +83,11 @@ async function renderDashboard(container) {
   });
 
   document.getElementById('btn-start').addEventListener('click', async () => {
-    const uid   = getCurrentUser().uid;
-    const count = await getTodaySessionCount(uid);
-    if (count >= 5) return;
+    if (!isAdm) {
+      const uid   = getCurrentUser().uid;
+      const count = await getTodaySessionCount(uid);
+      if (count >= 5) return;
+    }
     Router.go('groups');
   });
 

@@ -50,16 +50,19 @@ async function renderChat(container, params = {}) {
 
     _caseData = randomizePatientData(rawCase);
 
-    // Rate-limit double-check before consuming a slot
-    const count = await getTodaySessionCount(user.uid);
-    if (count >= 5) {
-      container.innerHTML = `
-        ${renderNavbar(pid)}
-        <div class="container fade-in" style="max-width:720px;">
-          <div class="alert alert-warning">⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้</div>
-          <button class="btn btn-ghost btn-sm mt-2" onclick="Router.go('dashboard')">← กลับหน้าหลัก</button>
-        </div>`;
-      return;
+    // Rate-limit double-check before consuming a slot (admin is exempt)
+    const isAdmin = profile?.role === 'admin';
+    if (!isAdmin) {
+      const count = await getTodaySessionCount(user.uid);
+      if (count >= 5) {
+        container.innerHTML = `
+          ${renderNavbar(pid)}
+          <div class="container fade-in" style="max-width:720px;">
+            <div class="alert alert-warning">⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้</div>
+            <button class="btn btn-ghost btn-sm mt-2" onclick="Router.go('dashboard')">← กลับหน้าหลัก</button>
+          </div>`;
+        return;
+      }
     }
 
     _session = await createSession(user.uid, _caseData);
