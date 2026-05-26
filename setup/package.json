@@ -1,0 +1,13 @@
+{
+  "name": "pharmbot-setup",
+  "version": "1.0.0",
+  "description": "One-time setup script for PharmBot v2 participant accounts",
+  "main": "create-participants.js",
+  "scripts": {
+    "create": "node create-participants.js",
+    "seed-drugs": "node seed-drugs.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^12.0.0"
+  }
+}

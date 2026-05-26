@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>PharmBot v2 — ฝึกปฏิบัติร้านยา</title>
+  <link rel="stylesheet" href="css/main.css" />
+
+  <!-- Firebase SDK (compat v9) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+</head>
+<body>
+
+<div id="app"></div>
+
+<!-- Core modules (load order matters) -->
+<script src="js/firebase-config.js"></script>
+<script src="js/gemini.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/db.js"></script>
+<script src="js/prompts.js"></script>
+<script src="js/drug-data.js"></script>
+
+<!-- Screens -->
+<script src="js/screens/login.js"></script>
+<script src="js/screens/dashboard.js"></script>
+<script src="js/screens/groups.js"></script>
+<script src="js/screens/cases.js"></script>
+<script src="js/screens/drugs-modal.js"></script>
+<script src="js/screens/chat.js"></script>
+<script src="js/screens/summary.js"></script>
+<script src="js/screens/history.js"></script>
+<script src="js/screens/admin.js"></script>
+
+<!-- Router (init last) -->
+<script src="js/router.js"></script>
+<script>
+  // Wait for Firebase Auth to restore session before first route dispatch
+  onAuthReady((user) => {
+    const hash = window.location.hash.replace('#', '');
+    if (!user && hash !== 'login' && hash !== '') {
+      window.location.hash = '#login';
+    } else if (user && (!hash || hash === 'login')) {
+      window.location.hash = '#dashboard';
+    }
+    Router.init();
+  });
+</script>
+
+</body>
+</html>

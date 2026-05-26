@@ -1,0 +1,68 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ───────────────────────────────────────────────
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isAuth() &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    // ── Gemini config (auth-read, admin-write) ────────────────
+    match /config/{docId} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ── Users (own profile read/write, admin read all) ────────
+    match /users/{userId} {
+      allow read:  if isOwner(userId) || isAdmin();
+      allow write: if isAdmin();
+    }
+
+    // ── Disease groups (authenticated read, admin write) ──────
+    match /diseaseGroups/{groupId} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ── Cases (authenticated read, admin write) ───────────────
+    match /cases/{caseId} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ── Drugs (authenticated read, admin write) ───────────────
+    match /drugs/{drugId} {
+      allow read:  if isAuth();
+      allow write: if isAdmin();
+    }
+
+    // ── Sessions (own read/write, admin read all) ─────────────
+    match /sessions/{sessionId} {
+      allow read:  if isAdmin() ||
+                      (isAuth() && resource.data.userId == request.auth.uid);
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin() ||
+                       (isAuth() && resource.data.userId == request.auth.uid);
+    }
+
+    // ── Results (own read/write, admin read all) ──────────────
+    match /results/{resultId} {
+      allow read:  if isAdmin() ||
+                      (isAuth() && resource.data.userId == request.auth.uid);
+      allow create: if isAuth() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+    }
+
+  }
+}
