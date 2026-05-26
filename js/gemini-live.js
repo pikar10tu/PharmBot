@@ -41,26 +41,28 @@ class GeminiLiveClient {
     return new Promise((resolve, reject) => {
       this.onStateChange?.('connecting');
 
-      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      // ✅ Fix 1: v1alpha → v1beta (official stable endpoint)
+      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
+        // ✅ Fix 2: outer key "setup" → "config"
+        // ✅ Fix 3: model name updated to stable preview
+        // ✅ Fix 4: all keys camelCase (snake_case was old v1alpha format)
         this._send({
-          setup: {
-            model: 'models/gemini-2.5-flash-native-audio-latest',
-            generation_config: {
-              response_modalities: ['AUDIO'],
-              speech_config: {
-                voice_config: {
-                  prebuilt_voice_config: { voice_name: voiceName }
-                }
+          config: {
+            model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
+            responseModalities: ['AUDIO'],
+            speechConfig: {
+              voiceConfig: {
+                prebuiltVoiceConfig: { voiceName: voiceName }
               }
             },
-            system_instruction: {
+            systemInstruction: {
               parts: [{ text: systemPrompt }]
             },
-            input_audio_transcription:  {},
-            output_audio_transcription: {}
+            inputAudioTranscription:  {},
+            outputAudioTranscription: {}
           }
         });
       };
@@ -84,11 +86,9 @@ class GeminiLiveClient {
 
   // ── Send text turn (trigger initial greeting or inject text) ─
   sendText(text) {
+    // ✅ Fix 5: client_content → realtimeInput.text (v1beta format)
     this._send({
-      client_content: {
-        turns: [{ role: 'user', parts: [{ text }] }],
-        turn_complete: true
-      }
+      realtimeInput: { text }
     });
   }
 
@@ -118,9 +118,10 @@ class GeminiLiveClient {
       if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
       const f32 = e.inputBuffer.getChannelData(0);
       const b64 = _f32ToB64Pcm16(f32);
+      // ✅ Fix 6: realtime_input.media_chunks → realtimeInput.audio (v1beta format)
       this._send({
-        realtime_input: {
-          media_chunks: [{ data: b64, mime_type: 'audio/pcm;rate=16000' }]
+        realtimeInput: {
+          audio: { data: b64, mimeType: 'audio/pcm;rate=16000' }
         }
       });
     };
@@ -271,13 +272,4 @@ function _b64ToPcm16(b64) {
 
 function _pcm16ToF32(int16) {
   const out = new Float32Array(int16.length);
-  for (let i = 0; i < int16.length; i++) out[i] = int16[i] / 32768.0;
-  return out;
-}
-
-function _bufToB64(buffer) {
-  const bytes = new Uint8Array(buffer);
-  let bin = '';
-  for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
-  return btoa(bin);
-}
+  for (let i = 0; 
