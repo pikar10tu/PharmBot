@@ -51,7 +51,7 @@ class GeminiLiveClient {
         // model: gemini-2.0-flash-live-001 (stable GA, works on all paid plans)
         this._send({
           setup: {
-            model: 'models/gemini-2.0-flash-live-001',
+            model: 'models/gemini-2.5-flash-preview-native-audio-dialog',
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: {
