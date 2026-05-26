@@ -46,11 +46,12 @@ class GeminiLiveClient {
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        // v1alpha endpoint supports gemini-2.0-flash-live-001 (stable GA)
-        // v1beta BidiGenerateContent does not yet expose Live API models
-        this._send({
+        // gemini-3.1-flash-live-preview = live conversation model on v1alpha
+      // Minimal setup — no speechConfig/transcription fields that may break native audio
+      console.log('GeminiLive → sending setup for model gemini-3.1-flash-live-preview');
+      this._send({
           setup: {
-            model: 'models/gemini-2.5-flash-native-audio-latest',
+            model: 'models/gemini-3.1-flash-live-preview',
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: {
@@ -61,9 +62,7 @@ class GeminiLiveClient {
             },
             systemInstruction: {
               parts: [{ text: systemPrompt }]
-            },
-            inputAudioTranscription:  {},
-            outputAudioTranscription: {}
+            }
           }
         });
       };
