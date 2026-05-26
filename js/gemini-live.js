@@ -68,8 +68,18 @@ class GeminiLiveClient {
         });
       };
 
+      // Timeout: if setupComplete not received in 20s, fail gracefully
+      const _setupTimer = setTimeout(() => {
+        if (!this._connected) {
+          console.warn('GeminiLive: setup timeout (no setupComplete in 20s)');
+          this.onError?.('เชื่อมต่อ Gemini Live timeout — ไม่ได้รับการตอบสนองจาก server');
+          this.disconnect();
+          reject(new Error('GeminiLive setup timeout'));
+        }
+      }, 20000);
+
       this._ws.onmessage = (evt) => {
-        this._handleMessage(evt.data, resolve);
+        this._handleMessage(evt.data, () => { clearTimeout(_setupTimer); resolve(); });
       };
 
       this._ws.onerror = (evt) => {
@@ -169,39 +179,47 @@ class GeminiLiveClient {
     let data;
     try { data = JSON.parse(raw); } catch { return; }
 
-    // ── Setup complete ──
-    if (data.setupComplete !== undefined) {
+    // Log every server message (first 300 chars) for diagnostics
+    console.log('GeminiLive ←', JSON.stringify(data).slice(0, 300));
+
+    // ── Setup complete (handle both camelCase and snake_case) ──
+    if (data.setupComplete !== undefined || data.setup_complete !== undefined) {
       this._connected = true;
       setupResolve?.();
       this.onStateChange?.('ready');
       return;
     }
 
-    const sc = data.serverContent;
+    // Support both camelCase (v1beta) and snake_case (v1alpha) field names
+    const sc = data.serverContent || data.server_content;
     if (!sc) return;
 
     // ── Audio from model ──
-    if (sc.modelTurn?.parts) {
-      for (const part of sc.modelTurn.parts) {
-        if (part.inlineData?.data) {
-          this._scheduleAudio(part.inlineData.data);
+    const modelTurn = sc.modelTurn || sc.model_turn;
+    if (modelTurn?.parts) {
+      for (const part of modelTurn.parts) {
+        const inlineData = part.inlineData || part.inline_data;
+        if (inlineData?.data) {
+          this._scheduleAudio(inlineData.data);
           this.onStateChange?.('ai-speaking');
         }
       }
     }
 
-    // ── User speech transcript (arrives before model reply) ──
-    if (sc.inputTranscription?.text) {
-      this.onUserTranscript?.(sc.inputTranscription.text.trim());
+    // ── User speech transcript ──
+    const inputTx = sc.inputTranscription || sc.input_transcription;
+    if (inputTx?.text) {
+      this.onUserTranscript?.(inputTx.text.trim());
     }
 
-    // ── Model speech transcript (accumulate until turn complete) ──
-    if (sc.outputTranscription?.text) {
-      this._pendingModelText += sc.outputTranscription.text;
+    // ── Model speech transcript ──
+    const outputTx = sc.outputTranscription || sc.output_transcription;
+    if (outputTx?.text) {
+      this._pendingModelText += outputTx.text;
     }
 
-    // ── Turn complete: emit model transcript ──
-    if (sc.turnComplete) {
+    // ── Turn complete ──
+    if (sc.turnComplete || sc.turn_complete) {
       if (this._pendingModelText.trim()) {
         this.onModelTranscript?.(this._pendingModelText.trim());
         this._pendingModelText = '';
@@ -209,7 +227,7 @@ class GeminiLiveClient {
       this.onStateChange?.('listening');
     }
 
-    // ── Barge-in: user interrupted AI ──
+    // ── Barge-in ──
     if (sc.interrupted) {
       this._pendingModelText = '';
       this._stopPlayback();
