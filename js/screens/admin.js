@@ -140,11 +140,21 @@ function _caseRow(c) {
 function _buildCaseFormHtml() {
   const groups = ['MSK','CVD','DERM','ENDO','GI','HEMO','IMMUNO','INF_URI','INF_UTI',
                   'INF_OTHER','NEURO','PSYCH','PULM','GYN','ENT_EYE','RENAL','REFER','SPECIAL'];
+
+  const fieldStyle = 'font-size:0.85rem;';
+  const sectionHdr = (label, sub = '') => `
+    <div style="margin:1rem 0 0.5rem;padding-bottom:0.4rem;border-bottom:1px solid var(--glass-border);">
+      <span class="font-bold text-sm">${label}</span>
+      ${sub ? `<span class="text-dim text-xs" style="margin-left:0.5rem;">${sub}</span>` : ''}
+    </div>`;
+
   return `
     <input type="hidden" id="case-id" />
+
+    ${sectionHdr('ข้อมูลพื้นฐาน')}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;" class="mb-2">
       <div>
-        <label class="input-label">หมวดโรค (groupId)</label>
+        <label class="input-label">หมวดโรค</label>
         <select class="input" id="cf-groupId">
           ${groups.map(g => `<option value="${g}">${g}</option>`).join('')}
         </select>
@@ -179,24 +189,105 @@ function _buildCaseFormHtml() {
       </div>
     </div>
     <div class="mb-2">
-      <label class="input-label">ฉากเปิด (sceneDesc)</label>
-      <textarea class="input" id="cf-sceneDesc" rows="2" style="resize:vertical;"></textarea>
+      <label class="input-label">ฉากเปิด — บรรยายภาพผู้ป่วยก่อนเริ่มสนทนา</label>
+      <textarea class="input" id="cf-sceneDesc" rows="2" style="resize:vertical;${fieldStyle}"></textarea>
     </div>
     <div class="mb-2">
-      <label class="input-label">Chief Complaint (กระชับ ไม่มี duration)</label>
-      <input class="input" type="text" id="cf-chiefComplaint" placeholder="เช่น เจ็บคอค่ะ" />
+      <label class="input-label">Chief Complaint — อาการที่ผู้ป่วยบอกเอง (กระชับ ไม่ระบุระยะเวลา)</label>
+      <input class="input" type="text" id="cf-chiefComplaint" placeholder="เช่น เจ็บคอค่ะ / ท้องร่วงครับ" />
     </div>
+
+    ${sectionHdr('โพยลับผู้ป่วย', '— กรอกเฉพาะที่มี ช่องที่ว่างจะไม่แสดงในระบบ')}
+
     <div class="mb-2">
-      <label class="input-label">โพยลับ (secretInfo) — 6 หมวด</label>
-      <textarea class="input" id="cf-secretInfo" rows="8" style="resize:vertical;font-size:0.85rem;"></textarea>
+      <label class="input-label">บุคลิก / อารมณ์ผู้ป่วย</label>
+      <input class="input" type="text" id="cf-si-personality"
+        placeholder="เช่น พูดจาสุภาพ เป็นธรรมชาติ / พูดเร็ว ดูกังวล" style="${fieldStyle}" />
     </div>
+
+    <div class="mb-2">
+      <label class="input-label">อาการหลัก <span class="text-dim text-xs">(บอกทันทีถ้าถาม)</span></label>
+      <textarea class="input" id="cf-si-mainSymptoms" rows="2" style="resize:vertical;${fieldStyle}"
+        placeholder="เช่น เจ็บคอ กลืนลำบาก / ถ่ายเหลว ไม่มีเลือดหรือมูก"></textarea>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;" class="mb-2">
+      <div>
+        <label class="input-label">ระยะเวลาที่เป็น</label>
+        <input class="input" type="text" id="cf-si-duration"
+          placeholder="เช่น เป็นมา 3 วัน" style="${fieldStyle}" />
+      </div>
+      <div>
+        <label class="input-label">ความรุนแรง</label>
+        <input class="input" type="text" id="cf-si-severity"
+          placeholder="เช่น ปวดมาก 7/10 / เล็กน้อย ยังทำงานได้" style="${fieldStyle}" />
+      </div>
+    </div>
+
+    <div class="mb-2">
+      <label class="input-label">อาการร่วม</label>
+      <textarea class="input" id="cf-si-associated" rows="2" style="resize:vertical;${fieldStyle}"
+        placeholder="เช่น มีไข้ 38°C ไม่ไอ ไม่มีน้ำมูก"></textarea>
+    </div>
+
+    <div class="mb-2">
+      <label class="input-label">ปัจจัยที่ทำให้แย่ลง / ดีขึ้น</label>
+      <input class="input" type="text" id="cf-si-factors"
+        placeholder="เช่น แย่ลงเมื่อกลืนอาหาร ดีขึ้นเมื่อนอนพัก" style="${fieldStyle}" />
+    </div>
+
+    <div class="mb-2">
+      <label class="input-label">ประวัติเคยเป็นโรคนี้มาก่อน</label>
+      <input class="input" type="text" id="cf-si-pastHistory"
+        placeholder="เช่น เคยเป็นแบบนี้ตอนเด็กๆ / ไม่เคยเป็น" style="${fieldStyle}" />
+    </div>
+
+    <div class="mb-2">
+      <label class="input-label">ยาที่ใช้รักษาอาการนี้มาก่อน</label>
+      <input class="input" type="text" id="cf-si-prevTreatment"
+        placeholder="เช่น ยังไม่ได้กินยาอะไร / ลองกิน Paracetamol แล้วดีขึ้นนิดหน่อย" style="${fieldStyle}" />
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.75rem;" class="mb-2">
+      <div>
+        <label class="input-label">โรคประจำตัว</label>
+        <input class="input" type="text" id="cf-si-underlyingDisease"
+          placeholder="ไม่มี / เบาหวาน ความดัน" style="${fieldStyle}" />
+      </div>
+      <div>
+        <label class="input-label">ยาที่ทานประจำ</label>
+        <input class="input" type="text" id="cf-si-regularMeds"
+          placeholder="ไม่มี / Metformin 500mg" style="${fieldStyle}" />
+      </div>
+      <div>
+        <label class="input-label">ประวัติแพ้ยา ⚠️</label>
+        <input class="input" type="text" id="cf-si-drugAllergy"
+          placeholder="ไม่มี / แพ้ Penicillin" style="${fieldStyle}" />
+      </div>
+    </div>
+
+    <div class="mb-2">
+      <label class="input-label">ข้อมูลเพิ่มเติม <span class="text-dim text-xs">(เช่น ประวัติครอบครัว สังคม พฤติกรรม)</span></label>
+      <textarea class="input" id="cf-si-additional" rows="2" style="resize:vertical;${fieldStyle}"
+        placeholder="เช่น กินอาหารนอกบ้านเมื่อคืน / เลี้ยงแมวที่บ้าน"></textarea>
+    </div>
+
+    <div class="mb-2">
+      <label class="input-label">Red Flags <span class="text-dim text-xs">(ตอบถ้าถูกถามเฉพาะ)</span></label>
+      <textarea class="input" id="cf-si-redFlags" rows="2" style="resize:vertical;${fieldStyle}"
+        placeholder="เช่น ไม่มีไข้สูง ไม่เจ็บคอ ไม่หายใจลำบาก"></textarea>
+    </div>
+
+    ${sectionHdr('การประเมิน')}
     <div class="mb-2">
       <label class="input-label">เกณฑ์เฉพาะโรค (specificChecklist)</label>
-      <textarea class="input" id="cf-specificChecklist" rows="4" style="resize:vertical;font-size:0.85rem;"></textarea>
+      <textarea class="input" id="cf-specificChecklist" rows="4" style="resize:vertical;${fieldStyle}"
+        placeholder="เช่น&#10;1. ถามยืนยัน no fever&#10;2. ไม่จ่าย antibiotic สำหรับ viral infection"></textarea>
     </div>
     <div class="mb-2">
       <label class="input-label">การวินิจฉัย (diagnosisAnswer)</label>
-      <input class="input" type="text" id="cf-diagnosisAnswer" />
+      <input class="input" type="text" id="cf-diagnosisAnswer"
+        placeholder="เช่น ไข้หวัดธรรมดา (Common Cold / Viral URTI)" />
     </div>
     <div class="mb-2">
       <label class="input-label">drugAnswer (JSON)</label>
@@ -210,22 +301,100 @@ function _openCaseForm(c) {
   wrap.className = 'mt-3';
   document.getElementById('case-form-title').textContent = c ? 'แก้ไขเคส' : 'เพิ่มเคสใหม่';
 
-  document.getElementById('case-id').value         = c?.id || '';
-  document.getElementById('cf-groupId').value      = c?.groupId      || 'GI';
-  document.getElementById('cf-difficulty').value   = c?.difficulty   || 'easy';
-  document.getElementById('cf-title').value        = c?.title        || '';
-  document.getElementById('cf-occupation').value   = c?.occupation   || '';
-  document.getElementById('cf-gender').value       = c?.gender       || 'random';
-  document.getElementById('cf-age').value          = c?.age          ?? 0;
-  document.getElementById('cf-sceneDesc').value    = c?.sceneDesc    || '';
-  document.getElementById('cf-chiefComplaint').value = c?.chiefComplaint || '';
-  document.getElementById('cf-secretInfo').value   = c?.secretInfo   || '';
+  document.getElementById('case-id').value              = c?.id || '';
+  document.getElementById('cf-groupId').value           = c?.groupId      || 'GI';
+  document.getElementById('cf-difficulty').value        = c?.difficulty   || 'easy';
+  document.getElementById('cf-title').value             = c?.title        || '';
+  document.getElementById('cf-occupation').value        = c?.occupation   || '';
+  document.getElementById('cf-gender').value            = c?.gender       || 'random';
+  document.getElementById('cf-age').value               = c?.age          ?? 0;
+  document.getElementById('cf-sceneDesc').value         = c?.sceneDesc    || '';
+  document.getElementById('cf-chiefComplaint').value    = c?.chiefComplaint || '';
   document.getElementById('cf-specificChecklist').value = c?.specificChecklist || '';
   document.getElementById('cf-diagnosisAnswer').value   = c?.diagnosisAnswer   || '';
-  document.getElementById('cf-drugAnswer').value   = c?.drugAnswer
-    ? JSON.stringify(c.drugAnswer, null, 2) : '{\n  "firstLine": [],\n  "alternatives": [],\n  "unacceptable": [],\n  "counseling": []\n}';
+  document.getElementById('cf-drugAnswer').value        = c?.drugAnswer
+    ? JSON.stringify(c.drugAnswer, null, 2)
+    : '{\n  "firstLine": [],\n  "alternatives": [],\n  "unacceptable": [],\n  "counseling": []\n}';
+
+  // โพยลับ — ใช้ secretInfoFields ถ้ามี (กรอกแบบ structured)
+  const f = c?.secretInfoFields || {};
+  document.getElementById('cf-si-personality').value    = f.personality    || '';
+  document.getElementById('cf-si-mainSymptoms').value   = f.mainSymptoms   || '';
+  document.getElementById('cf-si-duration').value       = f.duration       || '';
+  document.getElementById('cf-si-severity').value       = f.severity       || '';
+  document.getElementById('cf-si-associated').value     = f.associated     || '';
+  document.getElementById('cf-si-factors').value        = f.factors        || '';
+  document.getElementById('cf-si-pastHistory').value    = f.pastHistory    || '';
+  document.getElementById('cf-si-prevTreatment').value  = f.prevTreatment  || '';
+  document.getElementById('cf-si-underlyingDisease').value = f.underlyingDisease || '';
+  document.getElementById('cf-si-regularMeds').value    = f.regularMeds    || '';
+  document.getElementById('cf-si-drugAllergy').value    = f.drugAllergy    || '';
+  document.getElementById('cf-si-additional').value     = f.additional     || '';
+  document.getElementById('cf-si-redFlags').value       = f.redFlags       || '';
 
   wrap.scrollIntoView({ behavior: 'smooth' });
+}
+
+// ประกอบ secretInfo string จาก structured fields (ช่องว่างจะไม่แสดง)
+function _assembleSecretInfo(f) {
+  const lines = [];
+
+  if (f.personality)
+    lines.push(`บุคลิก/อารมณ์: ${f.personality}`);
+
+  const section1 = [f.mainSymptoms].filter(Boolean);
+  if (section1.length) {
+    lines.push('');
+    lines.push('[หมวด 1: อาการหลัก — ตอบได้ทันทีถ้าถาม]');
+    section1.forEach(s => s.split('\n').forEach(l => l.trim() && lines.push(`- ${l.trim()}`)));
+  }
+
+  const detail = [
+    f.duration       && `ระยะเวลา: ${f.duration}`,
+    f.severity       && `ความรุนแรง: ${f.severity}`,
+    f.associated     && `อาการร่วม: ${f.associated}`,
+    f.factors        && `ปัจจัยที่ทำให้แย่ลง/ดีขึ้น: ${f.factors}`,
+  ].filter(Boolean);
+  if (detail.length) {
+    lines.push('');
+    lines.push('[หมวด 2: รายละเอียดอาการ — ต้องถามเฉพาะ]');
+    detail.forEach(d => lines.push(`- ${d}`));
+  }
+
+  const rx = [
+    f.prevTreatment && `ยาที่ลองใช้แล้ว: ${f.prevTreatment}`,
+    f.pastHistory   && `ประวัติเคยเป็น: ${f.pastHistory}`,
+  ].filter(Boolean);
+  if (rx.length) {
+    lines.push('');
+    lines.push('[หมวด 3: ประวัติการรักษา — ต้องถาม]');
+    rx.forEach(r => lines.push(`- ${r}`));
+  }
+
+  const safety = [
+    f.underlyingDisease && `โรคประจำตัว: ${f.underlyingDisease}`,
+    f.regularMeds       && `ยาประจำ: ${f.regularMeds}`,
+    f.drugAllergy       && `ประวัติแพ้ยา: ${f.drugAllergy}`,
+  ].filter(Boolean);
+  if (safety.length) {
+    lines.push('');
+    lines.push('[หมวด 4: ความปลอดภัย — CRITICAL ต้องถาม]');
+    safety.forEach(s => lines.push(`- ${s}`));
+  }
+
+  if (f.additional) {
+    lines.push('');
+    lines.push('[หมวด 5: ข้อมูลเพิ่มเติม]');
+    f.additional.split('\n').forEach(l => l.trim() && lines.push(`- ${l.trim()}`));
+  }
+
+  if (f.redFlags) {
+    lines.push('');
+    lines.push('[หมวด 6: Red Flags — ถ้าถูกถาม]');
+    f.redFlags.split('\n').forEach(l => l.trim() && lines.push(`- ${l.trim()}`));
+  }
+
+  return lines.join('\n').trim();
 }
 
 async function _saveCaseForm() {
@@ -241,20 +410,38 @@ async function _saveCaseForm() {
     return;
   }
 
+  // รวบรวม structured fields
+  const sif = {
+    personality:       document.getElementById('cf-si-personality').value.trim(),
+    mainSymptoms:      document.getElementById('cf-si-mainSymptoms').value.trim(),
+    duration:          document.getElementById('cf-si-duration').value.trim(),
+    severity:          document.getElementById('cf-si-severity').value.trim(),
+    associated:        document.getElementById('cf-si-associated').value.trim(),
+    factors:           document.getElementById('cf-si-factors').value.trim(),
+    pastHistory:       document.getElementById('cf-si-pastHistory').value.trim(),
+    prevTreatment:     document.getElementById('cf-si-prevTreatment').value.trim(),
+    underlyingDisease: document.getElementById('cf-si-underlyingDisease').value.trim(),
+    regularMeds:       document.getElementById('cf-si-regularMeds').value.trim(),
+    drugAllergy:       document.getElementById('cf-si-drugAllergy').value.trim(),
+    additional:        document.getElementById('cf-si-additional').value.trim(),
+    redFlags:          document.getElementById('cf-si-redFlags').value.trim(),
+  };
+
   const caseData = {
-    groupId:         document.getElementById('cf-groupId').value,
-    difficulty:      document.getElementById('cf-difficulty').value,
-    title:           document.getElementById('cf-title').value.trim(),
-    occupation:      document.getElementById('cf-occupation').value.trim() || 'random',
-    gender:          document.getElementById('cf-gender').value,
-    age:             parseInt(document.getElementById('cf-age').value) || 0,
-    sceneDesc:       document.getElementById('cf-sceneDesc').value.trim(),
-    chiefComplaint:  document.getElementById('cf-chiefComplaint').value.trim(),
-    secretInfo:      document.getElementById('cf-secretInfo').value.trim(),
+    groupId:           document.getElementById('cf-groupId').value,
+    difficulty:        document.getElementById('cf-difficulty').value,
+    title:             document.getElementById('cf-title').value.trim(),
+    occupation:        document.getElementById('cf-occupation').value.trim() || 'random',
+    gender:            document.getElementById('cf-gender').value,
+    age:               parseInt(document.getElementById('cf-age').value) || 0,
+    sceneDesc:         document.getElementById('cf-sceneDesc').value.trim(),
+    chiefComplaint:    document.getElementById('cf-chiefComplaint').value.trim(),
+    secretInfo:        _assembleSecretInfo(sif),   // ประกอบจาก structured fields
+    secretInfoFields:  sif,                         // เก็บต้นฉบับไว้แก้ไขครั้งหน้า
     specificChecklist: document.getElementById('cf-specificChecklist').value.trim(),
-    diagnosisAnswer: document.getElementById('cf-diagnosisAnswer').value.trim(),
+    diagnosisAnswer:   document.getElementById('cf-diagnosisAnswer').value.trim(),
     drugAnswer,
-    isActive:        true,
+    isActive:          true,
   };
 
   const saveBtn = document.getElementById('save-case-btn');
