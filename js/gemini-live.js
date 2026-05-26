@@ -46,16 +46,18 @@ class GeminiLiveClient {
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        // ✅ Fix 2: outer key "setup" → "config"
-        // ✅ Fix 3: model name updated to stable preview
-        // ✅ Fix 4: all keys camelCase (snake_case was old v1alpha format)
+        // setup key = BidiGenerateContentSetup (v1beta proto field name)
+        // responseModalities + speechConfig must be inside generationConfig
+        // model: gemini-2.0-flash-live-001 (stable GA, works on all paid plans)
         this._send({
-          config: {
-            model: 'models/gemini-2.5-flash-native-audio-preview-12-2025',
-            responseModalities: ['AUDIO'],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: voiceName }
+          setup: {
+            model: 'models/gemini-2.0-flash-live-001',
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName: voiceName }
+                }
               }
             },
             systemInstruction: {
@@ -71,14 +73,21 @@ class GeminiLiveClient {
         this._handleMessage(evt.data, resolve);
       };
 
-      this._ws.onerror = () => {
+      this._ws.onerror = (evt) => {
+        console.error('GeminiLive WS error:', evt);
         const msg = 'Gemini Live: ไม่สามารถเชื่อมต่อ WebSocket ได้';
         this.onError?.(msg);
         reject(new Error(msg));
       };
 
-      this._ws.onclose = () => {
+      this._ws.onclose = (evt) => {
         this._connected = false;
+        // Log close reason so we can diagnose protocol issues
+        console.warn(`GeminiLive WS closed: code=${evt.code} reason="${evt.reason}" wasClean=${evt.wasClean}`);
+        if (evt.code !== 1000 && evt.code !== 1001) {
+          const detail = evt.reason ? `: ${evt.reason}` : ` (code ${evt.code})`;
+          this.onError?.(`Gemini Live ปิดการเชื่อมต่อ${detail}`);
+        }
         this.onStateChange?.('disconnected');
       };
     });
