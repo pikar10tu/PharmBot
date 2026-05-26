@@ -20,12 +20,15 @@ function clearGeminiConfig() {
 function getGeminiKey() { return _geminiKey; }
 
 // Send a single-turn completion (used for evaluation)
-async function geminiComplete(prompt) {
+async function geminiComplete(prompt, _retry = 1) {
   if (!_geminiKey) throw new Error('Gemini API key not loaded');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${_geminiModel}:generateContent?key=${_geminiKey}`;
   const body = {
     contents: [{ role: 'user', parts: [{ text: prompt }] }],
-    generationConfig: { temperature: 0.2 }
+    generationConfig: {
+      temperature: 0.2,
+      thinkingConfig: { thinkingBudget: 0 }
+    }
   };
   const res = await fetch(url, {
     method: 'POST',
@@ -34,7 +37,12 @@ async function geminiComplete(prompt) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini error ${res.status}`);
+    const msg = err?.error?.message || `Gemini error ${res.status}`;
+    if (_retry > 0 && (res.status === 503 || res.status === 429)) {
+      await new Promise(r => setTimeout(r, 4000));
+      return geminiComplete(prompt, _retry - 1);
+    }
+    throw new Error(msg);
   }
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
@@ -42,20 +50,27 @@ async function geminiComplete(prompt) {
 
 // Send a multi-turn chat (history + new message)
 // history: [{role: 'user'|'model', parts: [{text}]}]
-async function geminiChat(systemPrompt, history, userMessage) {
+async function geminiChat(systemPrompt, history, userMessage, _retry = 1) {
   if (!_geminiKey) throw new Error('Gemini API key not loaded');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${_geminiModel}:generateContent?key=${_geminiKey}`;
 
-  // Gemini uses system_instruction separately
+  // Keep only last 12 turns to limit token usage on long conversations
+  const trimmedHistory = history.slice(-12);
+
   const contents = [
-    ...history,
+    ...trimmedHistory,
     { role: 'user', parts: [{ text: userMessage }] }
   ];
 
   const body = {
     system_instruction: { parts: [{ text: systemPrompt }] },
     contents,
-    generationConfig: { temperature: 0.8, maxOutputTokens: 300 }
+    generationConfig: {
+      temperature: 0.8,
+      maxOutputTokens: 300,
+      // Disable thinking on gemini-2.5-flash — not needed for roleplay, saves tokens & latency
+      thinkingConfig: { thinkingBudget: 0 }
+    }
   };
 
   const res = await fetch(url, {
@@ -63,9 +78,16 @@ async function geminiChat(systemPrompt, history, userMessage) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err?.error?.message || `Gemini error ${res.status}`);
+    const msg = err?.error?.message || `Gemini error ${res.status}`;
+    // Auto-retry once on transient server errors (503 / high demand)
+    if (_retry > 0 && (res.status === 503 || res.status === 429)) {
+      await new Promise(r => setTimeout(r, 4000));
+      return geminiChat(systemPrompt, history, userMessage, _retry - 1);
+    }
+    throw new Error(msg);
   }
   const data = await res.json();
   return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
