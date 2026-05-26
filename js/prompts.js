@@ -169,13 +169,31 @@ function buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistor
     : '(ไม่มีเกณฑ์เฉพาะโรคสำหรับเคสนี้)';
 
   // Format drug answer for eval context
-  const da = caseData.drugAnswer;
-  const firstLineText = (da.firstLine || []).map(opt =>
-    `${opt.drugs.join('+')} — ${JSON.stringify(opt.regimen)} (100%)`
-  ).join('; ');
-  const altText = (da.alternatives || []).map(opt =>
-    `${opt.drugs.join('+')} (${opt.scorePercent}%) — ${opt.note || ''}`
-  ).join('; ');
+  // รองรับ 2 format:
+  //   Simple:  firstLine = ['amoxicillin_500', ...] + regimen = { amoxicillin_500: '...' }
+  //   Rich:    firstLine = [{ drugs: [...], regimen: {...}, note: '...' }]
+  const da = caseData.drugAnswer || {};
+  const isSimple = Array.isArray(da.firstLine) && da.firstLine.length > 0
+    && typeof da.firstLine[0] === 'string';
+
+  let firstLineText, altText;
+  if (isSimple) {
+    firstLineText = (da.firstLine || []).map(id => {
+      const reg = da.regimen?.[id] || '';
+      return `${id}${reg ? ' — ' + reg : ''} (100%)`;
+    }).join('; ');
+    altText = (da.alternatives || []).map(id => {
+      const reg = da.regimen?.[id] || '';
+      return `${id}${reg ? ' — ' + reg : ''}`;
+    }).join('; ');
+  } else {
+    firstLineText = (da.firstLine || []).map(opt =>
+      `${(opt.drugs || []).join('+')} — ${JSON.stringify(opt.regimen || {})} (100%)`
+    ).join('; ');
+    altText = (da.alternatives || []).map(opt =>
+      `${(opt.drugs || []).join('+')} (${opt.scorePercent ?? '?'}%) — ${opt.note || ''}`
+    ).join('; ');
+  }
   const counselingPoints = (da.counseling || []).join(' | ');
 
   const drugSummary = `First-line: ${firstLineText}\nAlternatives: ${altText}\nCounseling points: ${counselingPoints}`;
