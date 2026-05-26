@@ -69,14 +69,23 @@ async function geminiChat(systemPrompt, history, userMessage) {
 }
 
 // Load Gemini config from Firestore (called right after login)
+// Does NOT throw — login should succeed even if Gemini config is unavailable
 async function loadGeminiConfig() {
   try {
     const snap = await db.collection('config').doc('gemini').get();
-    if (!snap.exists) throw new Error('Gemini config not found in Firestore');
+    if (!snap.exists) {
+      console.warn('loadGeminiConfig: /config/gemini document not found');
+      return;
+    }
     const { apiKey, model } = snap.data();
+    if (!apiKey) {
+      console.warn('loadGeminiConfig: apiKey field is empty');
+      return;
+    }
     setGeminiConfig(apiKey, model);
+    console.log('loadGeminiConfig: loaded OK');
   } catch (e) {
-    console.error('loadGeminiConfig:', e);
-    throw e;
+    // Do NOT re-throw — a missing/inaccessible Gemini config must not block login
+    console.error('loadGeminiConfig failed (non-fatal):', e.message);
   }
 }

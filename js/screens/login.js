@@ -66,9 +66,13 @@ function renderLogin(container) {
       await loginWithParticipantId(pid, pw);
       Router.go('dashboard');
     } catch (e) {
-      const msg = e.code === 'auth/wrong-password' || e.code === 'auth/user-not-found'
+      const authFail = [
+        'auth/wrong-password', 'auth/user-not-found',
+        'auth/invalid-credential', 'auth/invalid-email',
+      ].includes(e.code);
+      const msg = authFail
         ? 'รหัสผู้เข้าร่วมหรือรหัสผ่านไม่ถูกต้อง'
-        : 'เกิดข้อผิดพลาด กรุณาลองใหม่';
+        : `เกิดข้อผิดพลาด: ${e.message || 'กรุณาลองใหม่'}`;
       showAlert(msg);
       btn.disabled = false;
       btn.textContent = 'เข้าสู่ระบบ';
