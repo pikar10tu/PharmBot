@@ -50,7 +50,7 @@ class GeminiLiveClient {
         // v1beta BidiGenerateContent does not yet expose Live API models
         this._send({
           setup: {
-            model: 'models/gemini-2.0-flash-live-001',
+            model: 'models/gemini-2.5-flash-native-audio-latest',
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: {
