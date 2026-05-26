@@ -41,17 +41,16 @@ class GeminiLiveClient {
     return new Promise((resolve, reject) => {
       this.onStateChange?.('connecting');
 
-      // ✅ Fix 1: v1alpha → v1beta (official stable endpoint)
-      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      // v1alpha is required for BidiGenerateContent (Live API models not on v1beta yet)
+      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        // setup key = BidiGenerateContentSetup (v1beta proto field name)
-        // responseModalities + speechConfig must be inside generationConfig
-        // model: gemini-2.0-flash-live-001 (stable GA, works on all paid plans)
+        // v1alpha endpoint supports gemini-2.0-flash-live-001 (stable GA)
+        // v1beta BidiGenerateContent does not yet expose Live API models
         this._send({
           setup: {
-            model: 'models/gemini-2.5-flash-preview-native-audio-dialog',
+            model: 'models/gemini-2.0-flash-live-001',
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: {
