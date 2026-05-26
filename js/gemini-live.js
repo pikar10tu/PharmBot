@@ -272,4 +272,13 @@ function _b64ToPcm16(b64) {
 
 function _pcm16ToF32(int16) {
   const out = new Float32Array(int16.length);
-  for (let i = 0; 
+  for (let i = 0; i < int16.length; i++) out[i] = int16[i] / 32768.0;
+  return out;
+}
+
+function _bufToB64(buffer) {
+  const bytes = new Uint8Array(buffer);
+  let bin = '';
+  for (let i = 0; i < bytes.byteLength; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
+}
