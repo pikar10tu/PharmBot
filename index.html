@@ -15,28 +15,28 @@
 
 <div id="app"></div>
 
-<!-- Core modules (load order matters) — v2.1 -->
-<script src="js/firebase-config.js"></script>
-<script src="js/gemini.js"></script>
-<script src="js/gemini-live.js"></script>
-<script src="js/auth.js"></script>
-<script src="js/db.js"></script>
-<script src="js/prompts.js"></script>
-<script src="js/drug-data.js"></script>
+<!-- Core modules (load order matters) — v2.2 -->
+<script src="js/firebase-config.js?v=2"></script>
+<script src="js/gemini.js?v=2"></script>
+<script src="js/gemini-live.js?v=2"></script>
+<script src="js/auth.js?v=2"></script>
+<script src="js/db.js?v=2"></script>
+<script src="js/prompts.js?v=2"></script>
+<script src="js/drug-data.js?v=2"></script>
 
 <!-- Screens -->
-<script src="js/screens/login.js"></script>
-<script src="js/screens/dashboard.js"></script>
-<script src="js/screens/groups.js"></script>
-<script src="js/screens/cases.js"></script>
-<script src="js/screens/drugs-modal.js"></script>
-<script src="js/screens/chat.js"></script>
-<script src="js/screens/summary.js"></script>
-<script src="js/screens/history.js"></script>
-<script src="js/screens/admin.js"></script>
+<script src="js/screens/login.js?v=2"></script>
+<script src="js/screens/dashboard.js?v=2"></script>
+<script src="js/screens/groups.js?v=2"></script>
+<script src="js/screens/cases.js?v=2"></script>
+<script src="js/screens/drugs-modal.js?v=2"></script>
+<script src="js/screens/chat.js?v=2"></script>
+<script src="js/screens/summary.js?v=2"></script>
+<script src="js/screens/history.js?v=2"></script>
+<script src="js/screens/admin.js?v=2"></script>
 
 <!-- Router (init last) -->
-<script src="js/router.js"></script>
+<script src="js/router.js?v=2"></script>
 <script>
   // Wait for Firebase Auth to restore session before first route dispatch
   onAuthReady((user) => {
