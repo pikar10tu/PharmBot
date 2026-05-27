@@ -47,10 +47,10 @@ class GeminiLiveClient {
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        console.log('GeminiLive → setup (gemini-3.1-flash-live-preview / v1beta)');
+        console.log('GeminiLive → setup (gemini-2.5-flash-native-audio-latest / v1beta)');
         this._send({
           setup: {
-            model: 'models/gemini-3.1-flash-live-preview',
+            model: 'models/gemini-2.5-flash-native-audio-latest',
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: {
@@ -76,6 +76,7 @@ class GeminiLiveClient {
       }, 20000);
 
       this._ws.onmessage = (evt) => {
+        console.log('GeminiLive raw ←', typeof evt.data, String(evt.data).slice(0, 400));
         this._handleMessage(evt.data, () => { clearTimeout(_setupTimer); resolve(); });
       };
 
