@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gemini Live — API Tester</title>
+  <style>
+    * { box-sizing: border-box; font-family: system-ui, sans-serif; }
+    body { max-width: 680px; margin: 32px auto; padding: 0 16px; background: #f0f2f5; }
+    h1 { color: #333; margin-bottom: 20px; }
+    .card { background: white; border-radius: 12px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+    label { display: block; font-size: 12px; color: #888; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; }
+    input[type=password], input[type=text], select {
+      width: 100%; padding: 10px 12px; border: 1px solid #ddd; border-radius: 8px;
+      font-size: 14px; margin-bottom: 12px; outline: none;
+    }
+    input:focus, select:focus { border-color: #4285f4; }
+    .row { display: flex; gap: 8px; }
+    .btn { padding: 10px 18px; border: none; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 600; transition: opacity .15s; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-blue  { background: #4285f4; color: white; }
+    .btn-red   { background: #ea4335; color: white; }
+    .btn-gray  { background: #e8eaed; color: #333; }
+    #status { padding: 10px 14px; border-radius: 8px; font-size: 14px; margin-bottom: 12px;
+               background: #fff8e1; border: 1px solid #ffd54f; }
+    #status.ok    { background: #e8f5e9; border-color: #66bb6a; color: #1b5e20; }
+    #status.err   { background: #ffebee; border-color: #ef9a9a; color: #b71c1c; }
+    #messages { height: 260px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px; }
+    .msg { padding: 8px 12px; border-radius: 10px; font-size: 14px; line-height: 1.5; max-width: 90%; }
+    .msg-user   { background: #e3f2fd; align-self: flex-end; }
+    .msg-model  { background: #f3e5f5; align-self: flex-start; }
+    .msg-system { background: #e8f5e9; color: #388e3c; font-style: italic; align-self: center; font-size: 13px; }
+    .msg-err    { background: #ffebee; color: #c62828; align-self: center; font-size: 13px; }
+    .raw { font-size: 11px; font-family: monospace; background: #1a1a2e; color: #a0d8ef;
+           padding: 10px; border-radius: 8px; height: 160px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+    .hint { font-size: 12px; color: #aaa; margin-top: -8px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+<h1>🎙️ Gemini Live API Tester</h1>
+
+<div class="card">
+  <label>Google AI Studio API Key</label>
+  <input type="password" id="apiKey" placeholder="AIzaSy..." autocomplete="off" />
+  <p class="hint">วาง key จาก <a href="https://aistudio.google.com/app/apikey" target="_blank">aistudio.google.com/app/apikey</a></p>
+
+  <div class="row">
+    <div style="flex:2">
+      <label>Model</label>
+      <select id="model">
+        <option value="models/gemini-3.1-flash-live-preview">gemini-3.1-flash-live-preview</option>
+        <option value="models/gemini-2.5-flash-native-audio-preview-12-2025">gemini-2.5-flash-native-audio-preview-12-2025</option>
+        <option value="models/gemini-2.5-flash-native-audio-latest">gemini-2.5-flash-native-audio-latest</option>
+      </select>
+    </div>
+    <div style="flex:1">
+      <label>API Version</label>
+      <select id="apiVer">
+        <option value="v1beta">v1beta</option>
+        <option value="v1alpha">v1alpha</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="btn btn-blue"  id="connectBtn">🔌 เชื่อมต่อ + เปิดไมค์</button>
+    <button class="btn btn-red"   id="disconnectBtn" disabled>⏹ ตัดการเชื่อมต่อ</button>
+  </div>
+</div>
+
+<div id="status">⚪ ยังไม่เชื่อมต่อ</div>
+
+<div class="card">
+  <div id="messages"></div>
+  <div class="row" style="margin-top:12px;">
+    <input type="text" id="textInput" placeholder="พิมพ์ข้อความ แล้วกด Enter หรือ ส่ง" style="margin-bottom:0" />
+    <button class="btn btn-gray" id="sendBtn" disabled>ส่ง</button>
+  </div>
+</div>
+
+<div class="card">
+  <label>WebSocket Raw Log</label>
+  <div class="raw" id="rawLog"></div>
+</div>
+
+<script>
+// ── State ─────────────────────────────────────────────────────
+let ws = null;
+let micCtx = null, captureNode = null, mediaStream = null;
+let audioCtx = null, playNode = null, nextPlayTime = 0;
+
+// ── DOM helpers ───────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+function setStatus(txt, cls = '') {
+  $('status').textContent = txt;
+  $('status').className = cls;
+}
+function addMsg(role, text) {
+  const d = document.createElement('div');
+  d.className = 'msg msg-' + role;
+  d.textContent = text;
+  $('messages').appendChild(d);
+  $('messages').scrollTop = 99999;
+}
+function rawLog(line) {
+  const el = $('rawLog');
+  el.textContent += '\n' + new Date().toLocaleTimeString('th-TH') + ' ' + line;
+  el.scrollTop = 99999;
+}
+
+// ── WS send ───────────────────────────────────────────────────
+function wsSend(obj) {
+  if (ws?.readyState !== WebSocket.OPEN) return;
+  const json = JSON.stringify(obj);
+  rawLog('→ ' + json.slice(0, 250));
+  ws.send(json);
+}
+
+// ── Audio helpers ─────────────────────────────────────────────
+function bufToB64(buf) {
+  const u8 = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < u8.length; i++) s += String.fromCharCode(u8[i]);
+  return btoa(s);
+}
+function b64ToPcm16(b64) {
+  const bin = atob(b64), ab = new ArrayBuffer(bin.length), u8 = new Uint8Array(ab);
+  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  return new Int16Array(ab);
+}
+function pcm16ToF32(i16) {
+  const f = new Float32Array(i16.length);
+  for (let i = 0; i < i16.length; i++) f[i] = i16[i] / 32768;
+  return f;
+}
+
+// ── Playback ──────────────────────────────────────────────────
+async function setupPlayback() {
+  if (audioCtx && audioCtx.state !== 'closed') return;
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+  try {
+    await audioCtx.audioWorklet.addModule('../audio/playback.worklet.js');
+    playNode = new AudioWorkletNode(audioCtx, 'playback-processor');
+    playNode.connect(audioCtx.destination);
+    rawLog('✅ Playback AudioWorklet OK');
+  } catch (e) {
+    rawLog('⚠️ Playback fallback (BufferSource): ' + e.message);
+    playNode = null;
+  }
+}
+async function playAudio(b64) {
+  await setupPlayback();
+  if (audioCtx.state === 'suspended') await audioCtx.resume();
+  const f32 = pcm16ToF32(b64ToPcm16(b64));
+  if (playNode) {
+    playNode.port.postMessage(f32.buffer, [f32.buffer]);
+  } else {
+    try {
+      const buf = audioCtx.createBuffer(1, f32.length, 24000);
+      buf.copyToChannel(f32, 0);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf; src.connect(audioCtx.destination);
+      const t = Math.max(audioCtx.currentTime + 0.05, nextPlayTime);
+      src.start(t); nextPlayTime = t + buf.duration;
+    } catch (e) { rawLog('Audio err: ' + e.message); }
+  }
+}
+function stopPlayback() {
+  try { playNode?.port.postMessage('clear'); playNode?.disconnect(); } catch(_){}
+  try { if (audioCtx?.state !== 'closed') audioCtx?.close(); } catch(_){}
+  playNode = null; audioCtx = null; nextPlayTime = 0;
+}
+
+// ── Microphone ────────────────────────────────────────────────
+async function startMic() {
+  mediaStream = await navigator.mediaDevices.getUserMedia({
+    audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true }
+  });
+  micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
+  const src = micCtx.createMediaStreamSource(mediaStream);
+  try {
+    await micCtx.audioWorklet.addModule('../audio/capture.worklet.js');
+    captureNode = new AudioWorkletNode(micCtx, 'capture-processor');
+    captureNode.port.onmessage = e => {
+      if (ws?.readyState === WebSocket.OPEN)
+        wsSend({ realtimeInput: { audio: { mimeType: 'audio/pcm', data: bufToB64(e.data) } } });
+    };
+    src.connect(captureNode);
+    captureNode.connect(micCtx.destination);
+    rawLog('✅ Capture AudioWorklet OK (16 kHz)');
+  } catch (e) {
+    rawLog('⚠️ Capture fallback (ScriptProcessor): ' + e.message);
+    const proc = micCtx.createScriptProcessor(2048, 1, 1);
+    proc.onaudioprocess = ev => {
+      if (ws?.readyState !== WebSocket.OPEN) return;
+      const f32 = ev.inputBuffer.getChannelData(0);
+      const pcm = new Int16Array(f32.length);
+      for (let i = 0; i < f32.length; i++)
+        pcm[i] = Math.max(-32768, Math.min(32767, f32[i] * 32767));
+      wsSend({ realtimeInput: { audio: { mimeType: 'audio/pcm', data: bufToB64(pcm.buffer) } } });
+    };
+    const sil = micCtx.createGain(); sil.gain.value = 0;
+    src.connect(proc); proc.connect(sil); sil.connect(micCtx.destination);
+    captureNode = proc;
+  }
+}
+function stopMic() {
+  try { captureNode?.disconnect(); } catch(_){}
+  try { mediaStream?.getTracks().forEach(t => t.stop()); } catch(_){}
+  try { if (micCtx?.state !== 'closed') micCtx?.close(); } catch(_){}
+  captureNode = null; mediaStream = null; micCtx = null;
+}
+
+// ── WS message handler ────────────────────────────────────────
+function handleMsg(raw) {
+  let data;
+  try { data = JSON.parse(raw); }
+  catch { rawLog('⚠️ non-JSON: ' + String(raw).slice(0, 120)); return; }
+  rawLog('← ' + JSON.stringify(data).slice(0, 300));
+
+  // Setup complete
+  if (data.setupComplete !== undefined) {
+    setStatus('🟢 เชื่อมต่อสำเร็จ — กำลังฟัง...', 'ok');
+    addMsg('system', '✅ เชื่อมต่อสำเร็จ พูดเข้าไมค์ได้เลยครับ!');
+    $('sendBtn').disabled = false;
+    return;
+  }
+
+  const sc = data.serverContent;
+  if (!sc) return;
+
+  // Audio output
+  const parts = (sc.modelTurn || sc.model_turn)?.parts;
+  if (parts) for (const p of parts) {
+    const id = p.inlineData || p.inline_data;
+    if (id?.data) playAudio(id.data);
+  }
+
+  // Transcripts
+  const inTx = sc.inputTranscription || sc.input_transcription;
+  if (inTx?.text) addMsg('user', '🧑 ' + inTx.text.trim());
+  const outTx = sc.outputTranscription || sc.output_transcription;
+  if (outTx?.text) addMsg('model', '🤖 ' + outTx.text.trim());
+
+  if (sc.turnComplete || sc.turn_complete)
+    setStatus('🟢 เชื่อมต่อสำเร็จ — กำลังฟัง...', 'ok');
+  if (sc.interrupted)
+    try { playNode?.port.postMessage('clear'); } catch(_){}
+}
+
+// ── Connect button ────────────────────────────────────────────
+$('connectBtn').addEventListener('click', async () => {
+  const apiKey = $('apiKey').value.trim();
+  if (!apiKey) { alert('กรุณากรอก API Key'); return; }
+
+  const model   = $('model').value;
+  const version = $('apiVer').value;
+  const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.${version}.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+
+  rawLog('→ Connecting: ' + url.replace(apiKey, 'KEY***'));
+  setStatus('⏳ กำลังเชื่อมต่อ...');
+  $('connectBtn').disabled = true;
+  $('disconnectBtn').disabled = false;
+
+  ws = new WebSocket(url);
+
+  ws.onopen = () => {
+    rawLog('✅ WS open');
+    wsSend({
+      setup: {
+        model,
+        generationConfig: {
+          responseModalities: ['AUDIO'],
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Aoede' } } }
+        },
+        systemInstruction: { parts: [{ text: 'คุณเป็นผู้ช่วยที่พูดได้ ตอบเป็นภาษาไทย กระชับ ไม่เกิน 2 ประโยค' }] }
+      }
+    });
+    setStatus('⏳ รอ setupComplete...');
+  };
+
+  ws.onmessage = evt => handleMsg(evt.data);
+
+  ws.onerror = () => {
+    rawLog('❌ WS error');
+    setStatus('❌ เชื่อมต่อล้มเหลว — ดู Raw Log', 'err');
+    $('connectBtn').disabled = false;
+    $('disconnectBtn').disabled = true;
+  };
+
+  ws.onclose = evt => {
+    rawLog(`❌ WS closed: code=${evt.code} reason="${evt.reason}"`);
+    if (evt.code !== 1000 && evt.code !== 1001)
+      setStatus(`❌ ${evt.reason || 'ปิดการเชื่อมต่อ (code ' + evt.code + ')'}`, 'err');
+    $('connectBtn').disabled = false;
+    $('disconnectBtn').disabled = true;
+    $('sendBtn').disabled = true;
+  };
+
+  try { await startMic(); }
+  catch (e) {
+    rawLog('❌ Mic: ' + e.message);
+    addMsg('err', 'ไม่สามารถเปิดไมค์ได้: ' + e.message);
+  }
+});
+
+// ── Disconnect button ─────────────────────────────────────────
+$('disconnectBtn').addEventListener('click', () => {
+  stopMic(); stopPlayback();
+  if (ws) { ws.onclose = null; ws.onerror = null; try { ws.close(); } catch(_){} ws = null; }
+  setStatus('⚪ ยังไม่เชื่อมต่อ');
+  $('connectBtn').disabled = false;
+  $('disconnectBtn').disabled = true;
+  $('sendBtn').disabled = true;
+});
+
+// ── Send text ─────────────────────────────────────────────────
+$('sendBtn').addEventListener('click', () => {
+  const txt = $('textInput').value.trim();
+  if (!txt) return;
+  wsSend({ clientContent: { turns: [{ role: 'user', parts: [{ text: txt }] }], turnComplete: true } });
+  addMsg('user', '🧑 ' + txt);
+  $('textInput').value = '';
+});
+$('textInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('sendBtn').click(); });
+</script>
+</body>
+</html>
