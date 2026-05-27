@@ -69,6 +69,7 @@ function renderLogin(container) {
       const authFail = [
         'auth/wrong-password', 'auth/user-not-found',
         'auth/invalid-credential', 'auth/invalid-email',
+        'auth/invalid-login-credentials',
       ].includes(e.code);
       const msg = authFail
         ? 'รหัสผู้เข้าร่วมหรือรหัสผ่านไม่ถูกต้อง'
