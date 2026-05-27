@@ -114,41 +114,46 @@ function _renderChatUI(container, pid) {
       </div>
 
       <!-- ═══ Panel 1: History Taking ═══ -->
-      <div id="panel-1">
+      <div id="panel-1" class="session-panel">
 
-        <!-- Mode toggle bar — voice is default -->
-        <div class="voice-mode-bar mb-2">
-          <button class="voice-mode-tab" id="tab-text-1" onclick="_switchMode(1,'text')">💬 ข้อความ</button>
-          <button class="voice-mode-tab active" id="tab-voice-1" onclick="_switchMode(1,'voice')">🎙️ สนทนาเสียง</button>
-        </div>
-
-        <!-- Chat messages (shared by both modes) -->
-        <div class="chat-wrap" style="border:1px solid var(--glass-border);border-radius:var(--radius);background:rgba(255,255,255,0.03);">
+        <!-- Conversation transcript (compact, scrollable) -->
+        <div class="transcript-wrap">
           <div class="chat-messages" id="chat-messages"></div>
-
-          <!-- Text input row (text mode — hidden by default) -->
-          <div id="text-input-row-1" class="chat-input-row hidden">
-            <input class="input chat-input" id="chat-input" type="text"
-              placeholder="พิมพ์ข้อความหรือกดไมค์…" autocomplete="off" />
-            <button class="btn-mic" id="mic-btn" title="Push to Talk (กดพูด)">🎤</button>
-            <button class="btn btn-primary btn-sm" id="send-btn">ส่ง</button>
-          </div>
-
-          <!-- Voice status row (voice mode — visible by default) -->
-          <div id="voice-input-row-1" class="voice-input-row">
-            <div class="voice-waveform" id="waveform-1">
-              <span></span><span></span><span></span><span></span><span></span>
-            </div>
-            <div class="voice-status-text" id="voice-status-1">⏳ กำลังเชื่อมต่อ…</div>
-            <div class="voice-subtitle" id="voice-subtitle-1"></div>
-          </div>
         </div>
 
-        <div class="flex items-center mt-2" style="justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
-          <label class="flex items-center gap-1 text-sm text-dim" id="tts-label" style="cursor:pointer;visibility:hidden;">
-            <input type="checkbox" id="tts-toggle" /> อ่านออกเสียงอัตโนมัติ
+        <!-- Voice Stage — hero section (voice mode, visible by default) -->
+        <div id="voice-input-row-1" class="voice-stage">
+          <div class="patient-orb" id="patient-orb-1">
+            <div class="orb-ring"></div>
+            <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
+          </div>
+          <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
+          <div class="voice-waveform" id="waveform-1">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div class="voice-status-text" id="voice-status-1">⏳ กำลังเชื่อมต่อ…</div>
+          <div class="voice-subtitle" id="voice-subtitle-1"></div>
+        </div>
+
+        <!-- Text input row (text mode — hidden by default) -->
+        <div id="text-input-row-1" class="chat-input-row hidden">
+          <input class="input chat-input" id="chat-input" type="text"
+            placeholder="พิมพ์ข้อความ…" autocomplete="off" />
+          <button class="btn-mic" id="mic-btn" title="Push to Talk">🎤</button>
+          <button class="btn btn-primary btn-sm" id="send-btn">ส่ง</button>
+        </div>
+
+        <!-- Footer bar -->
+        <div class="session-footer">
+          <div class="mode-switcher">
+            <button class="mode-btn active" id="tab-voice-1" onclick="_switchMode(1,'voice')">🎙️ เสียง</button>
+            <button class="mode-btn" id="tab-text-1" onclick="_switchMode(1,'text')">💬 ข้อความ</button>
+          </div>
+          <label class="tts-check" id="tts-label" style="display:none;">
+            <input type="checkbox" id="tts-toggle" /> อ่านเสียง
           </label>
-          <button class="btn btn-success btn-sm" id="done-history-btn">ซักประวัติเสร็จแล้ว → จ่ายยา</button>
+          <button class="btn btn-success btn-sm" id="done-history-btn">ซักประวัติเสร็จแล้ว →</button>
         </div>
       </div>
 
@@ -166,38 +171,44 @@ function _renderChatUI(container, pid) {
       </div>
 
       <!-- ═══ Panel 3: Counseling ═══ -->
-      <div id="panel-3" class="hidden">
-        <div id="dispensed-summary" class="alert alert-info mb-2 text-sm"></div>
+      <div id="panel-3" class="session-panel hidden">
+        <div id="dispensed-summary" class="alert alert-info text-sm"></div>
 
-        <!-- Mode toggle bar — voice is default -->
-        <div class="voice-mode-bar mb-2">
-          <button class="voice-mode-tab" id="tab-text-3" onclick="_switchMode(3,'text')">💬 ข้อความ</button>
-          <button class="voice-mode-tab active" id="tab-voice-3" onclick="_switchMode(3,'voice')">🎙️ สนทนาเสียง</button>
-        </div>
-
-        <div class="chat-wrap" style="border:1px solid var(--glass-border);border-radius:var(--radius);background:rgba(255,255,255,0.03);">
+        <!-- Conversation transcript -->
+        <div class="transcript-wrap">
           <div class="chat-messages" id="counsel-messages"></div>
-
-          <!-- Text input row (hidden by default) -->
-          <div id="text-input-row-3" class="chat-input-row hidden">
-            <input class="input chat-input" id="counsel-input" type="text"
-              placeholder="อธิบายยาและคำแนะนำให้ผู้ป่วย…" autocomplete="off" />
-            <button class="btn-mic" id="mic-btn-3" title="Push to Talk">🎤</button>
-            <button class="btn btn-primary btn-sm" id="send-counsel-btn">ส่ง</button>
-          </div>
-
-          <!-- Voice status row (visible by default) -->
-          <div id="voice-input-row-3" class="voice-input-row">
-            <div class="voice-waveform" id="waveform-3">
-              <span></span><span></span><span></span><span></span><span></span>
-            </div>
-            <div class="voice-status-text" id="voice-status-3">⏳ กำลังเชื่อมต่อ…</div>
-            <div class="voice-subtitle" id="voice-subtitle-3"></div>
-          </div>
         </div>
 
-        <div class="flex mt-2" style="justify-content:flex-end;">
-          <button class="btn btn-success btn-sm" id="done-counsel-btn">ให้คำแนะนำเสร็จแล้ว → ประเมินผล</button>
+        <!-- Voice Stage -->
+        <div id="voice-input-row-3" class="voice-stage">
+          <div class="patient-orb" id="patient-orb-3">
+            <div class="orb-ring"></div>
+            <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
+          </div>
+          <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
+          <div class="voice-waveform" id="waveform-3">
+            <span></span><span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span>
+          </div>
+          <div class="voice-status-text" id="voice-status-3">⏳ กำลังเชื่อมต่อ…</div>
+          <div class="voice-subtitle" id="voice-subtitle-3"></div>
+        </div>
+
+        <!-- Text input row (hidden by default) -->
+        <div id="text-input-row-3" class="chat-input-row hidden">
+          <input class="input chat-input" id="counsel-input" type="text"
+            placeholder="อธิบายยาและคำแนะนำให้ผู้ป่วย…" autocomplete="off" />
+          <button class="btn-mic" id="mic-btn-3" title="Push to Talk">🎤</button>
+          <button class="btn btn-primary btn-sm" id="send-counsel-btn">ส่ง</button>
+        </div>
+
+        <!-- Footer bar -->
+        <div class="session-footer">
+          <div class="mode-switcher">
+            <button class="mode-btn active" id="tab-voice-3" onclick="_switchMode(3,'voice')">🎙️ เสียง</button>
+            <button class="mode-btn" id="tab-text-3" onclick="_switchMode(3,'text')">💬 ข้อความ</button>
+          </div>
+          <button class="btn btn-success btn-sm" id="done-counsel-btn">ให้คำแนะนำเสร็จแล้ว →</button>
         </div>
       </div>
 
@@ -272,26 +283,25 @@ function _attachEvents() {
 // ── Voice Mode (Web Speech STT + Gemini TTS) ──────────────────
 
 async function _switchMode(panelStep, mode) {
-  // Update tab UI
   const textTab  = document.getElementById(`tab-text-${panelStep}`);
   const voiceTab = document.getElementById(`tab-voice-${panelStep}`);
   const textRow  = document.getElementById(`text-input-row-${panelStep}`);
   const voiceRow = document.getElementById(`voice-input-row-${panelStep}`);
-  const ttsLabel = document.getElementById('tts-label'); // only panel 1
+  const ttsLabel = document.getElementById('tts-label'); // panel 1 only
 
   if (mode === 'voice') {
     textTab?.classList.remove('active');
     voiceTab?.classList.add('active');
     textRow?.classList.add('hidden');
     voiceRow?.classList.remove('hidden');
-    if (ttsLabel) ttsLabel.style.visibility = 'hidden';
+    if (ttsLabel) ttsLabel.style.display = 'none';
     _startVoice(panelStep).catch(e => console.warn('_startVoice error:', e.message));
   } else {
     voiceTab?.classList.remove('active');
     textTab?.classList.add('active');
     voiceRow?.classList.add('hidden');
     textRow?.classList.remove('hidden');
-    if (ttsLabel) ttsLabel.style.visibility = '';
+    if (ttsLabel) ttsLabel.style.display = 'flex';
     _stopVoice();
   }
 }
@@ -318,6 +328,9 @@ async function _startVoice(panelStep) {
       : buildCounselingPrompt(_caseData, _dispensedDrugs);
     const voiceName = _caseData?.gender === 'male' ? 'Puck' : 'Aoede';
     const client    = new GeminiLiveClient();
+    // Suppress AI audio + transcripts until pharmacist speaks first
+    client.audioEnabled = false;
+    let _pharmacistSpoke = false;
 
     client.onStateChange = (state) => {
       if (!_voiceMode || _voicePanelStep !== panelStep) return;
@@ -329,11 +342,21 @@ async function _startVoice(panelStep) {
         disconnected:  '🔌 ยกเลิกการเชื่อมต่อ',
       };
       _setVoiceStatus(panelStep, labels[state] || state, state === 'ai-speaking');
+      // Waveform classes
       const wv = document.getElementById(`waveform-${panelStep}`);
       if (wv) {
-        wv.classList.toggle('wave-ai',    state === 'ai-speaking');
+        wv.classList.toggle('wave-ai',     state === 'ai-speaking');
         wv.classList.toggle('wave-active', state === 'listening' || state === 'ready');
       }
+      // Patient orb classes
+      const orb   = document.getElementById(`patient-orb-${panelStep}`);
+      const stage = document.getElementById(`voice-input-row-${panelStep}`);
+      if (orb) {
+        orb.classList.toggle('orb-speaking', state === 'ai-speaking');
+        orb.classList.toggle('orb-ready',    state === 'listening' || state === 'ready');
+      }
+      if (stage) stage.classList.toggle('stage-active', state === 'ai-speaking');
+      // Clear subtitle when AI stops
       if (state !== 'ai-speaking') {
         const sub = document.getElementById(`voice-subtitle-${panelStep}`);
         if (sub) sub.textContent = '';
@@ -341,6 +364,11 @@ async function _startVoice(panelStep) {
     };
 
     client.onUserTranscript = (text) => {
+      // First pharmacist turn → unlock AI audio for all subsequent turns
+      if (!_pharmacistSpoke) {
+        _pharmacistSpoke = true;
+        client.audioEnabled = true;
+      }
       if (!text || !_voiceMode) return;
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
       hist.push({ role: 'user', text });
@@ -348,13 +376,13 @@ async function _startVoice(panelStep) {
     };
 
     client.onPartialModelTranscript = (chunk) => {
-      if (!_voiceMode || _voicePanelStep !== panelStep) return;
+      if (!_pharmacistSpoke || !_voiceMode || _voicePanelStep !== panelStep) return;
       const el = document.getElementById(`voice-subtitle-${panelStep}`);
       if (el) el.textContent += chunk;
     };
 
     client.onModelTranscript = (text) => {
-      if (!text || !_voiceMode) return;
+      if (!_pharmacistSpoke || !text || !_voiceMode) return;
       const sub = document.getElementById(`voice-subtitle-${panelStep}`);
       if (sub) sub.textContent = '';
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;

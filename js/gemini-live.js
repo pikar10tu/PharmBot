@@ -35,6 +35,9 @@ class GeminiLiveClient {
     this.onStateChange            = null;  // (state: string) => void
     this.onError                  = null;  // (message: string) => void
     this.onSessionResumptionToken = null;  // (token: string) => void
+
+    // Set false to suppress AI audio + ai-speaking state until the first user turn
+    this.audioEnabled = true;
   }
 
   // ── Connect ──────────────────────────────────────────────────
@@ -274,7 +277,7 @@ class GeminiLiveClient {
     if (modelTurn?.parts) {
       for (const part of modelTurn.parts) {
         const inlineData = part.inlineData || part.inline_data;
-        if (inlineData?.data) {
+        if (inlineData?.data && this.audioEnabled) {
           this._scheduleAudio(inlineData.data);
           this.onStateChange?.('ai-speaking');
         }
