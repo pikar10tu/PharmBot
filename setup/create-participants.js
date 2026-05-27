@@ -20,10 +20,16 @@ const CONFIG = {
   count:        30,   // สร้างกี่คน
   prefix:       'P',  // prefix ของ ID (P00001, P00002 ...)
   padLength:    5,    // ตัวเลขกี่หลัก (5 = P00001)
-  passwordLength: 8,  // รหัสผ่านกี่ตัวอักษร
-  outputFile: 'participants.csv',  // ชื่อไฟล์ output
-  adminEmail: 'admin@pharmbot.local',  // email admin (จะสร้างให้อัตโนมัติ)
-  adminPassword: 'Admin@1234',         // รหัสผ่าน admin (เปลี่ยนได้)
+
+  // ── รหัสผ่าน ──────────────────────────────────────────────
+  // ถ้าต้องการกำหนดรหัสผ่านเองทุกคนใช้รหัสเดียวกัน → ใส่ค่าตรงนี้
+  // ถ้าต้องการสุ่มรหัสผ่านแต่ละคนต่างกัน → ตั้งเป็น null
+  fixedPassword: null,              // ← ตั้งค่าก่อนรัน (อย่า commit รหัสจริง)
+  passwordLength: 8,                // ใช้เมื่อ fixedPassword เป็น null
+
+  outputFile: 'participants.csv',
+  adminEmail: 'admin@pharmbot.local',
+  adminPassword: 'CHANGE_ME',      // ← ตั้งค่าก่อนรัน (อย่า commit รหัสจริง)
 };
 // ─────────────────────────────────────────────────────────────
 
@@ -137,7 +143,7 @@ async function main() {
   for (let i = 0; i < CONFIG.count; i++) {
     const num  = CONFIG.startNumber + i;
     const pid  = formatId(num);
-    const pw   = generatePassword(CONFIG.passwordLength);
+    const pw   = CONFIG.fixedPassword || generatePassword(CONFIG.passwordLength);
 
     try {
       const result = await createUser(pid, pw, 'student');
@@ -149,12 +155,10 @@ async function main() {
     }
   }
 
-  // Export CSV
+  // Export CSV — เฉพาะ ID + Password (สำหรับแจกผู้เข้าร่วม)
   const csvLines = [
-    'participantId,password,uid,email',
-    ...results.map(r =>
-      `${r.participantId},${r.password},${r.uid || ''},${toEmail(r.participantId)}`
-    ),
+    'participantId,password',
+    ...results.map(r => `${r.participantId},${r.password}`),
   ];
   const csvPath = path.join(__dirname, CONFIG.outputFile);
   fs.writeFileSync(csvPath, '﻿' + csvLines.join('\n'), 'utf8');  // BOM สำหรับ Excel ไทย

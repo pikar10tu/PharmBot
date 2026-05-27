@@ -1,0 +1,16 @@
+# Firebase service account key — ห้าม commit โดยเด็ดขาด
+setup/serviceAccountKey.json
+
+# CSV ที่มีข้อมูลผู้เข้าร่วม (รหัสผ่าน / UID)
+setup/*.csv
+
+# Node modules
+setup/node_modules/
+
+# Local env / config
+setup/.env
+setup/config.local.js
+
+# OS
+.DS_Store
+Thumbs.db
