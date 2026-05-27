@@ -58,7 +58,7 @@ function _historyRow(r) {
   const fb      = r.feedbackJson || {};
   const total   = r.overallScore || fb.overall || 0;
   const cls     = total >= 80 ? 'text-success' : total >= 60 ? 'text-warning' : 'text-danger';
-  const snap    = fb.caseSnapshot || r.caseSnapshot || {};
+  const snap    = r.caseSnapshot || fb.caseSnapshot || {};
   const title   = snap.title || r.caseId || 'เคสไม่ทราบชื่อ';
   const dateStr = r.createdAt?.toDate
     ? r.createdAt.toDate().toLocaleDateString('th-TH', { day:'numeric', month:'short', year:'numeric' })

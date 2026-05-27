@@ -89,10 +89,11 @@ async function getTodaySessionCount(userId) {
 }
 
 // ── Results ───────────────────────────────────────────────────
-async function saveResult(sessionId, userId, evalJson) {
+async function saveResult(sessionId, userId, evalJson, caseSnapshot = null) {
   const resultData = {
     sessionId,
     userId,
+    caseSnapshot:      caseSnapshot ? { title: caseSnapshot.title, groupId: caseSnapshot.groupId, difficulty: caseSnapshot.difficulty } : null,
     checklistJson:     evalJson.checklist_results || [],
     historyScore:      evalJson.history_score     || 0,
     diagnosisScore:    evalJson.diagnosis_score   || 0,

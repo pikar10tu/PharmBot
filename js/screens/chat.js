@@ -426,7 +426,10 @@ async function _sendChat() {
       waveform?.classList.add('wave-ai');
       waveform?.classList.remove('wave-active');
       const voiceName = getVoiceForGender(_caseData?.gender);
-      await geminiTTS(reply, voiceName).catch(err => console.warn('TTS error:', err.message));
+      await geminiTTS(reply, voiceName).catch(err => {
+        console.warn('TTS error:', err.message);
+        _setVoiceStatus(1, '⚠️ เล่นเสียงไม่ได้ — ดูข้อความด้านบน', false);
+      });
       waveform?.classList.remove('wave-ai');
     } else if (_ttsEnabled) {
       _speak(reply);
@@ -477,6 +480,9 @@ function _renderChips() {
 }
 
 async function _goStep3() {
+  if (_dispensedDrugs.length === 0) {
+    if (!confirm('ยังไม่ได้เลือกยาเลย\nต้องการดำเนินการต่อโดยไม่จ่ายยาหรือไม่? (คะแนนยาจะเป็น 0)')) return;
+  }
   _step = 3;
   _updateStepper();
   updateSessionDrugs(_session.id, _dispensedDrugs).catch(() => {});
@@ -551,7 +557,10 @@ async function _sendCounseling() {
       waveform?.classList.add('wave-ai');
       waveform?.classList.remove('wave-active');
       const voiceName = getVoiceForGender(_caseData?.gender);
-      await geminiTTS(reply, voiceName).catch(err => console.warn('TTS error:', err.message));
+      await geminiTTS(reply, voiceName).catch(err => {
+        console.warn('TTS error:', err.message);
+        _setVoiceStatus(3, '⚠️ เล่นเสียงไม่ได้ — ดูข้อความด้านบน', false);
+      });
       waveform?.classList.remove('wave-ai');
     } else if (_ttsEnabled) {
       _speak(reply);
@@ -600,7 +609,7 @@ async function _runEval() {
     const evalJson = JSON.parse(cleaned);
 
     const user   = getCurrentUser();
-    const result = await saveResult(_session.id, user.uid, evalJson);
+    const result = await saveResult(_session.id, user.uid, evalJson, _caseData);
     Router.go('summary', { sessionId: _session.id, resultId: result.id });
 
   } catch (e) {
@@ -672,7 +681,8 @@ function _toApiHistory(history) {
 function _toggleVoice(inputId, btnId) {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRec) {
-    alert('เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
+    const msgId = document.getElementById('counsel-messages') ? 'counsel-messages' : 'chat-messages';
+    _addMsg(msgId, 'system', '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
     return;
   }
 
