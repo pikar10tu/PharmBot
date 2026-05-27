@@ -238,6 +238,10 @@ class GeminiLiveClient {
 
   // ── Internal: message handler ─────────────────────────────────
   _handleMessage(raw, setupResolve) {
+    if (raw instanceof Blob) {
+      raw.text().then(text => this._handleMessage(text, setupResolve));
+      return;
+    }
     let data;
     try { data = JSON.parse(raw); } catch { return; }
 
