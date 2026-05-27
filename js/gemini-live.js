@@ -26,13 +26,15 @@ class GeminiLiveClient {
 
     // Pending transcript accumulation (model turn)
     this._pendingModelText = '';
+    this._resumptionToken  = null;
 
     // ── Public callbacks ──────────────────────────────────────
-    this.onUserTranscript  = null;  // (text: string) => void
-    this.onModelTranscript = null;  // (text: string) => void
+    this.onUserTranscript         = null;  // (text: string) => void
+    this.onModelTranscript        = null;  // (text: string) => void
     // state: 'connecting' | 'ready' | 'ai-speaking' | 'listening' | 'disconnected'
-    this.onStateChange     = null;  // (state: string) => void
-    this.onError           = null;  // (message: string) => void
+    this.onStateChange            = null;  // (state: string) => void
+    this.onError                  = null;  // (message: string) => void
+    this.onSessionResumptionToken = null;  // (token: string) => void — store for reconnect
   }
 
   // ── Connect ──────────────────────────────────────────────────
@@ -46,22 +48,36 @@ class GeminiLiveClient {
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        // gemini-3.1-flash-live-preview on v1beta — snake_case required
-      console.log('GeminiLive → sending setup (v1beta, snake_case)');
-      this._send({
+        console.log('GeminiLive → sending setup (v1beta, gemini-2.5-flash-live-preview)');
+        this._send({
           setup: {
-            model: 'models/gemini-3.1-flash-live-preview',
+            model: 'models/gemini-2.5-flash-live-preview',
             generation_config: {
               response_modalities: ['AUDIO'],
               speech_config: {
                 voice_config: {
                   prebuilt_voice_config: { voice_name: voiceName }
                 }
-              }
+              },
+              // Request transcripts for both input (user) and output (model)
+              input_audio_transcription:  {},
+              output_audio_transcription: {},
             },
             system_instruction: {
               parts: [{ text: systemPrompt }]
-            }
+            },
+            // Voice Activity Detection — stop capturing after 500ms of silence
+            realtime_input_config: {
+              automatic_activity_detection: {
+                silence_duration_ms: 500,
+              }
+            },
+            // Prevent session from dying at the 15-min compressed-audio limit
+            context_window_compression: {
+              sliding_window: {}
+            },
+            // Request a resumption token so we can reconnect if the WS drops
+            session_resumption: {},
           }
         });
       };
@@ -185,6 +201,17 @@ class GeminiLiveClient {
       this._connected = true;
       setupResolve?.();
       this.onStateChange?.('ready');
+      return;
+    }
+
+    // ── Session resumption token (rotate ~every 30s while connected) ──
+    const resumptionUpdate = data.sessionResumptionUpdate || data.session_resumption_update;
+    if (resumptionUpdate) {
+      const token = resumptionUpdate.newHandle || resumptionUpdate.new_handle;
+      if (token) {
+        this._resumptionToken = token;
+        this.onSessionResumptionToken?.(token);
+      }
       return;
     }
 

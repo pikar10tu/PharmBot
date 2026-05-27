@@ -218,10 +218,17 @@ test.describe('Voice — Edge Cases', () => {
     await page.waitForSelector('.msg', { timeout: 30_000 });
 
     // กด voice tab → ควร fallback กลับ text mode + แสดง error msg
+    // (Live API จะลองก่อน แล้ว fallback เมื่อ mic ไม่มี — อาจใช้เวลา ~5-15s)
     await page.click('#tab-voice-1');
-    // รอ error message หรือ fallback (text row กลับมา visible)
-    await page.waitForTimeout(1000);
-    const hasError = await page.locator('.msg-system').filter({ hasText: 'ไม่รองรับ' }).count();
+    await page.waitForFunction(
+      () => {
+        const hasError   = document.querySelectorAll('.msg-system').length > 0;
+        const inTextMode = !document.getElementById('text-input-row-1')?.classList.contains('hidden');
+        return hasError || inTextMode;
+      },
+      { timeout: 25_000 }
+    );
+    const hasError = await page.locator('.msg-system').count();
     const fallbackToText = await page.locator('#text-input-row-1').evaluate(el => !el.classList.contains('hidden'));
     expect(hasError > 0 || fallbackToText).toBeTruthy();
   });
