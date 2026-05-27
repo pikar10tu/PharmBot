@@ -43,11 +43,11 @@ class GeminiLiveClient {
     return new Promise((resolve, reject) => {
       this.onStateChange?.('connecting');
 
-      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        console.log('GeminiLive → setup (gemini-3.1-flash-live-preview / v1alpha)');
+        console.log('GeminiLive → setup (gemini-3.1-flash-live-preview / v1beta)');
         this._send({
           setup: {
             model: 'models/gemini-3.1-flash-live-preview',
@@ -100,12 +100,7 @@ class GeminiLiveClient {
 
   // ── Send text turn ────────────────────────────────────────────
   sendText(text) {
-    this._send({
-      clientContent: {
-        turns: [{ role: 'user', parts: [{ text }] }],
-        turnComplete: true,
-      }
-    });
+    this._send({ realtimeInput: { text } });
   }
 
   // ── Microphone input (AudioWorklet @ 16 kHz) ─────────────────
@@ -131,7 +126,7 @@ class GeminiLiveClient {
       this._captureNode.port.onmessage = (e) => {
         if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
         this._send({
-          realtimeInput: { audio: { mimeType: 'audio/pcm', data: _bufToB64(e.data) } }
+          realtimeInput: { audio: { mimeType: 'audio/pcm;rate=16000', data: _bufToB64(e.data) } }
         });
       };
 
@@ -147,7 +142,7 @@ class GeminiLiveClient {
       processor.onaudioprocess = (e) => {
         if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
         this._send({
-          realtimeInput: { audio: { mimeType: 'audio/pcm', data: _f32ToB64Pcm16(e.inputBuffer.getChannelData(0)) } }
+          realtimeInput: { audio: { mimeType: 'audio/pcm;rate=16000', data: _f32ToB64Pcm16(e.inputBuffer.getChannelData(0)) } }
         });
       };
       source.connect(processor);
@@ -158,6 +153,10 @@ class GeminiLiveClient {
   }
 
   stopMic() {
+    // Flush any cached audio in the server's VAD buffer before stopping
+    if (this._connected && this._ws?.readyState === WebSocket.OPEN) {
+      this._send({ realtimeInput: { audioStreamEnd: true } });
+    }
     try {
       this._captureNode?.disconnect();
       this._mediaStream?.getTracks().forEach(t => t.stop());

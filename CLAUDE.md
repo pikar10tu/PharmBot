@@ -48,6 +48,8 @@ admin.firestore().collection('config').doc('gemini').set({
 ```
 firebase-config.js  → initializes firebase + auth + db globals
 gemini.js           → uses db (loadGeminiConfig)
+gemini-live.js      → WebSocket client for Gemini Live API (voice mode)
+gemini-tts.js       → text-to-speech helper, uses gemini.js
 auth.js             → uses db, loadGeminiConfig
 db.js               → uses db
 prompts.js          → pure functions
