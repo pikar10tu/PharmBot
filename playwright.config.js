@@ -5,7 +5,11 @@ module.exports = defineConfig({
   testDir: './tests/specs',
   timeout: 60_000,
   retries: 1,
-  reporter: [['html', { open: 'never' }], ['list']],
+  reporter: [
+    ['list'],
+    ['html', { open: 'never' }],
+    ['json', { outputFile: 'test-results/results.json' }],
+  ],
 
   use: {
     baseURL: 'http://localhost:3000',
