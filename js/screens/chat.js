@@ -138,6 +138,7 @@ function _renderChatUI(container, pid) {
               <span></span><span></span><span></span><span></span><span></span>
             </div>
             <div class="voice-status-text" id="voice-status-1">⏳ กำลังเชื่อมต่อ…</div>
+            <div class="voice-subtitle" id="voice-subtitle-1"></div>
           </div>
         </div>
 
@@ -189,6 +190,7 @@ function _renderChatUI(container, pid) {
               <span></span><span></span><span></span><span></span><span></span>
             </div>
             <div class="voice-status-text" id="voice-status-3">⏳ กำลังเชื่อมต่อ…</div>
+            <div class="voice-subtitle" id="voice-subtitle-3"></div>
           </div>
         </div>
 
@@ -318,16 +320,20 @@ async function _startVoice(panelStep) {
       if (!_voiceMode || _voicePanelStep !== panelStep) return;
       const labels = {
         connecting:    '⏳ กำลังเชื่อมต่อ…',
-        ready:         '🎙️ กำลังฟัง…',
+        ready:         '🎙️ พร้อมแล้ว — เภสัชกรพูดได้เลยครับ',
         'ai-speaking': '🔊 ผู้ป่วยกำลังพูด…',
         listening:     '🎙️ กำลังฟัง…',
         disconnected:  '🔌 ยกเลิกการเชื่อมต่อ',
       };
-      const wv = document.getElementById(`waveform-${panelStep}`);
       _setVoiceStatus(panelStep, labels[state] || state, state === 'ai-speaking');
+      const wv = document.getElementById(`waveform-${panelStep}`);
       if (wv) {
         wv.classList.toggle('wave-ai',    state === 'ai-speaking');
         wv.classList.toggle('wave-active', state === 'listening' || state === 'ready');
+      }
+      if (state !== 'ai-speaking') {
+        const sub = document.getElementById(`voice-subtitle-${panelStep}`);
+        if (sub) sub.textContent = '';
       }
     };
 
@@ -340,20 +346,17 @@ async function _startVoice(panelStep) {
 
     client.onPartialModelTranscript = (chunk) => {
       if (!_voiceMode || _voicePanelStep !== panelStep) return;
-      const el = document.getElementById(`voice-status-${panelStep}`);
-      if (!el) return;
-      if (!el.dataset.streaming) { el.dataset.streaming = '1'; el.textContent = ''; }
-      el.textContent += chunk;
+      const el = document.getElementById(`voice-subtitle-${panelStep}`);
+      if (el) el.textContent += chunk;
     };
 
     client.onModelTranscript = (text) => {
       if (!text || !_voiceMode) return;
+      const sub = document.getElementById(`voice-subtitle-${panelStep}`);
+      if (sub) sub.textContent = '';
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
       hist.push({ role: 'model', text });
       _addMsg(msgId, 'model', text);
-      // Clear streaming display (onStateChange('listening') will reset status text)
-      const statusEl = document.getElementById(`voice-status-${panelStep}`);
-      if (statusEl) delete statusEl.dataset.streaming;
       if (panelStep === 1) updateSessionChat(_session.id, _chatHistory).catch(() => {});
       else                 updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
     };
@@ -462,29 +465,7 @@ async function _initConversation() {
   if (_caseData.sceneDesc) {
     _addMsg('chat-messages', 'system', `📍 ${_caseData.sceneDesc}`);
   }
-
-  const greeting = 'สวัสดีครับ มีอะไรให้ช่วยไหมครับ?';
-  _chatHistory.push({ role: 'user', text: greeting });
-  _addMsg('chat-messages', 'user', greeting);
-  _lockInput(true, 'chat-input', 'send-btn');
-  _showTyping('chat-messages');
-
-  try {
-    const reply = await geminiChat(buildSystemPrompt(_caseData), [], greeting);
-    _hideTyping('chat-messages');
-    _chatHistory.push({ role: 'model', text: reply });
-    _addMsg('chat-messages', 'model', reply);
-    if (_ttsEnabled) _speak(reply);
-    updateSessionChat(_session.id, _chatHistory).catch(() => {});
-    // Auto-start Live API voice (UI is already in voice state from renderUI)
-    _startVoice(1).catch(e => console.warn('auto voice step1:', e.message));
-  } catch (e) {
-    _hideTyping('chat-messages');
-    _addMsg('chat-messages', 'system', `⚠️ เชื่อมต่อ AI ล้มเหลว: ${e.message}`);
-  } finally {
-    _aiTyping = false;
-    _lockInput(false, 'chat-input', 'send-btn');
-  }
+  _startVoice(1).catch(e => console.warn('auto voice step1:', e.message));
 }
 
 async function _sendChat() {
@@ -594,29 +575,7 @@ async function _goStep3() {
 // ── Step 3: Counseling ─────────────────────────────────────────
 
 async function _initCounseling() {
-  const opening = 'โอเครับ จะขอแนะนำยาและวิธีใช้ยาให้นะครับ';
-  _counselingHistory.push({ role: 'user', text: opening });
-  _addMsg('counsel-messages', 'user', opening);
-  _lockInput(true, 'counsel-input', 'send-counsel-btn');
-  _showTyping('counsel-messages');
-
-  try {
-    const sysPrompt = buildCounselingPrompt(_caseData, _dispensedDrugs);
-    const reply     = await geminiChat(sysPrompt, [], opening);
-    _hideTyping('counsel-messages');
-    _counselingHistory.push({ role: 'model', text: reply });
-    _addMsg('counsel-messages', 'model', reply);
-    if (_ttsEnabled) _speak(reply);
-    updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
-    // Auto-start Live API voice for counseling (UI already in voice state)
-    _startVoice(3).catch(e => console.warn('auto voice step3:', e.message));
-  } catch (e) {
-    _hideTyping('counsel-messages');
-    _addMsg('counsel-messages', 'system', `⚠️ เชื่อมต่อ AI ล้มเหลว: ${e.message}`);
-  } finally {
-    _aiTyping = false;
-    _lockInput(false, 'counsel-input', 'send-counsel-btn');
-  }
+  _startVoice(3).catch(e => console.warn('auto voice step3:', e.message));
 }
 
 async function _sendCounseling() {

@@ -530,3 +530,14 @@ p  { line-height: 1.7; color: var(--text-dim); }
   color: var(--text-dim);
   letter-spacing: 0.02em;
 }
+
+.voice-subtitle {
+  font-size: 0.82rem;
+  color: var(--success);
+  font-style: italic;
+  text-align: center;
+  min-height: 1.2em;
+  padding: 0 0.75rem;
+  word-break: break-word;
+  opacity: 0.85;
+}
