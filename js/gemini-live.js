@@ -47,28 +47,21 @@ class GeminiLiveClient {
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        console.log('GeminiLive → setup (gemini-2.5-flash-live-preview)');
+        console.log('GeminiLive → setup (gemini-2.0-flash-exp)');
         this._send({
           setup: {
-            model: 'models/gemini-2.5-flash-live-preview',
-            generation_config: {
-              response_modalities: ['AUDIO'],
-              speech_config: {
-                voice_config: {
-                  prebuilt_voice_config: { voice_name: voiceName }
+            model: 'models/gemini-2.0-flash-exp',
+            generationConfig: {
+              responseModalities: ['AUDIO'],
+              speechConfig: {
+                voiceConfig: {
+                  prebuiltVoiceConfig: { voiceName }
                 }
               },
-              input_audio_transcription:  {},
-              output_audio_transcription: {},
             },
-            system_instruction: {
+            systemInstruction: {
               parts: [{ text: systemPrompt }]
             },
-            realtime_input_config: {
-              automatic_activity_detection: { silence_duration_ms: 500 }
-            },
-            context_window_compression: { sliding_window: {} },
-            session_resumption: {},
           }
         });
       };
@@ -106,7 +99,12 @@ class GeminiLiveClient {
 
   // ── Send text turn ────────────────────────────────────────────
   sendText(text) {
-    this._send({ realtimeInput: { text } });
+    this._send({
+      clientContent: {
+        turns: [{ role: 'user', parts: [{ text }] }],
+        turnComplete: true,
+      }
+    });
   }
 
   // ── Microphone input (AudioWorklet @ 16 kHz) ─────────────────
@@ -132,7 +130,9 @@ class GeminiLiveClient {
       this._captureNode.port.onmessage = (e) => {
         if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
         this._send({
-          realtimeInput: { audio: { data: _bufToB64(e.data), mimeType: 'audio/pcm;rate=16000' } }
+          realtimeInput: {
+            mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: _bufToB64(e.data) }]
+          }
         });
       };
 
@@ -148,7 +148,9 @@ class GeminiLiveClient {
       processor.onaudioprocess = (e) => {
         if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
         this._send({
-          realtimeInput: { audio: { data: _f32ToB64Pcm16(e.inputBuffer.getChannelData(0)), mimeType: 'audio/pcm;rate=16000' } }
+          realtimeInput: {
+            mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: _f32ToB64Pcm16(e.inputBuffer.getChannelData(0)) }]
+          }
         });
       };
       source.connect(processor);
