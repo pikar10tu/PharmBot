@@ -4,37 +4,37 @@
 //
 //  Usage:
 //    const client = new GeminiLiveClient();
-//    client.onUserTranscript  = (text) => { ... }
-//    client.onModelTranscript = (text) => { ... }
-//    client.onStateChange     = (state) => { ... }
-//    client.onError           = (msg)   => { ... }
+//    client.onUserTranscript         = (text)  => { ... }
+//    client.onModelTranscript        = (text)  => { ... }
+//    client.onPartialModelTranscript = (chunk) => { ... }  // streaming
+//    client.onStateChange            = (state) => { ... }
+//    client.onError                  = (msg)   => { ... }
 //    await client.connect(apiKey, systemPrompt, voiceName);
 //    await client.startMic();
-//    client.sendText('สวัสดีครับ');   // trigger initial response
 //    client.disconnect();
 // ============================================================
 
 class GeminiLiveClient {
   constructor() {
-    this._ws           = null;
-    this._audioCtx     = null;   // playback AudioContext (24 kHz)
-    this._micCtx       = null;   // capture AudioContext  (16 kHz)
-    this._mediaStream  = null;
-    this._processor    = null;
-    this._nextPlayTime = 0;
-    this._connected    = false;
+    this._ws          = null;
+    this._audioCtx    = null;   // playback AudioContext (24 kHz)
+    this._playNode    = null;   // AudioWorkletNode — playback
+    this._micCtx      = null;   // capture AudioContext (16 kHz)
+    this._captureNode = null;   // AudioWorkletNode — capture
+    this._mediaStream = null;
+    this._connected   = false;
 
-    // Pending transcript accumulation (model turn)
     this._pendingModelText = '';
     this._resumptionToken  = null;
 
     // ── Public callbacks ──────────────────────────────────────
     this.onUserTranscript         = null;  // (text: string) => void
-    this.onModelTranscript        = null;  // (text: string) => void
+    this.onModelTranscript        = null;  // (text: string) => void — fired at turn end
+    this.onPartialModelTranscript = null;  // (chunk: string) => void — streaming chunks
     // state: 'connecting' | 'ready' | 'ai-speaking' | 'listening' | 'disconnected'
     this.onStateChange            = null;  // (state: string) => void
     this.onError                  = null;  // (message: string) => void
-    this.onSessionResumptionToken = null;  // (token: string) => void — store for reconnect
+    this.onSessionResumptionToken = null;  // (token: string) => void
   }
 
   // ── Connect ──────────────────────────────────────────────────
@@ -43,12 +43,11 @@ class GeminiLiveClient {
     return new Promise((resolve, reject) => {
       this.onStateChange?.('connecting');
 
-      // v1beta is the recommended endpoint for BidiGenerateContent
       const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        console.log('GeminiLive → sending setup (v1beta, gemini-2.5-flash-live-preview)');
+        console.log('GeminiLive → setup (gemini-2.5-flash-live-preview)');
         this._send({
           setup: {
             model: 'models/gemini-2.5-flash-live-preview',
@@ -59,34 +58,25 @@ class GeminiLiveClient {
                   prebuilt_voice_config: { voice_name: voiceName }
                 }
               },
-              // Request transcripts for both input (user) and output (model)
               input_audio_transcription:  {},
               output_audio_transcription: {},
             },
             system_instruction: {
               parts: [{ text: systemPrompt }]
             },
-            // Voice Activity Detection — stop capturing after 500ms of silence
             realtime_input_config: {
-              automatic_activity_detection: {
-                silence_duration_ms: 500,
-              }
+              automatic_activity_detection: { silence_duration_ms: 500 }
             },
-            // Prevent session from dying at the 15-min compressed-audio limit
-            context_window_compression: {
-              sliding_window: {}
-            },
-            // Request a resumption token so we can reconnect if the WS drops
+            context_window_compression: { sliding_window: {} },
             session_resumption: {},
           }
         });
       };
 
-      // Timeout: if setupComplete not received in 20s, fail gracefully
       const _setupTimer = setTimeout(() => {
         if (!this._connected) {
-          console.warn('GeminiLive: setup timeout (no setupComplete in 20s)');
-          this.onError?.('เชื่อมต่อ Gemini Live timeout — ไม่ได้รับการตอบสนองจาก server');
+          console.warn('GeminiLive: setup timeout');
+          this.onError?.('เชื่อมต่อ Gemini Live timeout');
           this.disconnect();
           reject(new Error('GeminiLive setup timeout'));
         }
@@ -96,8 +86,7 @@ class GeminiLiveClient {
         this._handleMessage(evt.data, () => { clearTimeout(_setupTimer); resolve(); });
       };
 
-      this._ws.onerror = (evt) => {
-        console.error('GeminiLive WS error:', evt);
+      this._ws.onerror = () => {
         const msg = 'Gemini Live: ไม่สามารถเชื่อมต่อ WebSocket ได้';
         this.onError?.(msg);
         reject(new Error(msg));
@@ -105,8 +94,7 @@ class GeminiLiveClient {
 
       this._ws.onclose = (evt) => {
         this._connected = false;
-        // Log close reason so we can diagnose protocol issues
-        console.warn(`GeminiLive WS closed: code=${evt.code} reason="${evt.reason}" wasClean=${evt.wasClean}`);
+        console.warn(`GeminiLive WS closed: code=${evt.code} reason="${evt.reason}"`);
         if (evt.code !== 1000 && evt.code !== 1001) {
           const detail = evt.reason ? `: ${evt.reason}` : ` (code ${evt.code})`;
           this.onError?.(`Gemini Live ปิดการเชื่อมต่อ${detail}`);
@@ -116,17 +104,14 @@ class GeminiLiveClient {
     });
   }
 
-  // ── Send text turn (trigger initial greeting or inject text) ─
+  // ── Send text turn ────────────────────────────────────────────
   sendText(text) {
-    // ✅ Fix 5: client_content → realtimeInput.text (v1beta format)
-    this._send({
-      realtimeInput: { text }
-    });
+    this._send({ realtimeInput: { text } });
   }
 
-  // ── Microphone input ─────────────────────────────────────────
+  // ── Microphone input (AudioWorklet @ 16 kHz) ─────────────────
   async startMic() {
-    if (this._mediaStream) return; // already running
+    if (this._mediaStream) return;
 
     try {
       this._mediaStream = await navigator.mediaDevices.getUserMedia({
@@ -136,50 +121,65 @@ class GeminiLiveClient {
       throw new Error('ไม่สามารถเข้าถึงไมโครโฟนได้: ' + e.message);
     }
 
-    // Use 16 kHz for Gemini Live input requirement
     this._micCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 16000 });
 
-    const source   = this._micCtx.createMediaStreamSource(this._mediaStream);
-    this._processor = this._micCtx.createScriptProcessor(2048, 1, 1);
+    try {
+      // Load worklet — must be served from same origin
+      await this._micCtx.audioWorklet.addModule('audio/capture.worklet.js');
+      const source = this._micCtx.createMediaStreamSource(this._mediaStream);
+      this._captureNode = new AudioWorkletNode(this._micCtx, 'capture-processor');
 
-    // Muted gain node — required to drive ScriptProcessor without loopback
-    const silence = this._micCtx.createGain();
-    silence.gain.value = 0;
+      this._captureNode.port.onmessage = (e) => {
+        if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
+        this._send({
+          realtimeInput: { audio: { data: _bufToB64(e.data), mimeType: 'audio/pcm;rate=16000' } }
+        });
+      };
 
-    this._processor.onaudioprocess = (e) => {
-      if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
-      const f32 = e.inputBuffer.getChannelData(0);
-      const b64 = _f32ToB64Pcm16(f32);
-      // ✅ Fix 6: realtime_input.media_chunks → realtimeInput.audio (v1beta format)
-      this._send({
-        realtimeInput: {
-          audio: { data: b64, mimeType: 'audio/pcm;rate=16000' }
-        }
-      });
-    };
-
-    source.connect(this._processor);
-    this._processor.connect(silence);
-    silence.connect(this._micCtx.destination);
+      source.connect(this._captureNode);
+      this._captureNode.connect(this._micCtx.destination);
+    } catch (workletErr) {
+      // Fallback: ScriptProcessor (deprecated but works if worklet fails to load)
+      console.warn('AudioWorklet capture unavailable, falling back to ScriptProcessor:', workletErr.message);
+      const source    = this._micCtx.createMediaStreamSource(this._mediaStream);
+      const processor = this._micCtx.createScriptProcessor(2048, 1, 1);
+      const silence   = this._micCtx.createGain();
+      silence.gain.value = 0;
+      processor.onaudioprocess = (e) => {
+        if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
+        this._send({
+          realtimeInput: { audio: { data: _f32ToB64Pcm16(e.inputBuffer.getChannelData(0)), mimeType: 'audio/pcm;rate=16000' } }
+        });
+      };
+      source.connect(processor);
+      processor.connect(silence);
+      silence.connect(this._micCtx.destination);
+      this._captureNode = processor; // store for cleanup
+    }
   }
 
   stopMic() {
     try {
-      this._processor?.disconnect();
+      this._captureNode?.disconnect();
       this._mediaStream?.getTracks().forEach(t => t.stop());
       if (this._micCtx?.state !== 'closed') this._micCtx?.close();
     } catch (_) {}
-    this._processor   = null;
+    this._captureNode = null;
     this._mediaStream = null;
     this._micCtx      = null;
   }
 
-  // ── Disconnect ───────────────────────────────────────────────
+  // ── Playback control ──────────────────────────────────────────
+  interruptPlayback() {
+    try { this._playNode?.port.postMessage('clear'); } catch (_) {}
+  }
+
+  // ── Disconnect ────────────────────────────────────────────────
   disconnect() {
     this.stopMic();
     this._stopPlayback();
     if (this._ws) {
-      this._ws.onclose = null; // suppress state callback
+      this._ws.onclose = null;
       this._ws.onerror = null;
       try { this._ws.close(); } catch (_) {}
       this._ws = null;
@@ -188,15 +188,64 @@ class GeminiLiveClient {
     this.onStateChange?.('disconnected');
   }
 
+  // ── Internal: lazy-init AudioWorklet playback ─────────────────
+  async _setupPlayback() {
+    if (this._audioCtx && this._audioCtx.state !== 'closed') return;
+    this._audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+    try {
+      await this._audioCtx.audioWorklet.addModule('audio/playback.worklet.js');
+      this._playNode = new AudioWorkletNode(this._audioCtx, 'playback-processor');
+      this._playNode.connect(this._audioCtx.destination);
+    } catch (workletErr) {
+      console.warn('AudioWorklet playback unavailable, will use BufferSource fallback:', workletErr.message);
+      this._playNode = null; // signals _scheduleAudio to use legacy path
+    }
+  }
+
+  // ── Internal: schedule audio chunk for playback ───────────────
+  async _scheduleAudio(b64) {
+    await this._setupPlayback();
+    const pcm16  = _b64ToPcm16(b64);
+    const float32 = _pcm16ToF32(pcm16);
+
+    if (this._playNode) {
+      // AudioWorklet path — queue-based gapless playback
+      this._playNode.port.postMessage(float32.buffer, [float32.buffer]);
+    } else {
+      // BufferSource fallback
+      try {
+        const buf = this._audioCtx.createBuffer(1, float32.length, 24000);
+        buf.copyToChannel(float32, 0);
+        const src = this._audioCtx.createBufferSource();
+        src.buffer = buf;
+        src.connect(this._audioCtx.destination);
+        if (!this._nextPlayTime) this._nextPlayTime = 0;
+        const start = Math.max(this._audioCtx.currentTime + 0.02, this._nextPlayTime);
+        src.start(start);
+        this._nextPlayTime = start + buf.duration;
+      } catch (e) { console.warn('GeminiLive audio fallback error:', e.message); }
+    }
+  }
+
+  _stopPlayback() {
+    try {
+      this._playNode?.port.postMessage('clear');
+      this._playNode?.disconnect();
+      if (this._audioCtx?.state !== 'closed') this._audioCtx?.close();
+    } catch (_) {}
+    this._audioCtx    = null;
+    this._playNode    = null;
+    this._nextPlayTime = 0;
+  }
+
   // ── Internal: message handler ─────────────────────────────────
   _handleMessage(raw, setupResolve) {
     let data;
     try { data = JSON.parse(raw); } catch { return; }
 
-    // Log every server message (first 300 chars) for diagnostics
     console.log('GeminiLive ←', JSON.stringify(data).slice(0, 300));
 
-    // ── Setup complete (handle both camelCase and snake_case) ──
+    // ── Setup complete ──
     if (data.setupComplete !== undefined || data.setup_complete !== undefined) {
       this._connected = true;
       setupResolve?.();
@@ -204,18 +253,14 @@ class GeminiLiveClient {
       return;
     }
 
-    // ── Session resumption token (rotate ~every 30s while connected) ──
+    // ── Session resumption token ──
     const resumptionUpdate = data.sessionResumptionUpdate || data.session_resumption_update;
     if (resumptionUpdate) {
       const token = resumptionUpdate.newHandle || resumptionUpdate.new_handle;
-      if (token) {
-        this._resumptionToken = token;
-        this.onSessionResumptionToken?.(token);
-      }
+      if (token) { this._resumptionToken = token; this.onSessionResumptionToken?.(token); }
       return;
     }
 
-    // Support both camelCase (v1beta) and snake_case (v1alpha) field names
     const sc = data.serverContent || data.server_content;
     if (!sc) return;
 
@@ -237,10 +282,11 @@ class GeminiLiveClient {
       this.onUserTranscript?.(inputTx.text.trim());
     }
 
-    // ── Model speech transcript ──
+    // ── Model speech transcript (streaming + final) ──
     const outputTx = sc.outputTranscription || sc.output_transcription;
     if (outputTx?.text) {
       this._pendingModelText += outputTx.text;
+      this.onPartialModelTranscript?.(outputTx.text);
     }
 
     // ── Turn complete ──
@@ -252,46 +298,11 @@ class GeminiLiveClient {
       this.onStateChange?.('listening');
     }
 
-    // ── Barge-in ──
+    // ── Barge-in: user interrupted model ──
     if (sc.interrupted) {
       this._pendingModelText = '';
-      this._stopPlayback();
+      this.interruptPlayback();
     }
-  }
-
-  // ── Internal: schedule audio playback (gapless) ───────────────
-  _scheduleAudio(b64) {
-    if (!this._audioCtx || this._audioCtx.state === 'closed') {
-      this._audioCtx    = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
-      this._nextPlayTime = 0;
-    }
-
-    try {
-      const pcm16   = _b64ToPcm16(b64);
-      const float32 = _pcm16ToF32(pcm16);
-      const buf     = this._audioCtx.createBuffer(1, float32.length, 24000);
-      buf.copyToChannel(float32, 0);
-
-      const src = this._audioCtx.createBufferSource();
-      src.buffer = buf;
-      src.connect(this._audioCtx.destination);
-
-      const start = Math.max(this._audioCtx.currentTime + 0.02, this._nextPlayTime);
-      src.start(start);
-      this._nextPlayTime = start + buf.duration;
-    } catch (e) {
-      console.warn('GeminiLive audio schedule error:', e.message);
-    }
-  }
-
-  _stopPlayback() {
-    try {
-      if (this._audioCtx && this._audioCtx.state !== 'closed') {
-        this._audioCtx.close();
-      }
-    } catch (_) {}
-    this._audioCtx    = null;
-    this._nextPlayTime = 0;
   }
 
   // ── Internal: send JSON over WebSocket ───────────────────────
@@ -302,7 +313,7 @@ class GeminiLiveClient {
   }
 }
 
-// ── Audio helpers (module-level, no class) ────────────────────
+// ── Audio helpers (module-level) ──────────────────────────────
 
 function _f32ToB64Pcm16(f32) {
   const out = new Int16Array(f32.length);

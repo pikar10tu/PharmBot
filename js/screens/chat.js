@@ -114,26 +114,26 @@ function _renderChatUI(container, pid) {
       <!-- ═══ Panel 1: History Taking ═══ -->
       <div id="panel-1">
 
-        <!-- Mode toggle bar -->
+        <!-- Mode toggle bar — voice is default -->
         <div class="voice-mode-bar mb-2">
-          <button class="voice-mode-tab active" id="tab-text-1" onclick="_switchMode(1,'text')">💬 ข้อความ</button>
-          <button class="voice-mode-tab" id="tab-voice-1" onclick="_switchMode(1,'voice')">🎙️ สนทนาเสียง</button>
+          <button class="voice-mode-tab" id="tab-text-1" onclick="_switchMode(1,'text')">💬 ข้อความ</button>
+          <button class="voice-mode-tab active" id="tab-voice-1" onclick="_switchMode(1,'voice')">🎙️ สนทนาเสียง</button>
         </div>
 
         <!-- Chat messages (shared by both modes) -->
         <div class="chat-wrap" style="border:1px solid var(--glass-border);border-radius:var(--radius);background:rgba(255,255,255,0.03);">
           <div class="chat-messages" id="chat-messages"></div>
 
-          <!-- Text input row (text mode) -->
-          <div id="text-input-row-1" class="chat-input-row">
+          <!-- Text input row (text mode — hidden by default) -->
+          <div id="text-input-row-1" class="chat-input-row hidden">
             <input class="input chat-input" id="chat-input" type="text"
               placeholder="พิมพ์ข้อความหรือกดไมค์…" autocomplete="off" />
             <button class="btn-mic" id="mic-btn" title="Push to Talk (กดพูด)">🎤</button>
             <button class="btn btn-primary btn-sm" id="send-btn">ส่ง</button>
           </div>
 
-          <!-- Voice status row (voice mode) -->
-          <div id="voice-input-row-1" class="voice-input-row hidden">
+          <!-- Voice status row (voice mode — visible by default) -->
+          <div id="voice-input-row-1" class="voice-input-row">
             <div class="voice-waveform" id="waveform-1">
               <span></span><span></span><span></span><span></span><span></span>
             </div>
@@ -142,7 +142,7 @@ function _renderChatUI(container, pid) {
         </div>
 
         <div class="flex items-center mt-2" style="justify-content:space-between;flex-wrap:wrap;gap:0.5rem;">
-          <label class="flex items-center gap-1 text-sm text-dim" id="tts-label" style="cursor:pointer;">
+          <label class="flex items-center gap-1 text-sm text-dim" id="tts-label" style="cursor:pointer;visibility:hidden;">
             <input type="checkbox" id="tts-toggle" /> อ่านออกเสียงอัตโนมัติ
           </label>
           <button class="btn btn-success btn-sm" id="done-history-btn">ซักประวัติเสร็จแล้ว → จ่ายยา</button>
@@ -166,25 +166,25 @@ function _renderChatUI(container, pid) {
       <div id="panel-3" class="hidden">
         <div id="dispensed-summary" class="alert alert-info mb-2 text-sm"></div>
 
-        <!-- Mode toggle bar -->
+        <!-- Mode toggle bar — voice is default -->
         <div class="voice-mode-bar mb-2">
-          <button class="voice-mode-tab active" id="tab-text-3" onclick="_switchMode(3,'text')">💬 ข้อความ</button>
-          <button class="voice-mode-tab" id="tab-voice-3" onclick="_switchMode(3,'voice')">🎙️ สนทนาเสียง</button>
+          <button class="voice-mode-tab" id="tab-text-3" onclick="_switchMode(3,'text')">💬 ข้อความ</button>
+          <button class="voice-mode-tab active" id="tab-voice-3" onclick="_switchMode(3,'voice')">🎙️ สนทนาเสียง</button>
         </div>
 
         <div class="chat-wrap" style="border:1px solid var(--glass-border);border-radius:var(--radius);background:rgba(255,255,255,0.03);">
           <div class="chat-messages" id="counsel-messages"></div>
 
-          <!-- Text input row -->
-          <div id="text-input-row-3" class="chat-input-row">
+          <!-- Text input row (hidden by default) -->
+          <div id="text-input-row-3" class="chat-input-row hidden">
             <input class="input chat-input" id="counsel-input" type="text"
               placeholder="อธิบายยาและคำแนะนำให้ผู้ป่วย…" autocomplete="off" />
             <button class="btn-mic" id="mic-btn-3" title="Push to Talk">🎤</button>
             <button class="btn btn-primary btn-sm" id="send-counsel-btn">ส่ง</button>
           </div>
 
-          <!-- Voice status row -->
-          <div id="voice-input-row-3" class="voice-input-row hidden">
+          <!-- Voice status row (visible by default) -->
+          <div id="voice-input-row-3" class="voice-input-row">
             <div class="voice-waveform" id="waveform-3">
               <span></span><span></span><span></span><span></span><span></span>
             </div>
@@ -338,11 +338,22 @@ async function _startVoice(panelStep) {
       _addMsg(msgId, 'user', text);
     };
 
+    client.onPartialModelTranscript = (chunk) => {
+      if (!_voiceMode || _voicePanelStep !== panelStep) return;
+      const el = document.getElementById(`voice-status-${panelStep}`);
+      if (!el) return;
+      if (!el.dataset.streaming) { el.dataset.streaming = '1'; el.textContent = ''; }
+      el.textContent += chunk;
+    };
+
     client.onModelTranscript = (text) => {
       if (!text || !_voiceMode) return;
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
       hist.push({ role: 'model', text });
       _addMsg(msgId, 'model', text);
+      // Clear streaming display (onStateChange('listening') will reset status text)
+      const statusEl = document.getElementById(`voice-status-${panelStep}`);
+      if (statusEl) delete statusEl.dataset.streaming;
       if (panelStep === 1) updateSessionChat(_session.id, _chatHistory).catch(() => {});
       else                 updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
     };
@@ -432,7 +443,7 @@ function _stopVoice() {
   _voiceMode      = false;
   _voicePanelStep = 0;
   _liveMode       = false;
-  if (_liveClient) { try { _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
+  if (_liveClient) { try { _liveClient.interruptPlayback(); _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   try { _voiceRecognition?.abort(); } catch (_) {}
   _voiceRecognition = null;
   geminiTTSStop();
@@ -465,6 +476,8 @@ async function _initConversation() {
     _addMsg('chat-messages', 'model', reply);
     if (_ttsEnabled) _speak(reply);
     updateSessionChat(_session.id, _chatHistory).catch(() => {});
+    // Auto-start Live API voice (UI is already in voice state from renderUI)
+    _startVoice(1).catch(e => console.warn('auto voice step1:', e.message));
   } catch (e) {
     _hideTyping('chat-messages');
     _addMsg('chat-messages', 'system', `⚠️ เชื่อมต่อ AI ล้มเหลว: ${e.message}`);
@@ -595,6 +608,8 @@ async function _initCounseling() {
     _addMsg('counsel-messages', 'model', reply);
     if (_ttsEnabled) _speak(reply);
     updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
+    // Auto-start Live API voice for counseling (UI already in voice state)
+    _startVoice(3).catch(e => console.warn('auto voice step3:', e.message));
   } catch (e) {
     _hideTyping('counsel-messages');
     _addMsg('counsel-messages', 'system', `⚠️ เชื่อมต่อ AI ล้มเหลว: ${e.message}`);

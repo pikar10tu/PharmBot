@@ -79,7 +79,8 @@ test.describe('Voice UI — Step 1 (ซักประวัติ)', () => {
     await goToChat(page);
     await expect(page.locator('#tab-text-1')).toBeVisible();
     await expect(page.locator('#tab-voice-1')).toBeVisible();
-    await expect(page.locator('#tab-text-1')).toHaveClass(/active/);
+    // voice-first: voice tab active by default
+    await expect(page.locator('#tab-voice-1')).toHaveClass(/active/);
   });
 
   test('สวิตช์ไป voice mode → text input ซ่อน, voice status โชว์', async ({ page }) => {
@@ -104,10 +105,14 @@ test.describe('Voice UI — Step 1 (ซักประวัติ)', () => {
 
   test('voice tab active class เปลี่ยนถูกต้องเมื่อ toggle', async ({ page }) => {
     await goToChat(page);
-    // เริ่มต้น text active
+    // เริ่มต้น voice active (voice-first)
+    await expect(page.locator('#tab-voice-1')).toHaveClass(/active/);
+    await expect(page.locator('#tab-text-1')).not.toHaveClass(/active/);
+    // switch text
+    await page.click('#tab-text-1');
     await expect(page.locator('#tab-text-1')).toHaveClass(/active/);
     await expect(page.locator('#tab-voice-1')).not.toHaveClass(/active/);
-    // switch voice
+    // switch back voice
     await page.click('#tab-voice-1');
     await expect(page.locator('#tab-voice-1')).toHaveClass(/active/);
     await expect(page.locator('#tab-text-1')).not.toHaveClass(/active/);
@@ -115,6 +120,8 @@ test.describe('Voice UI — Step 1 (ซักประวัติ)', () => {
 
   test('TTS toggle checkbox มีอยู่และ toggle ได้', async ({ page }) => {
     await goToChat(page);
+    // TTS toggle อยู่ใน text mode (voice mode ซ่อน tts-label)
+    await page.click('#tab-text-1');
     const toggle = page.locator('#tts-toggle');
     await expect(toggle).toBeVisible();
     await expect(toggle).not.toBeChecked();
@@ -124,17 +131,21 @@ test.describe('Voice UI — Step 1 (ซักประวัติ)', () => {
     await expect(toggle).not.toBeChecked();
   });
 
-  test('TTS label ซ่อนเมื่อเข้า voice mode', async ({ page }) => {
+  test('TTS label ซ่อนเมื่อ voice mode, โชว์เมื่อ text mode', async ({ page }) => {
     await goToChat(page);
-    await expect(page.locator('#tts-label')).toBeVisible();
-    await page.click('#tab-voice-1');
-    // tts-label ถูก set visibility:hidden (ไม่ใช่ display:none)
-    const visibility = await page.locator('#tts-label').evaluate(el => getComputedStyle(el).visibility);
-    expect(visibility).toBe('hidden');
+    // voice-first: tts-label ซ่อนอยู่แล้วตั้งแต่ต้น
+    const visVoice = await page.locator('#tts-label').evaluate(el => getComputedStyle(el).visibility);
+    expect(visVoice).toBe('hidden');
+    // สลับไป text mode → tts-label กลับมา visible
+    await page.click('#tab-text-1');
+    const visText = await page.locator('#tts-label').evaluate(el => getComputedStyle(el).visibility);
+    expect(visText).not.toBe('hidden');
   });
 
   test('push-to-talk mic button มีและ clickable (text mode)', async ({ page }) => {
     await goToChat(page);
+    // สลับไป text mode ก่อน (default คือ voice-first)
+    await page.click('#tab-text-1');
     const mic = page.locator('#mic-btn');
     await expect(mic).toBeVisible();
     await expect(mic).toBeEnabled();
@@ -193,6 +204,7 @@ test.describe('Voice UI — Step 3 (ให้คำแนะนำ)', () => {
 
   test('mic-btn-3 exists และ clickable ใน text mode', async ({ page }) => {
     await goToStep3(page);
+    await page.click('#tab-text-3');
     await expect(page.locator('#mic-btn-3')).toBeVisible();
     await page.locator('#mic-btn-3').click();
     await expect(page.locator('#mic-btn-3')).toHaveClass(/listening/);
