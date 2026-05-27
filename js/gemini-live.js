@@ -43,14 +43,14 @@ class GeminiLiveClient {
     return new Promise((resolve, reject) => {
       this.onStateChange?.('connecting');
 
-      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?key=${apiKey}`;
+      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        console.log('GeminiLive → setup (gemini-2.5-flash-native-audio-latest / v1beta)');
+        console.log('GeminiLive → setup (gemini-3.1-flash-live-preview / v1alpha)');
         this._send({
           setup: {
-            model: 'models/gemini-2.5-flash-native-audio-latest',
+            model: 'models/gemini-3.1-flash-live-preview',
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: {
