@@ -19,6 +19,7 @@ let _voiceMode         = false;  // true = voice tab active
 let _voicePanelStep    = 0;      // which panel is in voice mode (1 or 3)
 let _liveClient        = null;   // GeminiLiveClient instance (Live API voice mode)
 let _liveMode          = false;  // true = Live API active, false = Web Speech fallback
+let _liveConnecting    = false;  // true while awaiting Live API connect (prevents double-connect)
 
 const _synth = window.speechSynthesis || null;
 
@@ -43,6 +44,7 @@ async function renderChat(container, params = {}) {
   _voiceRecognition = null; _voiceMode = false; _voicePanelStep = 0;
   if (_liveClient) { try { _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   _liveMode = false;
+  _liveConnecting = false;
 
   container.innerHTML = `
     ${renderNavbar(pid)}
@@ -309,7 +311,8 @@ async function _startVoice(panelStep) {
   _setVoiceStatus(panelStep, '⏳ กำลังเชื่อมต่อ…', false);
 
   // ── Try Gemini Live API first ──────────────────────────────
-  if (apiKey) {
+  if (apiKey && !_liveConnecting) {
+    _liveConnecting = true;
     const sysPrompt = panelStep === 1
       ? buildSystemPrompt(_caseData)
       : buildCounselingPrompt(_caseData, _dispensedDrugs);
@@ -374,12 +377,14 @@ async function _startVoice(panelStep) {
     try {
       await client.connect(apiKey, sysPrompt, voiceName);
       await client.startMic();
+      _liveConnecting = false;
       // Guard: user may have switched back to text mode during the async connect
       if (!_voiceMode || _voicePanelStep !== panelStep) { client.disconnect(); return; }
       _liveClient = client;
       _liveMode   = true;
       return;
     } catch (e) {
+      _liveConnecting = false;
       console.warn('GeminiLive connect failed, falling back to Web Speech:', e.message);
       try { client.disconnect(); } catch (_) {}
       if (!_voiceMode || _voicePanelStep !== panelStep) return; // already switched off
@@ -446,6 +451,7 @@ function _stopVoice() {
   _voiceMode      = false;
   _voicePanelStep = 0;
   _liveMode       = false;
+  _liveConnecting = false;
   if (_liveClient) { try { _liveClient.interruptPlayback(); _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   try { _voiceRecognition?.abort(); } catch (_) {}
   _voiceRecognition = null;
