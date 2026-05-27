@@ -47,10 +47,10 @@ class GeminiLiveClient {
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        console.log('GeminiLive → setup (gemini-2.0-flash-exp)');
+        console.log('GeminiLive → setup (gemini-2.0-flash-live-001)');
         this._send({
           setup: {
-            model: 'models/gemini-2.0-flash-exp',
+            model: 'models/gemini-2.0-flash-live-001',
             generationConfig: {
               responseModalities: ['AUDIO'],
               speechConfig: {
