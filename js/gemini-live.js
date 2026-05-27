@@ -41,26 +41,25 @@ class GeminiLiveClient {
     return new Promise((resolve, reject) => {
       this.onStateChange?.('connecting');
 
-      // v1alpha is required for BidiGenerateContent (Live API models not on v1beta yet)
-      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1alpha.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      // v1beta is the recommended endpoint for BidiGenerateContent
+      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        // gemini-3.1-flash-live-preview = live conversation model on v1alpha
-      // Minimal setup — no speechConfig/transcription fields that may break native audio
-      console.log('GeminiLive → sending setup for model gemini-3.1-flash-live-preview');
+        // gemini-3.1-flash-live-preview on v1beta — snake_case required
+      console.log('GeminiLive → sending setup (v1beta, snake_case)');
       this._send({
           setup: {
             model: 'models/gemini-3.1-flash-live-preview',
-            generationConfig: {
-              responseModalities: ['AUDIO'],
-              speechConfig: {
-                voiceConfig: {
-                  prebuiltVoiceConfig: { voiceName: voiceName }
+            generation_config: {
+              response_modalities: ['AUDIO'],
+              speech_config: {
+                voice_config: {
+                  prebuilt_voice_config: { voice_name: voiceName }
                 }
               }
             },
-            systemInstruction: {
+            system_instruction: {
               parts: [{ text: systemPrompt }]
             }
           }

@@ -13,9 +13,10 @@ let _counselingHistory = [];
 let _dispensedDrugs    = [];
 let _aiTyping          = false;
 let _ttsEnabled        = false;
-let _recognition       = null;
-let _liveClient        = null; // GeminiLiveClient instance (voice mode)
-let _voiceMode         = false; // true = Live voice, false = text
+let _recognition       = null;   // push-to-talk SpeechRecognition (text mode)
+let _voiceRecognition  = null;   // continuous SpeechRecognition (voice tab mode)
+let _voiceMode         = false;  // true = voice tab active
+let _voicePanelStep    = 0;      // which panel is in voice mode (1 or 3)
 
 const _synth = window.speechSynthesis || null;
 
@@ -32,11 +33,12 @@ async function renderChat(container, params = {}) {
   // Reset all state
   _recognition?.stop();
   _synth?.cancel();
-  _liveClient?.disconnect();
+  try { _voiceRecognition?.abort(); } catch (_) {}
+  geminiTTSStop();
   _caseData = null; _session = null; _step = 1;
   _chatHistory = []; _counselingHistory = []; _dispensedDrugs = [];
   _aiTyping = false; _ttsEnabled = false; _recognition = null;
-  _liveClient = null; _voiceMode = false;
+  _voiceRecognition = null; _voiceMode = false; _voicePanelStep = 0;
 
   container.innerHTML = `
     ${renderNavbar(pid)}
@@ -259,7 +261,7 @@ function _attachEvents() {
   document.getElementById('done-counsel-btn')?.addEventListener('click', _goStep4);
 }
 
-// ── Voice Mode (Gemini Live) ───────────────────────────────────
+// ── Voice Mode (Web Speech STT + Gemini TTS) ──────────────────
 
 async function _switchMode(panelStep, mode) {
   // Update tab UI
@@ -275,96 +277,84 @@ async function _switchMode(panelStep, mode) {
     textRow?.classList.add('hidden');
     voiceRow?.classList.remove('hidden');
     if (ttsLabel) ttsLabel.style.visibility = 'hidden';
-    await _startLive(panelStep);
+    _startVoice(panelStep);
   } else {
     voiceTab?.classList.remove('active');
     textTab?.classList.add('active');
     voiceRow?.classList.add('hidden');
     textRow?.classList.remove('hidden');
     if (ttsLabel) ttsLabel.style.visibility = '';
-    _stopLive();
+    _stopVoice();
   }
 }
 
-async function _startLive(panelStep) {
-  _voiceMode = true;
-  _setVoiceStatus(panelStep, '⏳ กำลังเชื่อมต่อ…', false);
+function _startVoice(panelStep) {
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const msgId     = panelStep === 1 ? 'chat-messages' : 'counsel-messages';
 
-  const voiceName = _caseData?.gender === 'male' ? 'Puck' : 'Aoede';
-  const sysPrompt = panelStep === 1
-    ? buildSystemPrompt(_caseData)
-    : buildCounselingPrompt(_caseData, _dispensedDrugs);
+  if (!SpeechRec) {
+    _addMsg(msgId, 'system', '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
+    _switchMode(panelStep, 'text');
+    return;
+  }
 
-  // Disconnect old client if any
-  _liveClient?.disconnect();
-  _liveClient = new GeminiLiveClient();
+  // Stop any old instance
+  try { _voiceRecognition?.abort(); } catch (_) {}
+  geminiTTSStop();
 
-  const msgId  = panelStep === 1 ? 'chat-messages'   : 'counsel-messages';
-  const histArr = panelStep === 1 ? _chatHistory       : _counselingHistory;
-  const saveFn  = panelStep === 1
-    ? () => updateSessionChat(_session.id, _chatHistory)
-    : () => updateSessionCounseling(_session.id, _counselingHistory);
+  _voiceMode      = true;
+  _voicePanelStep = panelStep;
+  _setVoiceStatus(panelStep, '🎙️ กำลังฟัง…', false);
 
-  _liveClient.onUserTranscript = (text) => {
-    if (!text) return;
-    histArr.push({ role: 'user', text });
-    _addMsg(msgId, 'user', text);
-    saveFn().catch(() => {});
+  _voiceRecognition = new SpeechRec();
+  _voiceRecognition.lang            = 'th-TH';
+  _voiceRecognition.continuous      = true;
+  _voiceRecognition.interimResults  = false;
+  _voiceRecognition.maxAlternatives = 1;
+
+  _voiceRecognition.onresult = (e) => {
+    const text = e.results[e.results.length - 1][0].transcript.trim();
+    if (!text || _aiTyping) return;
+
+    // Fill the hidden input and trigger send
+    const inputId = panelStep === 1 ? 'chat-input' : 'counsel-input';
+    const inp = document.getElementById(inputId);
+    if (inp) inp.value = text;
+
+    if (panelStep === 1) _sendChat();
+    else                 _sendCounseling();
   };
 
-  _liveClient.onModelTranscript = (text) => {
-    if (!text) return;
-    histArr.push({ role: 'model', text });
-    _addMsg(msgId, 'model', text);
-    saveFn().catch(() => {});
+  _voiceRecognition.onerror = (e) => {
+    if (e.error === 'no-speech') {
+      // 'no-speech' is normal — SpeechRecognition auto-ends; onend will restart
+      return;
+    }
+    console.warn('SpeechRecognition error:', e.error);
+    if (_voiceMode) _setVoiceStatus(panelStep, `⚠️ ไม่สามารถรับเสียงได้ (${e.error})`, false);
   };
 
-  _liveClient.onStateChange = (state) => {
-    const waveform = document.getElementById(`waveform-${panelStep}`);
-    if (state === 'connecting') {
-      _setVoiceStatus(panelStep, '⏳ กำลังเชื่อมต่อ…', false);
-    } else if (state === 'ready') {
-      _setVoiceStatus(panelStep, '🎙️ กำลังฟัง…', false);
-      waveform?.classList.remove('wave-ai', 'wave-active');
-    } else if (state === 'ai-speaking') {
-      _setVoiceStatus(panelStep, '🔊 ผู้ป่วยกำลังพูด…', true);
-      waveform?.classList.add('wave-ai');
-      waveform?.classList.remove('wave-active');
-    } else if (state === 'listening') {
-      _setVoiceStatus(panelStep, '🎙️ กำลังฟัง…', false);
-      waveform?.classList.remove('wave-ai');
-    } else if (state === 'disconnected') {
-      if (_voiceMode) _setVoiceStatus(panelStep, '🔴 หลุดการเชื่อมต่อ', false);
+  _voiceRecognition.onend = () => {
+    // Auto-restart unless AI is currently processing or voice mode was turned off
+    if (_voiceMode && !_aiTyping) {
+      try { _voiceRecognition.start(); } catch (_) {}
     }
   };
 
-  _liveClient.onError = (msg) => {
-    _addMsg(msgId, 'system', `⚠️ ${msg}`);
-    _switchMode(panelStep, 'text'); // fallback to text
-  };
-
   try {
-    const _geminiKey = getGeminiKey();
-    if (!_geminiKey) throw new Error('ยังไม่ได้โหลด Gemini API Key');
-    await _liveClient.connect(_geminiKey, sysPrompt, voiceName);
-    await _liveClient.startMic();
-
-    // Trigger first AI response
-    const trigger = panelStep === 1
-      ? 'สวัสดีครับ มีอะไรให้ช่วยไหมครับ?'
-      : 'โอเครับ จะขอแนะนำยาและวิธีใช้ยาให้นะครับ';
-    _liveClient.sendText(trigger);
-
+    _voiceRecognition.start();
   } catch (e) {
-    _addMsg(msgId, 'system', `⚠️ เชื่อมต่อ Live API ไม่ได้: ${e.message}`);
-    _switchMode(panelStep, 'text'); // fallback
+    _addMsg(msgId, 'system', `⚠️ ไม่สามารถเริ่มรับเสียงได้: ${e.message}`);
+    _switchMode(panelStep, 'text');
   }
 }
 
-function _stopLive() {
-  _voiceMode = false;
-  _liveClient?.disconnect();
-  _liveClient = null;
+function _stopVoice() {
+  _voiceMode      = false;
+  _voicePanelStep = 0;
+  try { _voiceRecognition?.abort(); } catch (_) {}
+  _voiceRecognition = null;
+  geminiTTSStop();
 }
 
 function _setVoiceStatus(panelStep, text, animate) {
@@ -413,7 +403,13 @@ async function _sendChat() {
   _chatHistory.push({ role: 'user', text });
   _addMsg('chat-messages', 'user', text);
   _lockInput(true, 'chat-input', 'send-btn');
-  _showTyping('chat-messages');
+  _showTyping('chat-messages'); // also sets _aiTyping = true
+
+  // Voice mode: stop recognition AFTER _aiTyping = true (prevents onend restart)
+  if (_voiceMode) {
+    try { _voiceRecognition?.stop(); } catch (_) {}
+    _setVoiceStatus(1, '⏳ กำลังคิด…', false);
+  }
 
   try {
     const hist  = _toApiHistory(_chatHistory.slice(0, -1));
@@ -421,7 +417,20 @@ async function _sendChat() {
     _hideTyping('chat-messages');
     _chatHistory.push({ role: 'model', text: reply });
     _addMsg('chat-messages', 'model', reply);
-    if (_ttsEnabled) _speak(reply);
+
+    if (_voiceMode) {
+      // Play Gemini TTS, then recognition will restart via onend/finally
+      const waveform = document.getElementById('waveform-1');
+      _setVoiceStatus(1, '🔊 ผู้ป่วยกำลังพูด…', false);
+      waveform?.classList.add('wave-ai');
+      waveform?.classList.remove('wave-active');
+      const voiceName = getVoiceForGender(_caseData?.gender);
+      await geminiTTS(reply, voiceName).catch(err => console.warn('TTS error:', err.message));
+      waveform?.classList.remove('wave-ai');
+    } else if (_ttsEnabled) {
+      _speak(reply);
+    }
+
     updateSessionChat(_session.id, _chatHistory).catch(() => {});
   } catch (e) {
     _hideTyping('chat-messages');
@@ -429,11 +438,16 @@ async function _sendChat() {
   } finally {
     _aiTyping = false;
     _lockInput(false, 'chat-input', 'send-btn');
+    // Voice mode: restart recognition now that AI is done
+    if (_voiceMode) {
+      _setVoiceStatus(1, '🎙️ กำลังฟัง…', false);
+      try { _voiceRecognition?.start(); } catch (_) {}
+    }
   }
 }
 
 function _goStep2() {
-  _stopLive(); // stop voice mode if active
+  _stopVoice(); // stop voice mode if active
   _step = 2;
   _updateStepper();
   _renderChips();
@@ -512,7 +526,13 @@ async function _sendCounseling() {
   _counselingHistory.push({ role: 'user', text });
   _addMsg('counsel-messages', 'user', text);
   _lockInput(true, 'counsel-input', 'send-counsel-btn');
-  _showTyping('counsel-messages');
+  _showTyping('counsel-messages'); // also sets _aiTyping = true
+
+  // Voice mode: stop recognition AFTER _aiTyping = true (prevents onend restart)
+  if (_voiceMode) {
+    try { _voiceRecognition?.stop(); } catch (_) {}
+    _setVoiceStatus(3, '⏳ กำลังคิด…', false);
+  }
 
   try {
     const sysPrompt = buildCounselingPrompt(_caseData, _dispensedDrugs);
@@ -521,7 +541,20 @@ async function _sendCounseling() {
     _hideTyping('counsel-messages');
     _counselingHistory.push({ role: 'model', text: reply });
     _addMsg('counsel-messages', 'model', reply);
-    if (_ttsEnabled) _speak(reply);
+
+    if (_voiceMode) {
+      // Play Gemini TTS, then recognition will restart via finally
+      const waveform = document.getElementById('waveform-3');
+      _setVoiceStatus(3, '🔊 ผู้ป่วยกำลังพูด…', false);
+      waveform?.classList.add('wave-ai');
+      waveform?.classList.remove('wave-active');
+      const voiceName = getVoiceForGender(_caseData?.gender);
+      await geminiTTS(reply, voiceName).catch(err => console.warn('TTS error:', err.message));
+      waveform?.classList.remove('wave-ai');
+    } else if (_ttsEnabled) {
+      _speak(reply);
+    }
+
     updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
   } catch (e) {
     _hideTyping('counsel-messages');
@@ -529,13 +562,18 @@ async function _sendCounseling() {
   } finally {
     _aiTyping = false;
     _lockInput(false, 'counsel-input', 'send-counsel-btn');
+    // Voice mode: restart recognition now that AI is done
+    if (_voiceMode) {
+      _setVoiceStatus(3, '🎙️ กำลังฟัง…', false);
+      try { _voiceRecognition?.start(); } catch (_) {}
+    }
   }
 }
 
 // ── Step 4: Evaluation ─────────────────────────────────────────
 
 async function _goStep4() {
-  _stopLive(); // stop voice mode if active
+  _stopVoice(); // stop voice mode if active
   _step = 4;
   _updateStepper();
   _synth?.cancel();
