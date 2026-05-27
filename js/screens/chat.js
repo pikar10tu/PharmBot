@@ -412,8 +412,9 @@ async function _sendChat() {
   }
 
   try {
-    const hist  = _toApiHistory(_chatHistory.slice(0, -1));
-    const reply = await geminiChat(buildSystemPrompt(_caseData), hist, text);
+    const hist     = _toApiHistory(_chatHistory.slice(0, -1));
+    const chatOpts = _voiceMode ? { maxOutputTokens: 150, historyTurns: 8 } : {};
+    const reply    = await geminiChat(buildSystemPrompt(_caseData), hist, text, chatOpts);
     _hideTyping('chat-messages');
     _chatHistory.push({ role: 'model', text: reply });
     _addMsg('chat-messages', 'model', reply);
@@ -535,9 +536,10 @@ async function _sendCounseling() {
   }
 
   try {
-    const sysPrompt = buildCounselingPrompt(_caseData, _dispensedDrugs);
-    const hist      = _toApiHistory(_counselingHistory.slice(0, -1));
-    const reply     = await geminiChat(sysPrompt, hist, text);
+    const sysPrompt   = buildCounselingPrompt(_caseData, _dispensedDrugs);
+    const hist        = _toApiHistory(_counselingHistory.slice(0, -1));
+    const counselOpts = _voiceMode ? { maxOutputTokens: 150, historyTurns: 8 } : {};
+    const reply       = await geminiChat(sysPrompt, hist, text, counselOpts);
     _hideTyping('counsel-messages');
     _counselingHistory.push({ role: 'model', text: reply });
     _addMsg('counsel-messages', 'model', reply);

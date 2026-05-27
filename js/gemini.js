@@ -50,12 +50,15 @@ async function geminiComplete(prompt, _retry = 1) {
 
 // Send a multi-turn chat (history + new message)
 // history: [{role: 'user'|'model', parts: [{text}]}]
-async function geminiChat(systemPrompt, history, userMessage, _retry = 1) {
+// options: { maxOutputTokens: 300, historyTurns: 12 } — voice mode passes lower values for speed
+async function geminiChat(systemPrompt, history, userMessage, options = {}, _retry = 1) {
   if (!_geminiKey) throw new Error('Gemini API key not loaded');
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${_geminiModel}:generateContent?key=${_geminiKey}`;
 
-  // Keep only last 12 turns to limit token usage on long conversations
-  const trimmedHistory = history.slice(-12);
+  const { maxOutputTokens = 300, historyTurns = 12 } = options;
+
+  // Keep only last N turns to limit token usage on long conversations
+  const trimmedHistory = history.slice(-historyTurns);
 
   const contents = [
     ...trimmedHistory,
@@ -67,7 +70,7 @@ async function geminiChat(systemPrompt, history, userMessage, _retry = 1) {
     contents,
     generationConfig: {
       temperature: 0.8,
-      maxOutputTokens: 300,
+      maxOutputTokens,
       // Disable thinking on gemini-2.5-flash — not needed for roleplay, saves tokens & latency
       thinkingConfig: { thinkingBudget: 0 }
     }
@@ -85,7 +88,7 @@ async function geminiChat(systemPrompt, history, userMessage, _retry = 1) {
     // Auto-retry once on transient server errors (503 / high demand)
     if (_retry > 0 && (res.status === 503 || res.status === 429)) {
       await new Promise(r => setTimeout(r, 4000));
-      return geminiChat(systemPrompt, history, userMessage, _retry - 1);
+      return geminiChat(systemPrompt, history, userMessage, options, _retry - 1);
     }
     throw new Error(msg);
   }
