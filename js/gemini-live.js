@@ -43,7 +43,7 @@ class GeminiLiveClient {
     return new Promise((resolve, reject) => {
       this.onStateChange?.('connecting');
 
-      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${apiKey}`;
+      const url = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?key=${apiKey}`;
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
@@ -131,9 +131,7 @@ class GeminiLiveClient {
       this._captureNode.port.onmessage = (e) => {
         if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
         this._send({
-          realtimeInput: {
-            mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: _bufToB64(e.data) }]
-          }
+          realtimeInput: { audio: { mimeType: 'audio/pcm', data: _bufToB64(e.data) } }
         });
       };
 
@@ -149,9 +147,7 @@ class GeminiLiveClient {
       processor.onaudioprocess = (e) => {
         if (!this._connected || this._ws?.readyState !== WebSocket.OPEN) return;
         this._send({
-          realtimeInput: {
-            mediaChunks: [{ mimeType: 'audio/pcm;rate=16000', data: _f32ToB64Pcm16(e.inputBuffer.getChannelData(0)) }]
-          }
+          realtimeInput: { audio: { mimeType: 'audio/pcm', data: _f32ToB64Pcm16(e.inputBuffer.getChannelData(0)) } }
         });
       };
       source.connect(processor);
