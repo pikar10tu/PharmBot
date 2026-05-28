@@ -4,24 +4,24 @@
 
 // ── Theme helpers (global) ────────────────────────────────────
 function applyTheme(name) {
-  document.documentElement.setAttribute('data-theme', name);
-  localStorage.setItem('pharmbot-theme', name);
+  document.documentElement.setAttribute('data-theme', name || 'sakura');
+  localStorage.setItem('pharmbot-theme', name || 'sakura');
   document.querySelectorAll('.theme-dot').forEach(d =>
     d.classList.toggle('active', d.dataset.theme === name)
   );
 }
 
 function initTheme() {
-  const saved = localStorage.getItem('pharmbot-theme') || 'teal';
+  const saved = localStorage.getItem('pharmbot-theme') || 'sakura';
   document.documentElement.setAttribute('data-theme', saved);
 }
 
 const THEMES = [
-  { id: 'teal',    color: '#06b6d4', label: 'Teal'    },
-  { id: 'purple',  color: '#a855f7', label: 'Purple'  },
-  { id: 'emerald', color: '#10b981', label: 'Emerald' },
-  { id: 'amber',   color: '#f59e0b', label: 'Amber'   },
-  { id: 'rose',    color: '#f43f5e', label: 'Rose'    },
+  { id: 'sakura',   color: '#ec4899', label: '🌸 Sakura'   },
+  { id: 'sky',      color: '#0284c7', label: '🩵 Sky'       },
+  { id: 'lavender', color: '#c084fc', label: '💜 Lavender'  },
+  { id: 'matcha',   color: '#6ee7b7', label: '🍵 Matcha'    },
+  { id: 'peach',    color: '#fb923c', label: '🍑 Peach'     },
 ];
 
 async function renderDashboard(container) {
@@ -122,7 +122,7 @@ async function renderDashboard(container) {
   });
 
   // Mark active theme dot + wire clicks
-  const savedTheme = localStorage.getItem('pharmbot-theme') || 'teal';
+  const savedTheme = localStorage.getItem('pharmbot-theme') || 'sakura';
   document.querySelectorAll('.theme-dot').forEach(dot => {
     dot.classList.toggle('active', dot.dataset.theme === savedTheme);
     dot.addEventListener('click', () => applyTheme(dot.dataset.theme));
