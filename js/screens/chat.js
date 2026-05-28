@@ -23,6 +23,8 @@ let _liveConnecting    = false;  // true while awaiting Live API connect (preven
 let _displayRecog      = null;   // Web Speech API for accurate Thai transcript display (Live mode only)
 let _isRandomCase      = false;  // true = entered via random case — hide case title
 let _caseStarted       = false;  // true after student presses "เริ่มเคส" button
+let _charMode          = localStorage.getItem('pharmbot-char') === 'true'; // character avatar mode
+let _charInterval      = null;   // setInterval handle for talking animation
 
 const _synth = window.speechSynthesis || null;
 
@@ -51,6 +53,7 @@ async function renderChat(container, params = {}) {
   _displayRecog = null;
   _isRandomCase  = !!params.random;
   _caseStarted   = false;
+  clearInterval(_charInterval); _charInterval = null;
 
   container.innerHTML = `
     ${renderNavbar(pid)}
@@ -130,10 +133,12 @@ function _renderChatUI(container, pid) {
 
         <!-- Voice Stage — hero section (voice mode, visible by default) -->
         <div id="voice-input-row-1" class="voice-stage">
-          <div class="patient-orb" id="patient-orb-1">
+          <div class="patient-orb" id="patient-orb-1"${_charMode ? ' style="display:none"' : ''}>
             <div class="orb-ring"></div>
             <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
           </div>
+          <img src="img/patient-idle.jpg" id="patient-char-1"
+               class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
           <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
           <div class="voice-waveform" id="waveform-1">
             <span></span><span></span><span></span><span></span><span></span>
@@ -161,6 +166,7 @@ function _renderChatUI(container, pid) {
           <label class="tts-check" id="tts-label" style="display:none;">
             <input type="checkbox" id="tts-toggle" /> อ่านเสียง
           </label>
+          <button class="btn btn-ghost btn-sm" id="char-toggle-btn" title="ทดลอง: ตัวละครเคลื่อนไหว" style="font-size:0.8rem;padding:0.35rem 0.7rem;">${_charMode ? '🎭 ตัวละคร ON' : '🎭 ตัวละคร'}</button>
           <button class="btn btn-success btn-sm" id="done-history-btn">ซักประวัติเสร็จแล้ว →</button>
         </div>
       </div>
@@ -188,10 +194,12 @@ function _renderChatUI(container, pid) {
 
         <!-- Voice Stage -->
         <div id="voice-input-row-3" class="voice-stage">
-          <div class="patient-orb" id="patient-orb-3">
+          <div class="patient-orb" id="patient-orb-3"${_charMode ? ' style="display:none"' : ''}>
             <div class="orb-ring"></div>
             <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
           </div>
+          <img src="img/patient-idle.jpg" id="patient-char-3"
+               class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
           <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
           <div class="voice-waveform" id="waveform-3">
             <span></span><span></span><span></span><span></span><span></span>
@@ -264,6 +272,21 @@ function _attachEvents() {
   document.getElementById('tts-toggle')?.addEventListener('change',
     e => { _ttsEnabled = e.target.checked; });
   document.getElementById('done-history-btn')?.addEventListener('click', _goStep2);
+
+  // Character avatar toggle
+  document.getElementById('char-toggle-btn')?.addEventListener('click', () => {
+    _charMode = !_charMode;
+    localStorage.setItem('pharmbot-char', _charMode);
+    const btn = document.getElementById('char-toggle-btn');
+    if (btn) btn.textContent = _charMode ? '🎭 ตัวละคร ON' : '🎭 ตัวละคร';
+    for (const s of [1, 3]) {
+      const orb  = document.getElementById(`patient-orb-${s}`);
+      const img  = document.getElementById(`patient-char-${s}`);
+      if (orb) orb.style.display = _charMode ? 'none' : '';
+      if (img) img.classList.toggle('hidden', !_charMode);
+    }
+    if (!_charMode) _stopCharAnim(_voicePanelStep || 1);
+  });
 
   // Start case button (Step 1 voice stage)
   document.getElementById('start-case-btn')?.addEventListener('click', () => {
@@ -405,6 +428,9 @@ async function _startVoice(panelStep) {
         orb.classList.toggle('orb-ready',    state === 'listening' || state === 'ready');
       }
       if (stage) stage.classList.toggle('stage-active', state === 'ai-speaking');
+      // Character animation
+      if (state === 'ai-speaking') _startCharAnim(panelStep);
+      else _stopCharAnim(panelStep);
       // Pause display recog while AI speaks to avoid transcribing speaker audio through mic
       if (state === 'ai-speaking') {
         try { _displayRecog?.stop(); } catch (_) {}
@@ -534,6 +560,7 @@ function _startVoiceWebSpeech(panelStep) {
 }
 
 function _stopVoice() {
+  _stopCharAnim(_voicePanelStep || 1);
   _voiceMode      = false;
   _voicePanelStep = 0;
   _liveMode       = false;
@@ -544,6 +571,26 @@ function _stopVoice() {
   try { _displayRecog?.abort(); } catch (_) {}
   _displayRecog = null;
   geminiTTSStop();
+}
+
+function _startCharAnim(panelStep) {
+  if (!_charMode) return;
+  clearInterval(_charInterval);
+  let tick = false;
+  _charInterval = setInterval(() => {
+    const img = document.getElementById(`patient-char-${panelStep}`);
+    if (!img) { clearInterval(_charInterval); return; }
+    tick = !tick;
+    img.src = `img/patient-${tick ? 'speak' : 'idle'}.jpg`;
+    img.classList.toggle('char-speaking', tick);
+  }, 220);
+}
+
+function _stopCharAnim(panelStep) {
+  clearInterval(_charInterval);
+  _charInterval = null;
+  const img = document.getElementById(`patient-char-${panelStep}`);
+  if (img) { img.src = 'img/patient-idle.jpg'; img.classList.remove('char-speaking'); }
 }
 
 function _quitSession() {
@@ -606,10 +653,12 @@ async function _sendChat() {
       waveform?.classList.add('wave-ai');
       waveform?.classList.remove('wave-active');
       const voiceName = getVoiceForGender(_caseData?.gender);
+      _startCharAnim(1);
       await geminiTTS(reply, voiceName).catch(err => {
         console.warn('TTS error:', err.message);
         _setVoiceStatus(1, '⚠️ เล่นเสียงไม่ได้ — ดูข้อความด้านบน', false);
       });
+      _stopCharAnim(1);
       waveform?.classList.remove('wave-ai');
     } else if (_ttsEnabled) {
       _speak(reply);
@@ -717,10 +766,12 @@ async function _sendCounseling() {
       waveform?.classList.add('wave-ai');
       waveform?.classList.remove('wave-active');
       const voiceName = getVoiceForGender(_caseData?.gender);
+      _startCharAnim(3);
       await geminiTTS(reply, voiceName).catch(err => {
         console.warn('TTS error:', err.message);
         _setVoiceStatus(3, '⚠️ เล่นเสียงไม่ได้ — ดูข้อความด้านบน', false);
       });
+      _stopCharAnim(3);
       waveform?.classList.remove('wave-ai');
     } else if (_ttsEnabled) {
       _speak(reply);

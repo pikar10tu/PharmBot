@@ -510,6 +510,19 @@ p  { line-height: 1.7; color: var(--text-dim); }
 }
 .fade-in { animation: fadeUp 0.3s ease; }
 
+/* ── Character Avatar (experimental) ─────────────────────── */
+.patient-char {
+  width: 120px; height: 120px; border-radius: 50%;
+  object-fit: cover; object-position: top center;
+  border: 3px solid var(--glass-border);
+  transition: border-color 0.15s, box-shadow 0.15s;
+  display: block;
+}
+.patient-char.char-speaking {
+  border-color: var(--accent);
+  box-shadow: 0 0 28px var(--teal-glow);
+}
+
 /* ── Theme Picker ─────────────────────────────────────────── */
 .theme-picker { display: flex; gap: 0.4rem; align-items: center; }
 .theme-dot {
