@@ -353,12 +353,11 @@ async function _startVoice(panelStep) {
         const result = e.results[e.results.length - 1];
         const text   = result[0].transcript.trim();
         if (!text) return;
-        if (result.isFinal) {
-          _pendingDisplayText = text;  // commit; onUserTranscript will pick this up
-        } else {
-          const sub = document.getElementById(`voice-subtitle-${panelStep}`);
-          if (sub) sub.textContent = '🎙️ ' + text;  // live interim preview
-        }
+        // Interim preview only — do NOT set _pendingDisplayText;
+        // Gemini native transcript is now authoritative (better context awareness)
+        const sub = document.getElementById(`voice-subtitle-${panelStep}`);
+        if (sub) sub.textContent = '🎙️ ' + text;
+        if (result.isFinal) _pendingDisplayText = text;  // fallback only if Gemini sends nothing
       };
       _displayRecog.onerror = () => {};
       _displayRecog.onend   = () => {
@@ -408,8 +407,8 @@ async function _startVoice(panelStep) {
         client.audioEnabled = true;
       }
       if (!_voiceMode) return;
-      // Prefer Web Speech accurate transcript; fall back to Gemini inputTranscription
-      const displayText = (_pendingDisplayText || text || '').trim();
+      // Prefer Gemini native transcript (context-aware); Web Speech is fallback only
+      const displayText = (text || _pendingDisplayText || '').trim();
       _pendingDisplayText = '';
       if (!displayText) return;
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
