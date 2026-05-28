@@ -8,6 +8,7 @@ let _adminGroups  = [];
 let _adminCases   = [];
 let _adminDrugs   = [];
 let _adminResults = [];
+let _selectedDrugEntries = []; // { drugCode, category, regimen }
 
 async function renderAdmin(container) {
   const profile = getUserProfile();
@@ -70,7 +71,7 @@ async function _loadAdminTab() {
 // ── Cases Tab ─────────────────────────────────────────────────
 
 async function _renderCasesTab(body) {
-  [_adminCases, _adminGroups] = await Promise.all([getAllCases(), getGroups()]);
+  [_adminCases, _adminGroups, _adminDrugs] = await Promise.all([getAllCases(), getGroups(), getDrugs()]);
 
   body.innerHTML = `
     <div class="flex items-center justify-between mb-2" style="flex-wrap:wrap;gap:0.5rem;">
@@ -98,6 +99,7 @@ async function _renderCasesTab(body) {
       </div>
     </div>`;
 
+  _setupDrugPicker();
   document.getElementById('add-case-btn').addEventListener('click', () => _openCaseForm(null));
   document.getElementById('cancel-case-btn').addEventListener('click', () => {
     document.getElementById('case-form-wrap').className = 'hidden mt-3';
@@ -293,11 +295,187 @@ function _buildCaseFormHtml() {
       <input class="input" type="text" id="cf-diagnosisAnswer"
         placeholder="เช่น ไข้หวัดธรรมดา (Common Cold / Viral URTI)" />
     </div>
+    ${sectionHdr('ยาที่แนะนำ', '— ค้นหาและเลือกยาที่ถูกต้องสำหรับเคสนี้')}
+    ${_buildDrugPickerHtml()}
     <div class="mb-2">
-      <label class="input-label">drugAnswer (JSON)</label>
-      <textarea class="input" id="cf-drugAnswer" rows="10" style="resize:vertical;font-family:monospace;font-size:0.8rem;"
-        placeholder='{"firstLine":[],"alternatives":[],"unacceptable":[],"counseling":[]}'></textarea>
+      <label class="input-label">คำแนะนำการใช้ยา (counseling) <span class="text-dim text-xs">— บรรทัดละ 1 ข้อ</span></label>
+      <textarea class="input" id="cf-counseling" rows="4" style="resize:vertical;${fieldStyle}"
+        placeholder="เช่น&#10;ยานี้กินหลังอาหาร&#10;ห้ามหยุดยาเองก่อนครบคอร์ส&#10;ดื่มน้ำมากๆ"></textarea>
     </div>`;
+}
+
+// ── Drug Picker helpers ───────────────────────────────────────
+
+function _buildDrugPickerHtml() {
+  return `
+    <div style="position:relative;" class="mb-2">
+      <input class="input" type="text" id="dp-search"
+        placeholder="พิมพ์ชื่อยาเพื่อเพิ่ม เช่น Amoxicillin, Ibuprofen..." autocomplete="off" />
+      <div id="dp-dropdown" style="display:none;position:absolute;z-index:20;width:100%;
+        background:var(--surface,#1e2030);border:1px solid var(--glass-border,rgba(255,255,255,0.12));
+        border-radius:8px;max-height:230px;overflow-y:auto;margin-top:2px;
+        box-shadow:0 4px 16px rgba(0,0,0,0.4);"></div>
+    </div>
+    <div id="dp-selected-list" class="mb-1">
+      <div class="text-dim text-xs" style="text-align:center;padding:0.4rem 0;">ยังไม่ได้เลือกยา</div>
+    </div>`;
+}
+
+function _setupDrugPicker() {
+  const searchEl = document.getElementById('dp-search');
+  const dropEl   = document.getElementById('dp-dropdown');
+  if (!searchEl || !dropEl) return;
+
+  searchEl.addEventListener('input', () => {
+    const q = searchEl.value.trim().toLowerCase();
+    if (!q) { dropEl.style.display = 'none'; return; }
+
+    const already = new Set(_selectedDrugEntries.map(e => e.drugCode));
+    const matches = _adminDrugs.filter(d =>
+      !already.has(d.id) && (
+        (d.name || '').toLowerCase().includes(q) ||
+        (d.strength || '').toLowerCase().includes(q) ||
+        (d.category || '').toLowerCase().includes(q)
+      )
+    ).slice(0, 14);
+
+    if (!matches.length) { dropEl.style.display = 'none'; return; }
+
+    dropEl.innerHTML = matches.map(d => `
+      <div class="dp-item" data-code="${_escA(d.id)}"
+        style="padding:0.45rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.07));">
+        <div style="font-size:0.84rem;font-weight:600;">${_escA(d.name)} <span style="font-weight:400;">${_escA(d.strength || '')}</span></div>
+        <div style="font-size:0.73rem;opacity:0.55;">${_escA(d.form || '')} · ${_escA(d.category || '')}</div>
+      </div>`).join('');
+    dropEl.style.display = 'block';
+  });
+
+  dropEl.addEventListener('click', e => {
+    const item = e.target.closest('.dp-item');
+    if (!item) return;
+    const code = item.dataset.code;
+    if (!_selectedDrugEntries.find(e => e.drugCode === code)) {
+      _selectedDrugEntries.push({ drugCode: code, category: 'firstLine', regimen: '' });
+    }
+    _renderSelectedDrugs();
+    searchEl.value = '';
+    dropEl.style.display = 'none';
+    searchEl.focus();
+  });
+
+  // close dropdown on outside click — self-removes when element leaves DOM
+  document.addEventListener('click', function _dpOutside(e) {
+    const d = document.getElementById('dp-dropdown');
+    if (!d) { document.removeEventListener('click', _dpOutside, true); return; }
+    if (!searchEl.contains(e.target) && !d.contains(e.target)) d.style.display = 'none';
+  }, true);
+}
+
+function _renderSelectedDrugs() {
+  const listEl = document.getElementById('dp-selected-list');
+  if (!listEl) return;
+
+  if (!_selectedDrugEntries.length) {
+    listEl.innerHTML = '<div class="text-dim text-xs" style="text-align:center;padding:0.4rem 0;">ยังไม่ได้เลือกยา</div>';
+    return;
+  }
+
+  const drugMap = {};
+  _adminDrugs.forEach(d => { drugMap[d.id] = d; });
+
+  listEl.innerHTML = _selectedDrugEntries.map((entry, i) => {
+    const d  = drugMap[entry.drugCode] || {};
+    const noRegimen = entry.category === 'unacceptable';
+    return `
+      <div class="dp-entry" style="display:grid;grid-template-columns:1fr auto;gap:0.35rem 0.5rem;
+        padding:0.45rem 0.6rem;background:var(--glass-bg,rgba(255,255,255,0.04));
+        border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;margin-bottom:0.35rem;align-items:start;">
+        <div>
+          <span style="font-size:0.83rem;font-weight:600;">${_escA(d.name || entry.drugCode)}</span>
+          <span style="font-size:0.73rem;opacity:0.5;margin-left:0.3rem;">${_escA(d.strength || '')} ${_escA(d.form || '')}</span>
+        </div>
+        <div class="flex gap-1 items-center">
+          <select class="input dp-cat" data-idx="${i}"
+            style="font-size:0.78rem;padding:0.18rem 0.35rem;height:auto;min-width:8rem;">
+            <option value="firstLine"    ${entry.category === 'firstLine'    ? 'selected' : ''}>✅ First line</option>
+            <option value="alternatives" ${entry.category === 'alternatives' ? 'selected' : ''}>🔄 Alternative</option>
+            <option value="unacceptable" ${entry.category === 'unacceptable' ? 'selected' : ''}>❌ ห้ามจ่าย</option>
+          </select>
+          <button class="btn btn-danger btn-sm dp-remove" data-idx="${i}"
+            style="padding:0.18rem 0.45rem;font-size:0.8rem;line-height:1.2;">✕</button>
+        </div>
+        <div style="grid-column:span 2;${noRegimen ? 'display:none;' : ''}">
+          <input class="input dp-regimen" data-idx="${i}" type="text"
+            value="${_escA(entry.regimen || '')}"
+            placeholder="วิธีใช้ เช่น กิน 1 เม็ด วันละ 3 ครั้ง หลังอาหาร"
+            style="font-size:0.8rem;" />
+        </div>
+      </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.dp-cat').forEach(sel => {
+    sel.addEventListener('change', () => {
+      _selectedDrugEntries[+sel.dataset.idx].category = sel.value;
+      _renderSelectedDrugs();
+    });
+  });
+  listEl.querySelectorAll('.dp-remove').forEach(btn => {
+    btn.addEventListener('click', () => {
+      _selectedDrugEntries.splice(+btn.dataset.idx, 1);
+      _renderSelectedDrugs();
+    });
+  });
+  listEl.querySelectorAll('.dp-regimen').forEach(inp => {
+    inp.addEventListener('input', () => {
+      _selectedDrugEntries[+inp.dataset.idx].regimen = inp.value;
+    });
+  });
+}
+
+function _loadDrugAnswerIntoPicker(drugAnswer) {
+  _selectedDrugEntries = [];
+
+  if (drugAnswer) {
+    const toEntries = (codes, cat) => {
+      if (!Array.isArray(codes)) return;
+      codes.forEach(item => {
+        const code    = typeof item === 'string' ? item : (item?.drugs?.[0] || null);
+        if (!code) return;
+        const regimen = drugAnswer.regimen?.[code] ||
+                        (typeof item === 'object' ? (item.regimen || '') : '') || '';
+        _selectedDrugEntries.push({ drugCode: code, category: cat, regimen });
+      });
+    };
+    toEntries(drugAnswer.firstLine,    'firstLine');
+    toEntries(drugAnswer.alternatives, 'alternatives');
+    toEntries(drugAnswer.unacceptable, 'unacceptable');
+  }
+
+  _renderSelectedDrugs();
+
+  const counselingEl = document.getElementById('cf-counseling');
+  if (counselingEl) {
+    const pts = drugAnswer?.counseling || [];
+    counselingEl.value = Array.isArray(pts) ? pts.join('\n') : '';
+  }
+}
+
+function _buildDrugAnswerFromPicker() {
+  const firstLine    = _selectedDrugEntries.filter(e => e.category === 'firstLine').map(e => e.drugCode);
+  const alternatives = _selectedDrugEntries.filter(e => e.category === 'alternatives').map(e => e.drugCode);
+  const unacceptable = _selectedDrugEntries.filter(e => e.category === 'unacceptable').map(e => e.drugCode);
+
+  const regimen = {};
+  _selectedDrugEntries
+    .filter(e => e.category !== 'unacceptable' && e.regimen.trim())
+    .forEach(e => { regimen[e.drugCode] = e.regimen.trim(); });
+
+  const counselingEl = document.getElementById('cf-counseling');
+  const counseling   = counselingEl
+    ? counselingEl.value.split('\n').map(l => l.trim()).filter(Boolean)
+    : [];
+
+  return { firstLine, alternatives, unacceptable, regimen, counseling };
 }
 
 function _openCaseForm(c) {
@@ -316,9 +494,7 @@ function _openCaseForm(c) {
   document.getElementById('cf-chiefComplaint').value    = c?.chiefComplaint || '';
   document.getElementById('cf-specificChecklist').value = c?.specificChecklist || '';
   document.getElementById('cf-diagnosisAnswer').value   = c?.diagnosisAnswer   || '';
-  document.getElementById('cf-drugAnswer').value        = c?.drugAnswer
-    ? JSON.stringify(c.drugAnswer, null, 2)
-    : '{\n  "firstLine": [],\n  "alternatives": [],\n  "unacceptable": [],\n  "counseling": []\n}';
+  _loadDrugAnswerIntoPicker(c?.drugAnswer || null);
 
   // โพยลับ — ใช้ secretInfoFields ถ้ามี (กรอกแบบ structured)
   const f = c?.secretInfoFields || {};
@@ -405,14 +581,7 @@ async function _saveCaseForm() {
   const alertEl = document.getElementById('case-form-alert');
   alertEl.className = 'hidden mb-2';
 
-  let drugAnswer;
-  try {
-    drugAnswer = JSON.parse(document.getElementById('cf-drugAnswer').value);
-  } catch (_) {
-    alertEl.className = 'alert alert-error mb-2';
-    alertEl.textContent = 'drugAnswer JSON ไม่ถูกต้อง';
-    return;
-  }
+  const drugAnswer = _buildDrugAnswerFromPicker();
 
   // รวบรวม structured fields
   const sif = {
