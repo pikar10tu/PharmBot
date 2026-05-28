@@ -245,11 +245,31 @@ p  { line-height: 1.7; color: var(--text-dim); }
   color: var(--text-dim);
   transition: all 0.3s;
 }
-.step.active .step-circle   { background: var(--teal); border-color: var(--teal); color: #fff; box-shadow: 0 0 16px rgba(6,182,212,0.4); }
-.step.done .step-circle     { background: var(--success); border-color: var(--success); color: #fff; }
-.step-label { font-size: 0.7rem; color: var(--text-dim); text-align: center; }
-.step.active .step-label    { color: var(--teal); font-weight: 600; }
-.step.done .step-label      { color: var(--success); }
+.step.active .step-circle {
+  background: linear-gradient(135deg, var(--teal), var(--accent2));
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(129,140,248,0.15), 0 0 20px rgba(129,140,248,0.4);
+}
+.step.done .step-circle {
+  background: var(--success);
+  border-color: transparent;
+  color: #fff;
+  font-size: 0; /* hide number */
+}
+.step.done .step-circle::before {
+  content: '✓';
+  font-size: 0.9rem;
+}
+.step-label { font-size: 0.68rem; color: var(--text-dim); text-align: center; line-height: 1.3; }
+.step.active .step-label { color: var(--accent); font-weight: 700; }
+.step.done .step-label   { color: var(--success); }
+
+/* Per-step icon prefix via data attribute */
+#step-1 .step-label::before { content: '🔍 '; }
+#step-2 .step-label::before { content: '💊 '; }
+#step-3 .step-label::before { content: '💬 '; }
+#step-4 .step-label::before { content: '📊 '; }
 .step-line {
   height: 2px; flex: 1;
   background: var(--glass-border);
@@ -269,26 +289,54 @@ p  { line-height: 1.7; color: var(--text-dim); }
   scrollbar-width: thin; scrollbar-color: var(--glass-border) transparent;
 }
 .msg {
-  max-width: 80%; padding: 0.65rem 1rem;
-  border-radius: var(--radius); line-height: 1.6;
-  animation: fadeUp 0.2s ease;
+  max-width: 82%; padding: 0.55rem 1rem;
+  line-height: 1.65;
+  animation: fadeUp 0.22s ease;
+  position: relative;
 }
+
+/* Patient: warm amber — left accent bar, corner cut top-left */
 .msg-patient {
   align-self: flex-start;
-  background: rgba(6,182,212,0.08);
-  border: 1px solid rgba(6,182,212,0.22);
+  background: linear-gradient(135deg, rgba(251,146,60,0.08) 0%, rgba(245,158,11,0.04) 100%);
+  border: 1px solid rgba(251,146,60,0.15);
+  border-left: 3px solid rgba(251,146,60,0.45);
+  border-radius: 3px 18px 18px 18px;
 }
+.msg-patient .msg-name {
+  font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(251,191,36,0.72);
+  margin-bottom: 0.25rem;
+}
+
+/* Pharmacist: clinical indigo — right accent bar, corner cut top-right */
 .msg-user {
   align-self: flex-end;
-  background: rgba(139,92,246,0.14);
-  border: 1px solid rgba(139,92,246,0.28);
+  background: linear-gradient(135deg, rgba(99,102,241,0.1) 0%, rgba(129,140,248,0.06) 100%);
+  border: 1px solid rgba(129,140,248,0.17);
+  border-right: 3px solid rgba(129,140,248,0.45);
+  border-radius: 18px 3px 18px 18px;
 }
+.msg-user .msg-name {
+  font-size: 0.66rem; font-weight: 700;
+  letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(165,180,252,0.72);
+  margin-bottom: 0.25rem; text-align: right;
+}
+
+/* System: clinical note entry — left ruled line, no italic */
 .msg-system {
-  align-self: center; font-size: 0.8rem;
-  color: var(--text-dim); font-style: italic;
-  background: none; border: none; padding: 0.2rem;
+  align-self: stretch; max-width: none;
+  font-size: 0.77rem; font-style: normal;
+  color: var(--text-dim); line-height: 1.5;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-left: 2px solid rgba(255,255,255,0.18);
+  border-radius: 2px 8px 8px 2px;
+  padding: 0.35rem 0.75rem;
+  margin: 0.1rem 0;
 }
-.msg-name { font-size: 0.72rem; color: var(--text-dim); margin-bottom: 0.2rem; }
 
 .chat-input-row {
   display: flex; gap: 0.5rem; padding: 0.75rem;
@@ -349,13 +397,18 @@ p  { line-height: 1.7; color: var(--text-dim); }
   background: rgba(6,182,212,0.15); color: var(--teal);
   margin-top: 0.3rem;
 }
-.dispensed-list { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem; }
+.dispensed-list { display: flex; flex-wrap: wrap; gap: 0.45rem; margin-top: 0.5rem; }
 .dispensed-chip {
   display: flex; align-items: center; gap: 0.4rem;
-  padding: 0.3rem 0.7rem;
-  background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.35);
-  border-radius: 20px; font-size: 0.85rem;
+  padding: 0.28rem 0.5rem 0.28rem 0.75rem;
+  background: linear-gradient(135deg, rgba(16,185,129,0.12), rgba(5,150,105,0.07));
+  border: 1px solid rgba(16,185,129,0.3);
+  border-left: 3px solid rgba(16,185,129,0.55);
+  border-radius: 2px 20px 20px 2px;
+  font-size: 0.83rem; font-weight: 500;
+  transition: border-color 0.15s;
 }
+.dispensed-chip:hover { border-color: rgba(16,185,129,0.5); }
 .dispensed-chip button { background: none; border: none; color: var(--text-dim); cursor: pointer; padding: 0; line-height: 1; font-size: 1rem; }
 .dispensed-chip button:hover { color: var(--danger); }
 
@@ -649,9 +702,30 @@ p  { line-height: 1.7; color: var(--text-dim); }
   overflow-y: auto;
   border-radius: var(--radius-sm);
   border: 1px solid var(--glass-border);
-  background: rgba(255,255,255,0.02);
+  background:
+    repeating-linear-gradient(
+      transparent,
+      transparent calc(2rem - 1px),
+      rgba(255,255,255,0.022) calc(2rem - 1px),
+      rgba(255,255,255,0.022) 2rem
+    ),
+    rgba(255,255,255,0.015);
   scrollbar-width: thin;
   scrollbar-color: var(--glass-border) transparent;
+  position: relative;
+}
+/* "TRANSCRIPT" label via pseudo-element */
+.transcript-wrap::before {
+  content: '📋  บันทึกการสนทนา';
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  opacity: 0.55;
+  padding: 0.45rem 0.85rem 0;
+  pointer-events: none;
 }
 .transcript-wrap .chat-messages {
   flex: unset;
@@ -677,7 +751,7 @@ p  { line-height: 1.7; color: var(--text-dim); }
   transition: background 0.4s, border-color 0.4s;
 }
 
-/* Subtle radial glow center */
+/* Radial glow center */
 .voice-stage::before {
   content: '';
   position: absolute;
@@ -689,6 +763,26 @@ p  { line-height: 1.7; color: var(--text-dim); }
   opacity: 0;
 }
 .voice-stage.stage-active::before { opacity: 1; }
+
+/* LIVE badge — shown when stage is active */
+.voice-stage.stage-active::after {
+  content: '● REC';
+  position: absolute;
+  top: 0.75rem; right: 0.85rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--danger);
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.28);
+  border-radius: 20px;
+  padding: 0.15rem 0.5rem;
+  animation: liveBlink 1.4s ease-in-out infinite;
+}
+@keyframes liveBlink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
 
 /* ── Patient Orb ──────────────────────────────────────────── */
 .patient-orb {
@@ -795,23 +889,33 @@ p  { line-height: 1.7; color: var(--text-dim); }
 
 /* ── Voice Status & Subtitle ──────────────────────────────── */
 .voice-status-text {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   color: var(--text-dim);
-  letter-spacing: 0.03em;
-  font-weight: 500;
+  letter-spacing: 0.08em;
+  font-weight: 600;
+  text-transform: uppercase;
+  font-variant-numeric: tabular-nums;
 }
 
 .voice-subtitle {
-  font-size: 0.85rem;
-  color: var(--teal);
-  font-style: italic;
+  font-size: 0.9rem;
+  color: var(--text);
+  font-style: normal;
   text-align: center;
-  min-height: 1.4em;
-  max-width: 480px;
-  padding: 0 1rem;
+  min-height: 1.5em;
+  max-width: 520px;
+  padding: 0.25rem 1.25rem;
   word-break: break-word;
-  line-height: 1.5;
-  opacity: 0.9;
+  line-height: 1.6;
+  opacity: 0.92;
+  background: rgba(129,140,248,0.06);
+  border-radius: 8px;
+  border: 1px solid rgba(129,140,248,0.1);
+  transition: opacity 0.3s;
+}
+.voice-subtitle:empty {
+  background: none;
+  border-color: transparent;
 }
 
 /* ── Session Footer ───────────────────────────────────────── */
