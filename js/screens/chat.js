@@ -25,6 +25,8 @@ let _isRandomCase      = false;  // true = entered via random case — hide case
 let _caseStarted       = false;  // true after student presses "เริ่มเคส" button
 let _charMode          = localStorage.getItem('pharmbot-char') === 'true'; // character avatar mode
 let _charInterval      = null;   // setInterval handle for talking animation
+let _charImgIdle       = 'img/patient-idle.png';  // resolved per session based on gender
+let _charImgSpeak      = 'img/patient-speak.png';
 
 const _synth = window.speechSynthesis || null;
 
@@ -66,6 +68,8 @@ async function renderChat(container, params = {}) {
     if (!rawCase) { Router.go('groups'); return; }
 
     _caseData = randomizePatientData(rawCase);
+    _charImgIdle  = _caseData.gender === 'male' ? 'img/patient-male-idle.svg'  : 'img/patient-idle.png';
+    _charImgSpeak = _caseData.gender === 'male' ? 'img/patient-male-speak.svg' : 'img/patient-speak.png';
 
     // Rate-limit double-check before consuming a slot (admin is exempt)
     const isAdmin = profile?.role === 'admin';
@@ -137,7 +141,7 @@ function _renderChatUI(container, pid) {
             <div class="orb-ring"></div>
             <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
           </div>
-          <img src="img/patient-idle.png" id="patient-char-1"
+          <img src="${_charImgIdle}" id="patient-char-1"
                class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
           <div class="char-info-overlay">
             <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
@@ -200,7 +204,7 @@ function _renderChatUI(container, pid) {
             <div class="orb-ring"></div>
             <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
           </div>
-          <img src="img/patient-idle.png" id="patient-char-3"
+          <img src="${_charImgIdle}" id="patient-char-3"
                class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
           <div class="char-info-overlay">
             <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
@@ -587,7 +591,7 @@ function _startCharAnim(panelStep) {
     const img = document.getElementById(`patient-char-${panelStep}`);
     if (!img) { clearInterval(_charInterval); return; }
     tick = !tick;
-    img.src = `img/patient-${tick ? 'speak' : 'idle'}.png`;
+    img.src = tick ? _charImgSpeak : _charImgIdle;
     img.classList.toggle('char-speaking', tick);
   }, 220);
 }
@@ -596,7 +600,7 @@ function _stopCharAnim(panelStep) {
   clearInterval(_charInterval);
   _charInterval = null;
   const img = document.getElementById(`patient-char-${panelStep}`);
-  if (img) { img.src = 'img/patient-idle.png'; img.classList.remove('char-speaking'); }
+  if (img) { img.src = _charImgIdle; img.classList.remove('char-speaking'); }
 }
 
 function _quitSession() {

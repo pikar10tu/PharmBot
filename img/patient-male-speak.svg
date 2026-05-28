@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 420" fill="none">
+<defs>
+  <radialGradient id="sg" cx="38%" cy="30%" r="65%">
+    <stop offset="0%"   stop-color="#FFD9A8"/>
+    <stop offset="55%"  stop-color="#F0B070"/>
+    <stop offset="100%" stop-color="#C87838"/>
+  </radialGradient>
+  <radialGradient id="hg" cx="42%" cy="28%" r="62%">
+    <stop offset="0%"   stop-color="#5C3D22"/>
+    <stop offset="100%" stop-color="#180A02"/>
+  </radialGradient>
+  <linearGradient id="shirt" x1="10%" y1="0%" x2="90%" y2="100%">
+    <stop offset="0%"   stop-color="#5FC3D8"/>
+    <stop offset="100%" stop-color="#1E7FA8"/>
+  </linearGradient>
+  <radialGradient id="iris" cx="32%" cy="32%" r="68%">
+    <stop offset="0%"   stop-color="#8B5E3C"/>
+    <stop offset="55%"  stop-color="#4A2E18"/>
+    <stop offset="100%" stop-color="#1C0C04"/>
+  </radialGradient>
+  <linearGradient id="nk" x1="0%" y1="0%" x2="100%" y2="0%">
+    <stop offset="0%"   stop-color="#C87838"/>
+    <stop offset="40%"  stop-color="#F0B070"/>
+    <stop offset="100%" stop-color="#C07030"/>
+  </linearGradient>
+  <radialGradient id="earIn" cx="50%" cy="50%" r="50%">
+    <stop offset="0%"  stop-color="#C06830" stop-opacity="0.5"/>
+    <stop offset="100%" stop-color="transparent"/>
+  </radialGradient>
+  <!-- Mouth interior -->
+  <radialGradient id="mouthIn" cx="50%" cy="20%" r="80%">
+    <stop offset="0%"   stop-color="#7A1A1A"/>
+    <stop offset="100%" stop-color="#3A0808"/>
+  </radialGradient>
+  <filter id="drop" x="-12%" y="-5%" width="124%" height="118%">
+    <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="rgba(0,0,0,0.28)"/>
+  </filter>
+</defs>
+
+<g filter="url(#drop)">
+
+<!-- ─── BODY / SHIRT ─── -->
+<ellipse cx="150" cy="418" rx="108" ry="22" fill="url(#shirt)" opacity="0.8"/>
+<path d="M42 420 Q36 370 52 335 L105 318 L150 334 L195 318 L248 335 Q264 370 258 420Z"
+      fill="url(#shirt)"/>
+<ellipse cx="118" cy="330" rx="36" ry="16" fill="white" opacity="0.14"/>
+<path d="M115 322 Q150 344 185 322" stroke="rgba(255,255,255,0.22)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+
+<!-- ─── NECK ─── -->
+<rect x="122" y="278" width="56" height="48" rx="22" fill="url(#nk)"/>
+<ellipse cx="124" cy="300" rx="9" ry="22" fill="rgba(0,0,0,0.08)"/>
+<ellipse cx="176" cy="300" rx="9" ry="22" fill="rgba(0,0,0,0.08)"/>
+
+<!-- ─── HEAD ─── -->
+<ellipse cx="150" cy="188" rx="92" ry="106" fill="url(#sg)"/>
+<ellipse cx="150" cy="282" rx="64" ry="16" fill="rgba(160,90,30,0.22)"/>
+<ellipse cx="224" cy="195" rx="30" ry="68" fill="rgba(160,85,25,0.16)"/>
+<ellipse cx="135" cy="132" rx="48" ry="34" fill="rgba(255,235,185,0.32)"/>
+
+<!-- ─── EARS ─── -->
+<ellipse cx="60"  cy="206" rx="17" ry="21" fill="url(#sg)"/>
+<ellipse cx="60"  cy="206" rx="10" ry="14" fill="url(#earIn)"/>
+<ellipse cx="240" cy="206" rx="17" ry="21" fill="url(#sg)"/>
+<ellipse cx="240" cy="206" rx="10" ry="14" fill="url(#earIn)"/>
+
+<!-- ─── HAIR ─── -->
+<ellipse cx="150" cy="118" rx="94" ry="76" fill="url(#hg)"/>
+<path d="M60 158 Q62 70 150 82 Q238 70 240 158 Q208 112 150 116 Q92 112 60 158Z"
+      fill="url(#hg)"/>
+<path d="M148 82 Q155 86 162 88 Q155 80 148 82Z" fill="rgba(90,60,30,0.7)"/>
+<ellipse cx="118" cy="100" rx="38" ry="24" fill="rgba(110,72,38,0.6)" opacity="0.7"/>
+<path d="M60 158 Q54 140 58 122 Q68 114 74 126 Q68 140 68 158Z" fill="url(#hg)"/>
+<path d="M240 158 Q246 140 242 122 Q232 114 226 126 Q232 140 232 158Z" fill="url(#hg)"/>
+
+<!-- ─── EYEBROWS (slightly raised — speaking) ─── -->
+<path d="M90 168 Q108 158 126 163" stroke="#2A1608" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+<path d="M174 163 Q192 158 210 168" stroke="#2A1608" stroke-width="5.5" stroke-linecap="round" fill="none"/>
+
+<!-- ─── EYES (slightly wider open) ─── -->
+<ellipse cx="108" cy="190" rx="22" ry="9"  fill="rgba(170,95,40,0.2)"/>
+<ellipse cx="192" cy="190" rx="22" ry="9"  fill="rgba(170,95,40,0.2)"/>
+<ellipse cx="108" cy="196" rx="18" ry="13" fill="white"/>
+<ellipse cx="192" cy="196" rx="18" ry="13" fill="white"/>
+<ellipse cx="108" cy="190" rx="18" ry="6"  fill="rgba(190,130,80,0.18)"/>
+<ellipse cx="192" cy="190" rx="18" ry="6"  fill="rgba(190,130,80,0.18)"/>
+<circle cx="108" cy="198" r="10" fill="url(#iris)"/>
+<circle cx="192" cy="198" r="10" fill="url(#iris)"/>
+<circle cx="108" cy="198" r="5.8" fill="#0E0806"/>
+<circle cx="192" cy="198" r="5.8" fill="#0E0806"/>
+<circle cx="102" cy="193" r="3.8" fill="white" opacity="0.92"/>
+<circle cx="186" cy="193" r="3.8" fill="white" opacity="0.92"/>
+<circle cx="113" cy="203" r="2"   fill="white" opacity="0.48"/>
+<circle cx="197" cy="203" r="2"   fill="white" opacity="0.48"/>
+<path d="M90 187 Q108 180 126 187" stroke="#200E06" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+<path d="M174 187 Q192 180 210 187" stroke="#200E06" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+
+<!-- ─── NOSE ─── -->
+<path d="M142 214 Q140 232 132 242 Q140 248 150 248 Q160 248 168 242 Q160 232 158 214"
+      fill="rgba(185,105,45,0.24)"/>
+<ellipse cx="138" cy="244" rx="6" ry="4.5" fill="rgba(150,80,30,0.38)"/>
+<ellipse cx="162" cy="244" rx="6" ry="4.5" fill="rgba(150,80,30,0.38)"/>
+<ellipse cx="150" cy="240" rx="8"  ry="5"   fill="rgba(255,210,155,0.5)"/>
+
+<!-- ─── CHEEKS ─── -->
+<ellipse cx="86"  cy="238" rx="24" ry="17" fill="rgba(238,130,100,0.16)"/>
+<ellipse cx="214" cy="238" rx="24" ry="17" fill="rgba(238,130,100,0.16)"/>
+
+<!-- ─── MOUTH (SPEAKING — open with teeth) ─── -->
+<!-- Upper lip -->
+<path d="M118 262 Q133 255 150 257 Q167 255 182 262 Q170 266 150 266 Q130 266 118 262Z"
+      fill="#B86C44"/>
+<!-- Philtrum -->
+<path d="M140 254 Q150 250 160 254" fill="#CC8055"/>
+<!-- Mouth opening -->
+<path d="M118 262 Q150 264 182 262 Q182 278 150 281 Q118 278 118 262Z"
+      fill="url(#mouthIn)"/>
+<!-- Upper teeth -->
+<rect x="126" y="263" width="48" height="10" rx="4" fill="#F5F0EB"/>
+<line x1="150" y1="263" x2="150" y2="273" stroke="rgba(200,180,160,0.5)" stroke-width="1"/>
+<!-- Lower lip -->
+<path d="M118 262 Q150 285 182 262 Q174 278 150 282 Q126 278 118 262Z" fill="#CC8A5C"/>
+<!-- Lower lip highlight -->
+<ellipse cx="150" cy="278" rx="18" ry="6" fill="rgba(255,200,155,0.38)"/>
+<!-- Corner definition -->
+<circle cx="118" cy="262" r="2.5" fill="rgba(150,70,35,0.5)"/>
+<circle cx="182" cy="262" r="2.5" fill="rgba(150,70,35,0.5)"/>
+
+</g>
+</svg>
