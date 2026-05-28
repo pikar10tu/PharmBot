@@ -24,8 +24,9 @@ class GeminiLiveClient {
     this._mediaStream = null;
     this._connected   = false;
 
-    this._pendingModelText = '';
-    this._resumptionToken  = null;
+    this._pendingModelText    = '';
+    this._resumptionToken     = null;
+    this._playbackInitPromise = null;   // singleton — prevents concurrent setup racing
 
     // ── Public callbacks ──────────────────────────────────────
     this.onUserTranscript         = null;  // (text: string) => void
@@ -189,8 +190,17 @@ class GeminiLiveClient {
     this.onStateChange?.('disconnected');
   }
 
-  // ── Internal: lazy-init AudioWorklet playback ─────────────────
-  async _setupPlayback() {
+  // ── Internal: lazy-init AudioWorklet playback (singleton promise) ──
+  // All concurrent _scheduleAudio calls await the SAME promise so no
+  // chunk ever slips through with a null _playNode and races to BufferSource.
+  _setupPlayback() {
+    if (!this._playbackInitPromise) {
+      this._playbackInitPromise = this._doInitPlayback();
+    }
+    return this._playbackInitPromise;
+  }
+
+  async _doInitPlayback() {
     if (this._audioCtx && this._audioCtx.state !== 'closed') return;
     this._audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
     try {
@@ -199,7 +209,7 @@ class GeminiLiveClient {
       this._playNode.connect(this._audioCtx.destination);
     } catch (workletErr) {
       console.warn('AudioWorklet playback unavailable, will use BufferSource fallback:', workletErr.message);
-      this._playNode = null; // signals _scheduleAudio to use legacy path
+      this._playNode = null;
     }
   }
 
@@ -234,9 +244,10 @@ class GeminiLiveClient {
       this._playNode?.disconnect();
       if (this._audioCtx?.state !== 'closed') this._audioCtx?.close();
     } catch (_) {}
-    this._audioCtx    = null;
-    this._playNode    = null;
-    this._nextPlayTime = 0;
+    this._audioCtx          = null;
+    this._playNode          = null;
+    this._nextPlayTime      = 0;
+    this._playbackInitPromise = null;  // allow re-init on next connect
   }
 
   // ── Internal: message handler ─────────────────────────────────
