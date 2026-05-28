@@ -32,10 +32,11 @@ async function renderGroups(container) {
     <div class="container fade-in">
       <div class="flex items-center gap-2 mb-3">
         <button class="btn btn-ghost btn-sm" id="back-btn">← กลับ</button>
-        <div>
+        <div style="flex:1">
           <h2>เลือกหมวดโรค</h2>
           <p class="text-dim text-sm">เลือกหมวดที่ต้องการฝึก</p>
         </div>
+        <button class="btn btn-primary btn-sm" id="random-case-btn">🎲 สุ่มเคส</button>
       </div>
       <div id="groups-grid" class="group-grid">
         <div class="text-center p-3" style="grid-column:1/-1;"><span class="spinner"></span></div>
@@ -43,6 +44,21 @@ async function renderGroups(container) {
     </div>`;
 
   document.getElementById('back-btn').addEventListener('click', () => Router.go('dashboard'));
+
+  document.getElementById('random-case-btn').addEventListener('click', async () => {
+    const btn = document.getElementById('random-case-btn');
+    btn.disabled = true;
+    btn.textContent = '⏳ กำลังสุ่ม…';
+    try {
+      const all = await getAllCases();
+      if (!all.length) { alert('ยังไม่มีเคสในระบบ'); btn.disabled = false; btn.textContent = '🎲 สุ่มเคส'; return; }
+      const pick = all[Math.floor(Math.random() * all.length)];
+      Router.go('chat', { caseId: pick.id });
+    } catch (_) {
+      btn.disabled = false;
+      btn.textContent = '🎲 สุ่มเคส';
+    }
+  });
 
   // Load groups from Firestore; fallback to STATIC_GROUPS if empty/error
   let groups;
