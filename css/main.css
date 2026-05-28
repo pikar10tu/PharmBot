@@ -19,7 +19,7 @@
   --danger:     #ef4444;
   --text:       #e2e8f0;
   --text-dim:   #94a3b8;
-  --glass-bg:   rgba(255,255,255,0.05);
+  --glass-bg:   rgba(255,255,255,0.08);
   --glass-border: rgba(255,255,255,0.1);
   --card-shadow: 0 16px 48px rgba(0,0,0,0.4);
   --teal-glow:  rgba(129,140,248,0.22);
@@ -365,7 +365,7 @@ p  { line-height: 1.7; color: var(--text-dim); }
   backdrop-filter: blur(4px);
 }
 .modal {
-  background: #111f35; border: 1px solid var(--glass-border);
+  background: var(--bg2); border: 1px solid var(--glass-border);
   border-radius: var(--radius); width: 100%; max-width: 700px;
   max-height: 90vh; display: flex; flex-direction: column;
   box-shadow: 0 24px 80px rgba(0,0,0,0.7);
@@ -384,13 +384,13 @@ p  { line-height: 1.7; color: var(--text-dim); }
 .drug-card {
   display: flex; align-items: center; gap: 0.75rem;
   padding: 0.7rem 1rem; border-radius: var(--radius-sm);
-  border: 1px solid rgba(255,255,255,0.1);
+  border: 1px solid var(--glass-border);
   cursor: pointer; transition: all 0.15s;
-  background: rgba(255,255,255,0.07);
+  background: var(--glass-bg);
 }
 .drug-card:hover {
   border-color: var(--accent);
-  background: rgba(129,140,248,0.12);
+  background: var(--teal-glow);
   transform: none;
 }
 .drug-card.selected {
@@ -421,11 +421,27 @@ p  { line-height: 1.7; color: var(--text-dim); }
 .drug-badge {
   display: inline-block; padding: 0.15rem 0.55rem;
   border-radius: 20px; font-size: 0.75rem;
-  background: rgba(129,140,248,0.15);
-  border: 1px solid rgba(129,140,248,0.18);
+  background: var(--orb1);
+  border: 1px solid var(--glass-border);
   color: var(--sky);
   white-space: nowrap; flex-shrink: 0;
 }
+/* Light-theme drug cards — pure white cards for contrast against light modal bg */
+[data-theme="sakura"] .drug-card,
+[data-theme="sky"] .drug-card {
+  background: rgba(255,255,255,0.9);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+}
+[data-theme="sakura"] .drug-card:hover,
+[data-theme="sky"] .drug-card:hover {
+  background: var(--teal-glow);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+[data-theme="sakura"] .drug-card.selected,
+[data-theme="sky"] .drug-card.selected {
+  background: rgba(16,185,129,0.1);
+}
+
 /* Admin compact grid (drug catalog view) */
 .drug-grid-compact {
   display: grid !important;
