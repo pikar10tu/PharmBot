@@ -2,6 +2,28 @@
 //  screens/dashboard.js
 // ============================================================
 
+// ── Theme helpers (global) ────────────────────────────────────
+function applyTheme(name) {
+  document.documentElement.setAttribute('data-theme', name);
+  localStorage.setItem('pharmbot-theme', name);
+  document.querySelectorAll('.theme-dot').forEach(d =>
+    d.classList.toggle('active', d.dataset.theme === name)
+  );
+}
+
+function initTheme() {
+  const saved = localStorage.getItem('pharmbot-theme') || 'teal';
+  document.documentElement.setAttribute('data-theme', saved);
+}
+
+const THEMES = [
+  { id: 'teal',    color: '#06b6d4', label: 'Teal'    },
+  { id: 'purple',  color: '#a855f7', label: 'Purple'  },
+  { id: 'emerald', color: '#10b981', label: 'Emerald' },
+  { id: 'amber',   color: '#f59e0b', label: 'Amber'   },
+  { id: 'rose',    color: '#f43f5e', label: 'Rose'    },
+];
+
 async function renderDashboard(container) {
   const profile = getUserProfile();
   const pid     = profile?.participantId || getCurrentUser()?.email?.split('@')[0].toUpperCase();
@@ -41,6 +63,14 @@ async function renderDashboard(container) {
           <h3>Admin</h3>
           <p class="text-dim text-sm mt-1">จัดการเคส ยา และดูผลทั้งหมด</p>
         </div>` : ''}
+      </div>
+
+      <!-- Theme picker -->
+      <div class="flex items-center gap-2" style="margin-top:0.25rem;">
+        <span class="text-dim text-sm">ธีม</span>
+        <div class="theme-picker">
+          ${THEMES.map(t => `<button class="theme-dot" data-theme="${t.id}" title="${t.label}" style="background:${t.color};"></button>`).join('')}
+        </div>
       </div>
     </div>
   `;
@@ -89,6 +119,13 @@ async function renderDashboard(container) {
       if (count >= 5) return;
     }
     Router.go('groups');
+  });
+
+  // Mark active theme dot + wire clicks
+  const savedTheme = localStorage.getItem('pharmbot-theme') || 'teal';
+  document.querySelectorAll('.theme-dot').forEach(dot => {
+    dot.classList.toggle('active', dot.dataset.theme === savedTheme);
+    dot.addEventListener('click', () => applyTheme(dot.dataset.theme));
   });
 
   document.getElementById('btn-history').addEventListener('click', () => Router.go('history'));
