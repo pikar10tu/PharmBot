@@ -804,7 +804,9 @@ function _addMsg(containerId, role, text) {
   }
 
   wrap.appendChild(el);
-  wrap.scrollTop = wrap.scrollHeight;
+  // transcript-wrap is the scrollable container; chat-messages has overflow-y:visible
+  const scroller = wrap.closest('.transcript-wrap') || wrap;
+  scroller.scrollTop = scroller.scrollHeight;
 }
 
 function _showTyping(containerId) {
@@ -815,7 +817,8 @@ function _showTyping(containerId) {
   el.className = 'msg msg-patient msg-typing';
   el.innerHTML = `<div class="msg-name">${_caseData?.name || 'ผู้ป่วย'}</div><div class="typing-dots"><span></span><span></span><span></span></div>`;
   wrap.appendChild(el);
-  wrap.scrollTop = wrap.scrollHeight;
+  const scroller2 = wrap.closest('.transcript-wrap') || wrap;
+  scroller2.scrollTop = scroller2.scrollHeight;
 }
 
 function _hideTyping(containerId) {

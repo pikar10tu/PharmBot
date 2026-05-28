@@ -211,6 +211,8 @@ class GeminiLiveClient {
   async _doInitPlayback() {
     if (this._audioCtx && this._audioCtx.state !== 'closed') return;
     this._audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 24000 });
+    // Resume in case browser started it suspended (requires prior user gesture)
+    if (this._audioCtx.state === 'suspended') await this._audioCtx.resume().catch(() => {});
     try {
       await this._audioCtx.audioWorklet.addModule('audio/playback.worklet.js');
       this._playNode = new AudioWorkletNode(this._audioCtx, 'playback-processor');

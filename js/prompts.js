@@ -85,7 +85,7 @@ function buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistor
 
   const standardChecklist = [
     '[หมวด 1: WWHAM — ซักประวัติ (30 คะแนน)]',
-    '1. ถามว่ายาสำหรับใคร และอายุเท่าไหร่',
+    '1. ถามว่ายาสำหรับตัวผู้ป่วยเองหรือผู้อื่น และอายุโดยประมาณ (ไม่จำเป็นต้องถามชื่อ)',
     '2. ถามอาการสำคัญ (Chief complaint) และตำแหน่ง/ลักษณะ',
     '3. ถามระยะเวลาที่มีอาการ',
     '4. ถามอาการร่วมอื่นๆ',

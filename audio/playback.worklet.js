@@ -12,7 +12,8 @@ class PlaybackProcessor extends AudioWorkletProcessor {
         this._q = []; this._buf = null; this._off = 0;
         return;
       }
-      this._q.push(new Float32Array(e.data));
+      // Cap at 40 chunks (~8 s) to prevent unbounded memory growth
+      if (this._q.length < 40) this._q.push(new Float32Array(e.data));
     };
   }
 
