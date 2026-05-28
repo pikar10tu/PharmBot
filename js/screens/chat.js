@@ -171,7 +171,7 @@ function _renderChatUI(container, pid) {
             <input type="checkbox" id="tts-toggle" /> อ่านเสียง
           </label>
           <button class="btn btn-ghost btn-sm" id="char-toggle-btn" title="ทดลอง: ตัวละครเคลื่อนไหว" style="font-size:0.8rem;padding:0.35rem 0.7rem;">${_charMode ? '🎭 ตัวละคร ON' : '🎭 ตัวละคร'}</button>
-          <button class="btn btn-success btn-sm" id="done-history-btn">ซักประวัติเสร็จแล้ว →</button>
+          <button class="btn btn-success btn-sm" id="done-history-btn">💊 เลือกและจ่ายยา →</button>
         </div>
       </div>
 
@@ -229,7 +229,7 @@ function _renderChatUI(container, pid) {
             <button class="mode-btn active" id="tab-voice-3" onclick="_switchMode(3,'voice')">🎙️ เสียง</button>
             <button class="mode-btn" id="tab-text-3" onclick="_switchMode(3,'text')">💬 ข้อความ</button>
           </div>
-          <button class="btn btn-success btn-sm" id="done-counsel-btn">ให้คำแนะนำเสร็จแล้ว →</button>
+          <button class="btn btn-success btn-sm" id="done-counsel-btn">✅ จบการให้บริการ →</button>
         </div>
       </div>
 
