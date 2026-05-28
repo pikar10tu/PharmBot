@@ -64,6 +64,8 @@ class GeminiLiveClient {
                 }
               },
             },
+            inputAudioTranscription: {},
+            outputAudioTranscription: {},
             systemInstruction: {
               parts: [{ text: systemPrompt }]
             },
