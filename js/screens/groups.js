@@ -53,7 +53,7 @@ async function renderGroups(container) {
       const all = await getAllCases();
       if (!all.length) { alert('ยังไม่มีเคสในระบบ'); btn.disabled = false; btn.textContent = '🎲 สุ่มเคส'; return; }
       const pick = all[Math.floor(Math.random() * all.length)];
-      Router.go('chat', { caseId: pick.id });
+      Router.go('chat', { caseId: pick.id, random: true });
     } catch (_) {
       btn.disabled = false;
       btn.textContent = '🎲 สุ่มเคส';

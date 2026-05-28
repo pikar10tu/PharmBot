@@ -21,6 +21,7 @@ let _liveClient        = null;   // GeminiLiveClient instance (Live API voice mo
 let _liveMode          = false;  // true = Live API active, false = Web Speech fallback
 let _liveConnecting    = false;  // true while awaiting Live API connect (prevents double-connect)
 let _displayRecog      = null;   // Web Speech API for accurate Thai transcript display (Live mode only)
+let _isRandomCase      = false;  // true = entered via random case — hide case title
 
 const _synth = window.speechSynthesis || null;
 
@@ -47,6 +48,7 @@ async function renderChat(container, params = {}) {
   _liveMode = false; _liveConnecting = false;
   try { _displayRecog?.abort(); } catch (_) {}
   _displayRecog = null;
+  _isRandomCase = !!params.random;
 
   container.innerHTML = `
     ${renderNavbar(pid)}
@@ -99,7 +101,7 @@ function _renderChatUI(container, pid) {
 
       <!-- Case info bar -->
       <div class="flex items-center gap-1 mb-2" style="flex-wrap:wrap;">
-        <span class="font-bold">${_esc(c.title || c.id)}</span>
+        ${_isRandomCase ? '' : `<span class="font-bold">${_esc(c.title || c.id)}</span>`}
         <span class="difficulty-badge difficulty-${c.difficulty || 'easy'}">${diffLabel(c.difficulty)}</span>
         <span class="text-dim text-sm">${c.gender === 'male' ? 'ชาย' : 'หญิง'} ${c.age} ปี${c.occupation ? ' · ' + _esc(c.occupation) : ''}</span>
         <button class="btn btn-ghost btn-sm" id="quit-btn" style="margin-left:auto;color:var(--error,#ef4444);">✕ ยุติเคส</button>
