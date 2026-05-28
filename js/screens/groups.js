@@ -37,24 +37,39 @@ async function renderGroups(container) {
           <p class="text-dim text-sm">เลือกหมวดที่ต้องการฝึก</p>
         </div>
       </div>
-
       <div id="groups-grid" class="group-grid">
-        ${STATIC_GROUPS.map(g => `
-          <div class="group-card" data-group="${g.id}">
-            <div class="group-emoji">${g.emoji}</div>
-            <div class="group-label">${g.labelTh}</div>
-          </div>
-        `).join('')}
+        <div class="text-center p-3" style="grid-column:1/-1;"><span class="spinner"></span></div>
       </div>
-    </div>
-  `;
+    </div>`;
 
   document.getElementById('back-btn').addEventListener('click', () => Router.go('dashboard'));
+
+  // Load groups from Firestore; fallback to STATIC_GROUPS if empty/error
+  let groups;
+  try {
+    const rows = await getGroups();
+    groups = rows.length
+      ? rows.map(g => ({
+          id:       g.id,
+          labelTh:  g.label || g.labelTh || g.id,
+          emoji:    g.emoji || STATIC_GROUPS.find(s => s.id === g.id)?.emoji || '📦',
+          sortOrder: g.sortOrder ?? 99,
+        }))
+      : STATIC_GROUPS;
+  } catch (_) {
+    groups = STATIC_GROUPS;
+  }
+
+  document.getElementById('groups-grid').innerHTML = groups.map(g => `
+    <div class="group-card" data-group="${g.id}">
+      <div class="group-emoji">${g.emoji}</div>
+      <div class="group-label">${g.labelTh}</div>
+    </div>`).join('');
 
   document.querySelectorAll('.group-card').forEach(card => {
     card.addEventListener('click', () => {
       const groupId    = card.dataset.group;
-      const groupLabel = STATIC_GROUPS.find(g => g.id === groupId)?.labelTh || groupId;
+      const groupLabel = groups.find(g => g.id === groupId)?.labelTh || groupId;
       Router.go('cases', { groupId, groupLabel });
     });
   });

@@ -153,3 +153,12 @@ async function adminSaveDrug(drugData, drugId = null) {
   const ref = await db.collection('drugs').add({ ...drugData, isActive: true });
   return ref.id;
 }
+
+async function adminSaveGroup(groupData, groupId) {
+  await db.collection('diseaseGroups').doc(groupId).set(groupData, { merge: true });
+  return groupId;
+}
+
+async function adminDeleteGroup(groupId) {
+  await db.collection('diseaseGroups').doc(groupId).delete();
+}

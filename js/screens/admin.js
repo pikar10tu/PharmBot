@@ -3,7 +3,8 @@
 //  Tabs: Cases | Drugs | Results
 // ============================================================
 
-let _adminTab     = 'cases';
+let _adminTab     = 'groups';
+let _adminGroups  = [];
 let _adminCases   = [];
 let _adminDrugs   = [];
 let _adminResults = [];
@@ -25,6 +26,7 @@ async function renderAdmin(container) {
 
       <!-- Tabs -->
       <div class="flex gap-2 mb-3" style="border-bottom:1px solid var(--glass-border);padding-bottom:0.75rem;flex-wrap:wrap;">
+        <button class="btn btn-sm tab-btn ${_adminTab==='groups'  ? 'btn-primary' : 'btn-ghost'}" data-tab="groups">🗂️ หมวดโรค</button>
         <button class="btn btn-sm tab-btn ${_adminTab==='cases'   ? 'btn-primary' : 'btn-ghost'}" data-tab="cases">📝 เคส</button>
         <button class="btn btn-sm tab-btn ${_adminTab==='drugs'   ? 'btn-primary' : 'btn-ghost'}" data-tab="drugs">💊 ยา</button>
         <button class="btn btn-sm tab-btn ${_adminTab==='results' ? 'btn-primary' : 'btn-ghost'}" data-tab="results">📊 ผลการประเมิน</button>
@@ -56,6 +58,7 @@ async function _loadAdminTab() {
   body.innerHTML = '<div class="text-center p-3"><span class="spinner"></span></div>';
 
   try {
+    if (_adminTab === 'groups')  await _renderGroupsTab(body);
     if (_adminTab === 'cases')   await _renderCasesTab(body);
     if (_adminTab === 'drugs')   await _renderDrugsTab(body);
     if (_adminTab === 'results') await _renderResultsTab(body);
@@ -67,7 +70,7 @@ async function _loadAdminTab() {
 // ── Cases Tab ─────────────────────────────────────────────────
 
 async function _renderCasesTab(body) {
-  _adminCases = await getAllCases();
+  [_adminCases, _adminGroups] = await Promise.all([getAllCases(), getGroups()]);
 
   body.innerHTML = `
     <div class="flex items-center justify-between mb-2" style="flex-wrap:wrap;gap:0.5rem;">
@@ -138,8 +141,9 @@ function _caseRow(c) {
 }
 
 function _buildCaseFormHtml() {
-  const groups = ['MSK','CVD','DERM','ENDO','GI','HEMO','IMMUNO','INF_URI','INF_UTI',
-                  'INF_OTHER','NEURO','PSYCH','PULM','GYN','ENT_EYE','RENAL','REFER','SPECIAL'];
+  const groupOptions = _adminGroups.length
+    ? _adminGroups.map(g => `<option value="${g.id}">${g.emoji ? g.emoji + ' ' : ''}${g.id}${g.label ? ' — ' + g.label : ''}</option>`).join('')
+    : '<option value="">— โหลดหมวดโรคไม่ได้ —</option>';
 
   const fieldStyle = 'font-size:0.85rem;';
   const sectionHdr = (label, sub = '') => `
@@ -156,7 +160,7 @@ function _buildCaseFormHtml() {
       <div>
         <label class="input-label">หมวดโรค</label>
         <select class="input" id="cf-groupId">
-          ${groups.map(g => `<option value="${g}">${g}</option>`).join('')}
+          ${groupOptions}
         </select>
       </div>
       <div>
@@ -460,6 +464,137 @@ async function _saveCaseForm() {
   } finally {
     saveBtn.disabled    = false;
     saveBtn.textContent = 'บันทึก';
+  }
+}
+
+// ── Groups Tab ────────────────────────────────────────────────
+
+async function _renderGroupsTab(body) {
+  _adminGroups = await getGroups();
+
+  body.innerHTML = `
+    <div class="flex items-center justify-between mb-2" style="flex-wrap:wrap;gap:0.5rem;">
+      <div class="text-dim text-sm">${_adminGroups.length} หมวดโรค</div>
+      <button class="btn btn-primary btn-sm" id="add-group-btn">+ เพิ่มหมวด</button>
+    </div>
+
+    <!-- Group form (hidden by default) -->
+    <div id="group-form-wrap" class="hidden card mb-3">
+      <h3 class="mb-2" id="group-form-title">เพิ่มหมวดโรคใหม่</h3>
+      <div id="group-form-alert" class="hidden mb-2"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:0.75rem;" class="mb-2">
+        <div style="grid-column:span 2;">
+          <label class="input-label">Group ID <span class="text-dim text-xs">(เช่น INF_URI — ตัวพิมพ์ใหญ่)</span></label>
+          <input class="input" type="text" id="gf-id" placeholder="INF_URI" />
+        </div>
+        <div>
+          <label class="input-label">Emoji</label>
+          <input class="input" type="text" id="gf-emoji" placeholder="🫁" />
+        </div>
+        <div>
+          <label class="input-label">ลำดับ</label>
+          <input class="input" type="number" id="gf-sortOrder" value="99" min="1" />
+        </div>
+        <div style="grid-column:span 4;">
+          <label class="input-label">ชื่อหมวด (ภาษาไทย)</label>
+          <input class="input" type="text" id="gf-label" placeholder="เช่น โรคระบบทางเดินหายใจส่วนบน" />
+        </div>
+      </div>
+      <div class="flex gap-2" style="justify-content:flex-end;">
+        <button class="btn btn-ghost" id="cancel-group-btn">ยกเลิก</button>
+        <button class="btn btn-primary" id="save-group-btn">บันทึก</button>
+      </div>
+    </div>
+
+    <!-- Groups list -->
+    <div class="flex-col" style="display:flex;gap:0.5rem;">
+      ${_adminGroups.length
+        ? _adminGroups.map(g => _groupRow(g)).join('')
+        : '<div class="card text-center p-3"><p class="text-dim">ยังไม่มีหมวดโรค — กด "+ เพิ่มหมวด"</p></div>'}
+    </div>`;
+
+  document.getElementById('add-group-btn').addEventListener('click', () => _openGroupForm(null));
+  document.getElementById('cancel-group-btn').addEventListener('click', () => {
+    document.getElementById('group-form-wrap').className = 'hidden card mb-3';
+  });
+  document.getElementById('save-group-btn').addEventListener('click', _saveGroupForm);
+
+  body.querySelectorAll('.edit-group-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const g = _adminGroups.find(x => x.id === btn.dataset.id);
+      if (g) _openGroupForm(g);
+    });
+  });
+
+  body.querySelectorAll('.delete-group-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const id = btn.dataset.id;
+      if (!confirm(`ลบหมวด "${id}" ออกเลยไหม?\nเคสที่อ้างอิงหมวดนี้จะยังคงอยู่ แต่ไม่แสดงในหน้าเลือกหมวด`)) return;
+      try {
+        await adminDeleteGroup(id);
+        _loadAdminTab();
+      } catch (e) { alert('ลบล้มเหลว: ' + e.message); }
+    });
+  });
+}
+
+function _groupRow(g) {
+  return `
+    <div class="history-item" style="cursor:default;">
+      <div style="font-size:1.5rem;width:2rem;text-align:center;flex-shrink:0;">${_escA(g.emoji || '📦')}</div>
+      <div style="flex:1;min-width:0;">
+        <div class="font-bold text-sm">${_escA(g.id)}</div>
+        <div class="text-dim text-xs">${_escA(g.label || '(ไม่มีชื่อ)')} · ลำดับ ${g.sortOrder ?? '—'}</div>
+      </div>
+      <div class="flex gap-1">
+        <button class="btn btn-ghost btn-sm edit-group-btn" data-id="${g.id}">แก้ไข</button>
+        <button class="btn btn-danger btn-sm delete-group-btn" data-id="${g.id}">ลบ</button>
+      </div>
+    </div>`;
+}
+
+function _openGroupForm(g) {
+  const wrap  = document.getElementById('group-form-wrap');
+  const idInp = document.getElementById('gf-id');
+  wrap.className = 'card mb-3';
+  document.getElementById('group-form-title').textContent = g ? `แก้ไข: ${g.id}` : 'เพิ่มหมวดโรคใหม่';
+  idInp.value    = g?.id        || '';
+  idInp.disabled = !!g;          // ID ของหมวดที่มีอยู่แล้วแก้ไม่ได้
+  document.getElementById('gf-label').value     = g?.label     || '';
+  document.getElementById('gf-emoji').value     = g?.emoji     || '';
+  document.getElementById('gf-sortOrder').value = g?.sortOrder ?? 99;
+  wrap.scrollIntoView({ behavior: 'smooth' });
+}
+
+async function _saveGroupForm() {
+  const alertEl = document.getElementById('group-form-alert');
+  alertEl.className = 'hidden mb-2';
+
+  const idInp   = document.getElementById('gf-id');
+  const groupId = (idInp.disabled ? idInp.value : idInp.value.trim().toUpperCase());
+  if (!groupId) {
+    alertEl.className = 'alert alert-error mb-2';
+    alertEl.textContent = 'กรุณาระบุ Group ID';
+    return;
+  }
+
+  const groupData = {
+    label:     document.getElementById('gf-label').value.trim(),
+    emoji:     document.getElementById('gf-emoji').value.trim(),
+    sortOrder: parseInt(document.getElementById('gf-sortOrder').value) || 99,
+  };
+
+  const saveBtn = document.getElementById('save-group-btn');
+  saveBtn.disabled = true; saveBtn.textContent = 'กำลังบันทึก…';
+  try {
+    await adminSaveGroup(groupData, groupId);
+    document.getElementById('group-form-wrap').className = 'hidden card mb-3';
+    _loadAdminTab();
+  } catch (e) {
+    alertEl.className   = 'alert alert-error mb-2';
+    alertEl.textContent = `บันทึกล้มเหลว: ${e.message}`;
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = 'บันทึก';
   }
 }
 
