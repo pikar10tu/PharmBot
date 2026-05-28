@@ -66,6 +66,13 @@ class GeminiLiveClient {
             },
             inputAudioTranscription: {},
             outputAudioTranscription: {},
+            realtimeInputConfig: {
+              automaticActivityDetection: {
+                // LOW = ต้องพูดชัดๆ จึงจะ interrupt — เสียง background / breathing ไม่ตัด
+                startOfSpeechSensitivity: 'START_SENSITIVITY_LOW',
+                prefixPaddingMs: 300,
+              }
+            },
             systemInstruction: {
               parts: [{ text: systemPrompt }]
             },
