@@ -29,12 +29,9 @@
   <clipPath id="hclip">
     <ellipse cx="140" cy="185" rx="83" ry="97"/>
   </clipPath>
-  <filter id="drop" x="-12%" y="-5%" width="124%" height="118%">
-    <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="rgba(0,0,0,0.28)"/>
-  </filter>
 </defs>
 
-<g filter="url(#drop)">
+<g>
 
 <!-- ── SHIRT ── -->
 <path d="M28 420 Q18 365 40 328 L96 312 L140 328 L184 312 L240 328 Q262 365 252 420Z" fill="url(#shirt)"/>

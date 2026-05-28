@@ -527,8 +527,11 @@ p  { line-height: 1.7; color: var(--text-dim); }
 }
 .patient-char.char-speaking {
   border-color: var(--accent);
-  box-shadow: 0 0 32px var(--teal-glow);
-  transform: scale(1.03);
+  animation: charSpeakPulse 0.55s ease-in-out infinite alternate;
+}
+@keyframes charSpeakPulse {
+  from { filter: drop-shadow(0 8px 24px rgba(0,0,0,0.35)); transform: scale(1);    }
+  to   { filter: drop-shadow(0 0 22px var(--accent)) drop-shadow(0 6px 18px rgba(0,0,0,0.28)); transform: scale(1.025); }
 }
 
 /* Char-info-overlay: normal flex flow (non-immersive) */
@@ -567,9 +570,11 @@ p  { line-height: 1.7; color: var(--text-dim); }
   z-index: 0;
 }
 .voice-stage.char-active .patient-char.char-speaking {
-  filter: drop-shadow(0 16px 40px rgba(0,0,0,0.5)) drop-shadow(0 0 30px var(--accent));
-  transform: none;
-  box-shadow: none;
+  animation: charSpeakActivePulse 0.55s ease-in-out infinite alternate;
+}
+@keyframes charSpeakActivePulse {
+  from { filter: drop-shadow(0 16px 40px rgba(0,0,0,0.5)); }
+  to   { filter: drop-shadow(0 0 32px var(--accent)) drop-shadow(0 12px 36px rgba(0,0,0,0.45)); }
 }
 
 /* Overlay bar at bottom */

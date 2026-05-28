@@ -24,7 +24,6 @@ let _displayRecog      = null;   // Web Speech API for accurate Thai transcript 
 let _isRandomCase      = false;  // true = entered via random case — hide case title
 let _caseStarted       = false;  // true after student presses "เริ่มเคส" button
 let _charMode          = localStorage.getItem('pharmbot-char') === 'true'; // character avatar mode
-let _charInterval      = null;   // setInterval handle for talking animation
 let _charImgIdle       = 'img/patient-idle.png';  // resolved per session based on gender
 let _charImgSpeak      = 'img/patient-speak.png';
 
@@ -55,7 +54,6 @@ async function renderChat(container, params = {}) {
   _displayRecog = null;
   _isRandomCase  = !!params.random;
   _caseStarted   = false;
-  clearInterval(_charInterval); _charInterval = null;
 
   container.innerHTML = `
     ${renderNavbar(pid)}
@@ -585,22 +583,13 @@ function _stopVoice() {
 
 function _startCharAnim(panelStep) {
   if (!_charMode) return;
-  clearInterval(_charInterval);
-  let tick = false;
-  _charInterval = setInterval(() => {
-    const img = document.getElementById(`patient-char-${panelStep}`);
-    if (!img) { clearInterval(_charInterval); return; }
-    tick = !tick;
-    img.src = tick ? _charImgSpeak : _charImgIdle;
-    img.classList.toggle('char-speaking', tick);
-  }, 220);
+  const img = document.getElementById(`patient-char-${panelStep}`);
+  if (img) img.classList.add('char-speaking');
 }
 
 function _stopCharAnim(panelStep) {
-  clearInterval(_charInterval);
-  _charInterval = null;
   const img = document.getElementById(`patient-char-${panelStep}`);
-  if (img) { img.src = _charImgIdle; img.classList.remove('char-speaking'); }
+  if (img) img.classList.remove('char-speaking');
 }
 
 function _quitSession() {
