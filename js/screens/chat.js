@@ -22,6 +22,7 @@ let _liveMode          = false;  // true = Live API active, false = Web Speech f
 let _liveConnecting    = false;  // true while awaiting Live API connect (prevents double-connect)
 let _displayRecog      = null;   // Web Speech API for accurate Thai transcript display (Live mode only)
 let _isRandomCase      = false;  // true = entered via random case — hide case title
+let _caseStarted       = false;  // true after student presses "เริ่มเคส" button
 
 const _synth = window.speechSynthesis || null;
 
@@ -48,7 +49,8 @@ async function renderChat(container, params = {}) {
   _liveMode = false; _liveConnecting = false;
   try { _displayRecog?.abort(); } catch (_) {}
   _displayRecog = null;
-  _isRandomCase = !!params.random;
+  _isRandomCase  = !!params.random;
+  _caseStarted   = false;
 
   container.innerHTML = `
     ${renderNavbar(pid)}
@@ -137,7 +139,8 @@ function _renderChatUI(container, pid) {
             <span></span><span></span><span></span><span></span><span></span>
             <span></span><span></span><span></span><span></span>
           </div>
-          <div class="voice-status-text" id="voice-status-1">⏳ กำลังเชื่อมต่อ…</div>
+          <div class="voice-status-text" id="voice-status-1">พร้อมเริ่มการสนทนา</div>
+          <button class="btn btn-success" id="start-case-btn" style="margin-top:0.75rem;font-size:1rem;padding:0.55rem 1.6rem;">🟢 เริ่มเคส</button>
           <div class="voice-subtitle" id="voice-subtitle-1"></div>
         </div>
 
@@ -262,6 +265,13 @@ function _attachEvents() {
     e => { _ttsEnabled = e.target.checked; });
   document.getElementById('done-history-btn')?.addEventListener('click', _goStep2);
 
+  // Start case button (Step 1 voice stage)
+  document.getElementById('start-case-btn')?.addEventListener('click', () => {
+    _caseStarted = true;
+    document.getElementById('start-case-btn')?.classList.add('hidden');
+    _startVoice(1).catch(e => console.warn('start voice:', e.message));
+  });
+
   // Quit session (any step)
   document.getElementById('quit-btn')?.addEventListener('click', _quitSession);
 
@@ -299,6 +309,11 @@ async function _switchMode(panelStep, mode) {
     textRow?.classList.add('hidden');
     voiceRow?.classList.remove('hidden');
     if (ttsLabel) ttsLabel.style.display = 'none';
+    // Don't connect until student presses เริ่มเคส (Step 1 only)
+    if (panelStep === 1 && !_caseStarted) {
+      document.getElementById('start-case-btn')?.classList.remove('hidden');
+      return;
+    }
     _startVoice(panelStep).catch(e => console.warn('_startVoice error:', e.message));
   } else {
     voiceTab?.classList.remove('active');
@@ -551,10 +566,14 @@ async function _initConversation() {
   if (_caseData.sceneDesc) {
     _addMsg('chat-messages', 'system', `📍 ${_caseData.sceneDesc}`);
   }
-  _startVoice(1).catch(e => console.warn('auto voice step1:', e.message));
+  // Wait for student to press เริ่มเคส — do not auto-connect
 }
 
 async function _sendChat() {
+  if (!_caseStarted) {
+    _addMsg('chat-messages', 'system', '⚠️ กรุณากดปุ่ม "🟢 เริ่มเคส" ก่อนเริ่มสนทนา');
+    return;
+  }
   if (_aiTyping) return;
   const input = document.getElementById('chat-input');
   const text  = (input?.value || '').trim();
