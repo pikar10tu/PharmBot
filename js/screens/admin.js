@@ -777,7 +777,7 @@ async function _renderDrugsTab(body) {
       <div class="text-dim text-sm">${_adminDrugs.length} รายการ (active)</div>
       <button class="btn btn-primary btn-sm" id="add-drug-btn">+ เพิ่มยา</button>
     </div>
-    <div class="drug-grid mb-3" id="drugs-grid">
+    <div class="drug-grid drug-grid-compact mb-3" id="drugs-grid">
       ${_adminDrugs.map(d => `
         <div class="drug-card">
           <div class="drug-name">${_escA(d.name)}</div>
