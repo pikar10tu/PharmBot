@@ -20,6 +20,7 @@ let _voicePanelStep    = 0;      // which panel is in voice mode (1 or 3)
 let _liveClient        = null;   // GeminiLiveClient instance (Live API voice mode)
 let _liveMode          = false;  // true = Live API active, false = Web Speech fallback
 let _liveConnecting    = false;  // true while awaiting Live API connect (prevents double-connect)
+let _displayRecog      = null;   // Web Speech API for accurate Thai transcript display (Live mode only)
 
 const _synth = window.speechSynthesis || null;
 
@@ -43,8 +44,9 @@ async function renderChat(container, params = {}) {
   _aiTyping = false; _ttsEnabled = false; _recognition = null;
   _voiceRecognition = null; _voiceMode = false; _voicePanelStep = 0;
   if (_liveClient) { try { _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
-  _liveMode = false;
-  _liveConnecting = false;
+  _liveMode = false; _liveConnecting = false;
+  try { _displayRecog?.abort(); } catch (_) {}
+  _displayRecog = null;
 
   container.innerHTML = `
     ${renderNavbar(pid)}
@@ -328,12 +330,45 @@ async function _startVoice(panelStep) {
       : buildCounselingPrompt(_caseData, _dispensedDrugs);
     const voiceName = _caseData?.gender === 'male' ? 'Puck' : 'Aoede';
     const client    = new GeminiLiveClient();
-    // Suppress AI audio + transcripts until pharmacist speaks first
     client.audioEnabled = false;
-    let _pharmacistSpoke = false;
+    let _pharmacistSpoke    = false;
+    let _pendingDisplayText = '';  // accurate Thai text from Web Speech API for this turn
+    let _aiIsSpeaking       = false;
+
+    // ── Web Speech API: display-only recognizer (accurate Thai transcript) ──
+    // Gemini Live receives the raw audio; Web Speech API runs concurrently
+    // just to produce a more accurate text representation for display + evaluation.
+    const _startDisplayRecog = () => {
+      if (!_voiceMode || !_liveMode || _displayRecog) return;
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) return;
+      _displayRecog = new SR();
+      _displayRecog.lang           = 'th-TH';
+      _displayRecog.continuous     = true;
+      _displayRecog.interimResults = true;
+      _displayRecog.onresult = (e) => {
+        if (!_voiceMode || !_liveMode || !_pharmacistSpoke || _aiIsSpeaking) return;
+        const result = e.results[e.results.length - 1];
+        const text   = result[0].transcript.trim();
+        if (!text) return;
+        if (result.isFinal) {
+          _pendingDisplayText = text;  // commit; onUserTranscript will pick this up
+        } else {
+          const sub = document.getElementById(`voice-subtitle-${panelStep}`);
+          if (sub) sub.textContent = '🎙️ ' + text;  // live interim preview
+        }
+      };
+      _displayRecog.onerror = () => {};
+      _displayRecog.onend   = () => {
+        _displayRecog = null;
+        if (_voiceMode && _liveMode) setTimeout(_startDisplayRecog, 100);
+      };
+      try { _displayRecog.start(); } catch (_) {}
+    };
 
     client.onStateChange = (state) => {
       if (!_voiceMode || _voicePanelStep !== panelStep) return;
+      _aiIsSpeaking = (state === 'ai-speaking');
       const labels = {
         connecting:    '⏳ กำลังเชื่อมต่อ…',
         ready:         '🎙️ พร้อมแล้ว — เภสัชกรพูดได้เลยครับ',
@@ -342,13 +377,11 @@ async function _startVoice(panelStep) {
         disconnected:  '🔌 ยกเลิกการเชื่อมต่อ',
       };
       _setVoiceStatus(panelStep, labels[state] || state, state === 'ai-speaking');
-      // Waveform classes
       const wv = document.getElementById(`waveform-${panelStep}`);
       if (wv) {
         wv.classList.toggle('wave-ai',     state === 'ai-speaking');
         wv.classList.toggle('wave-active', state === 'listening' || state === 'ready');
       }
-      // Patient orb classes
       const orb   = document.getElementById(`patient-orb-${panelStep}`);
       const stage = document.getElementById(`voice-input-row-${panelStep}`);
       if (orb) {
@@ -356,7 +389,11 @@ async function _startVoice(panelStep) {
         orb.classList.toggle('orb-ready',    state === 'listening' || state === 'ready');
       }
       if (stage) stage.classList.toggle('stage-active', state === 'ai-speaking');
-      // Clear subtitle when AI stops
+      // Pause display recog while AI speaks to avoid transcribing speaker audio through mic
+      if (state === 'ai-speaking') {
+        try { _displayRecog?.stop(); } catch (_) {}
+      }
+      // Clear subtitle when AI stops (display recog restarts via onend)
       if (state !== 'ai-speaking') {
         const sub = document.getElementById(`voice-subtitle-${panelStep}`);
         if (sub) sub.textContent = '';
@@ -364,15 +401,18 @@ async function _startVoice(panelStep) {
     };
 
     client.onUserTranscript = (text) => {
-      // First pharmacist turn → unlock AI audio for all subsequent turns
       if (!_pharmacistSpoke) {
         _pharmacistSpoke = true;
         client.audioEnabled = true;
       }
-      if (!text || !_voiceMode) return;
+      if (!_voiceMode) return;
+      // Prefer Web Speech accurate transcript; fall back to Gemini inputTranscription
+      const displayText = (_pendingDisplayText || text || '').trim();
+      _pendingDisplayText = '';
+      if (!displayText) return;
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
-      hist.push({ role: 'user', text });
-      _addMsg(msgId, 'user', text);
+      hist.push({ role: 'user', text: displayText });
+      _addMsg(msgId, 'user', displayText);
     };
 
     client.onPartialModelTranscript = (chunk) => {
@@ -396,6 +436,8 @@ async function _startVoice(panelStep) {
       if (!_liveMode || !_voiceMode || _voicePanelStep !== panelStep) return;
       console.warn('GeminiLive error, falling back to Web Speech:', errMsg);
       _addMsg(msgId, 'system', '⚠️ Live API ไม่พร้อมใช้ — สลับไป Web Speech');
+      try { _displayRecog?.abort(); } catch (_) {}
+      _displayRecog = null;
       try { _liveClient?.disconnect(); } catch (_) {}
       _liveClient = null;
       _liveMode   = false;
@@ -406,10 +448,10 @@ async function _startVoice(panelStep) {
       await client.connect(apiKey, sysPrompt, voiceName);
       await client.startMic();
       _liveConnecting = false;
-      // Guard: user may have switched back to text mode during the async connect
       if (!_voiceMode || _voicePanelStep !== panelStep) { client.disconnect(); return; }
       _liveClient = client;
       _liveMode   = true;
+      _startDisplayRecog();  // start Web Speech for accurate Thai transcript display
       return;
     } catch (e) {
       _liveConnecting = false;
@@ -483,6 +525,8 @@ function _stopVoice() {
   if (_liveClient) { try { _liveClient.interruptPlayback(); _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   try { _voiceRecognition?.abort(); } catch (_) {}
   _voiceRecognition = null;
+  try { _displayRecog?.abort(); } catch (_) {}
+  _displayRecog = null;
   geminiTTSStop();
 }
 

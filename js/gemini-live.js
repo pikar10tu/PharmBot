@@ -63,6 +63,8 @@ class GeminiLiveClient {
                   prebuiltVoiceConfig: { voiceName }
                 }
               },
+              inputAudioTranscription:  {},   // use dedicated transcription pipeline
+              outputAudioTranscription: {},
             },
             systemInstruction: {
               parts: [{ text: systemPrompt }]
