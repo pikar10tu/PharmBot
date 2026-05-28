@@ -132,21 +132,23 @@ function _renderChatUI(container, pid) {
         </div>
 
         <!-- Voice Stage — hero section (voice mode, visible by default) -->
-        <div id="voice-input-row-1" class="voice-stage">
+        <div id="voice-input-row-1" class="voice-stage${_charMode ? ' char-active' : ''}">
           <div class="patient-orb" id="patient-orb-1"${_charMode ? ' style="display:none"' : ''}>
             <div class="orb-ring"></div>
             <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
           </div>
           <img src="img/patient-idle.png" id="patient-char-1"
                class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
-          <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
-          <div class="voice-waveform" id="waveform-1">
-            <span></span><span></span><span></span><span></span><span></span>
-            <span></span><span></span><span></span><span></span>
+          <div class="char-info-overlay">
+            <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
+            <div class="voice-waveform" id="waveform-1">
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="voice-status-text" id="voice-status-1">พร้อมเริ่มการสนทนา</div>
           </div>
-          <div class="voice-status-text" id="voice-status-1">พร้อมเริ่มการสนทนา</div>
-          <button class="btn btn-success" id="start-case-btn" style="margin-top:0.75rem;font-size:1rem;padding:0.55rem 1.6rem;">🟢 เริ่มเคส</button>
-          <div class="voice-subtitle" id="voice-subtitle-1"></div>
+          <button class="btn btn-success" id="start-case-btn" style="margin-top:0.75rem;font-size:1rem;padding:0.55rem 1.6rem;position:relative;z-index:2;">🟢 เริ่มเคส</button>
+          <div class="voice-subtitle" id="voice-subtitle-1" style="position:relative;z-index:2;"></div>
         </div>
 
         <!-- Text input row (text mode — hidden by default) -->
@@ -193,20 +195,22 @@ function _renderChatUI(container, pid) {
         </div>
 
         <!-- Voice Stage -->
-        <div id="voice-input-row-3" class="voice-stage">
+        <div id="voice-input-row-3" class="voice-stage${_charMode ? ' char-active' : ''}">
           <div class="patient-orb" id="patient-orb-3"${_charMode ? ' style="display:none"' : ''}>
             <div class="orb-ring"></div>
             <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
           </div>
           <img src="img/patient-idle.png" id="patient-char-3"
                class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
-          <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
-          <div class="voice-waveform" id="waveform-3">
-            <span></span><span></span><span></span><span></span><span></span>
-            <span></span><span></span><span></span><span></span>
+          <div class="char-info-overlay">
+            <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
+            <div class="voice-waveform" id="waveform-3">
+              <span></span><span></span><span></span><span></span><span></span>
+              <span></span><span></span><span></span><span></span>
+            </div>
+            <div class="voice-status-text" id="voice-status-3">⏳ กำลังเชื่อมต่อ…</div>
           </div>
-          <div class="voice-status-text" id="voice-status-3">⏳ กำลังเชื่อมต่อ…</div>
-          <div class="voice-subtitle" id="voice-subtitle-3"></div>
+          <div class="voice-subtitle" id="voice-subtitle-3" style="position:relative;z-index:2;"></div>
         </div>
 
         <!-- Text input row (hidden by default) -->
@@ -280,10 +284,12 @@ function _attachEvents() {
     const btn = document.getElementById('char-toggle-btn');
     if (btn) btn.textContent = _charMode ? '🎭 ตัวละคร ON' : '🎭 ตัวละคร';
     for (const s of [1, 3]) {
-      const orb  = document.getElementById(`patient-orb-${s}`);
-      const img  = document.getElementById(`patient-char-${s}`);
-      if (orb) orb.style.display = _charMode ? 'none' : '';
-      if (img) img.classList.toggle('hidden', !_charMode);
+      const orb   = document.getElementById(`patient-orb-${s}`);
+      const img   = document.getElementById(`patient-char-${s}`);
+      const stage = document.getElementById(`voice-input-row-${s}`);
+      if (orb)   orb.style.display = _charMode ? 'none' : '';
+      if (img)   img.classList.toggle('hidden', !_charMode);
+      if (stage) stage.classList.toggle('char-active', _charMode);
     }
     if (!_charMode) _stopCharAnim(_voicePanelStep || 1);
   });

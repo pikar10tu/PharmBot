@@ -511,6 +511,8 @@ p  { line-height: 1.7; color: var(--text-dim); }
 .fade-in { animation: fadeUp 0.3s ease; }
 
 /* ── Character Avatar (experimental) ─────────────────────── */
+
+/* Default (non-immersive) state */
 .patient-char {
   width: auto; height: 220px;
   max-width: 180px;
@@ -528,6 +530,78 @@ p  { line-height: 1.7; color: var(--text-dim); }
   box-shadow: 0 0 32px var(--teal-glow);
   transform: scale(1.03);
 }
+
+/* Char-info-overlay: normal flex flow (non-immersive) */
+.char-info-overlay {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+/* ── Immersive / char-active mode ──────────────────────── */
+.voice-stage.char-active {
+  position: relative;
+  min-height: min(68vh, 540px);
+  padding: 0;
+  gap: 0;
+  background: rgba(0,0,0,0.08);
+  border-color: var(--glass-border);
+  overflow: hidden;
+  justify-content: flex-end;
+}
+
+/* Image fills the entire stage as a backdrop */
+.voice-stage.char-active .patient-char {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  border: none;
+  border-radius: 0;
+  object-fit: contain;
+  object-position: center 15%;
+  filter: drop-shadow(0 16px 40px rgba(0,0,0,0.5));
+  transition: filter 0.2s, transform 0.2s;
+  z-index: 0;
+}
+.voice-stage.char-active .patient-char.char-speaking {
+  filter: drop-shadow(0 16px 40px rgba(0,0,0,0.5)) drop-shadow(0 0 30px var(--accent));
+  transform: none;
+  box-shadow: none;
+}
+
+/* Overlay bar at bottom */
+.voice-stage.char-active .char-info-overlay {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: 2.5rem 1.5rem 1.25rem;
+  background: linear-gradient(transparent, rgba(0,0,0,0.72) 60%);
+  gap: 0.5rem;
+}
+.voice-stage.char-active .char-info-overlay .orb-name {
+  color: #fff;
+  font-size: 1.05rem;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.6);
+}
+.voice-stage.char-active .char-info-overlay .voice-status-text {
+  color: rgba(255,255,255,0.75);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+.voice-stage.char-active .char-info-overlay .voice-waveform span {
+  background: rgba(255,255,255,0.5);
+}
+.voice-stage.char-active .char-info-overlay .voice-waveform.wave-active span {
+  background: #fff;
+}
+.voice-stage.char-active .char-info-overlay .voice-waveform.wave-ai span {
+  background: linear-gradient(to top, rgba(255,255,255,0.8), #fff);
+}
+
+/* Patient orb hidden in char-active (already hidden via JS, but safety) */
+.voice-stage.char-active .patient-orb { display: none !important; }
 
 /* ── Theme Picker ─────────────────────────────────────────── */
 .theme-picker { display: flex; gap: 0.4rem; align-items: center; }
