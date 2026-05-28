@@ -100,6 +100,7 @@ function _renderChatUI(container, pid) {
         <span class="font-bold">${_esc(c.title || c.id)}</span>
         <span class="difficulty-badge difficulty-${c.difficulty || 'easy'}">${diffLabel(c.difficulty)}</span>
         <span class="text-dim text-sm">${c.gender === 'male' ? 'ชาย' : 'หญิง'} ${c.age} ปี${c.occupation ? ' · ' + _esc(c.occupation) : ''}</span>
+        <button class="btn btn-ghost btn-sm" id="quit-btn" style="margin-left:auto;color:var(--error,#ef4444);">✕ ยุติเคส</button>
       </div>
 
       <!-- Stepper -->
@@ -165,7 +166,6 @@ function _renderChatUI(container, pid) {
           <button class="btn btn-primary btn-sm" id="open-modal-btn">+ เลือก / แก้ไขยา</button>
         </div>
         <div class="flex gap-2" style="justify-content:flex-end;flex-wrap:wrap;">
-          <button class="btn btn-ghost btn-sm" id="back-to-1-btn">← กลับซักประวัติ</button>
           <button class="btn btn-success" id="confirm-drugs-btn">ยืนยันยา → ให้คำแนะนำ</button>
         </div>
       </div>
@@ -258,15 +258,15 @@ function _attachEvents() {
     e => { _ttsEnabled = e.target.checked; });
   document.getElementById('done-history-btn')?.addEventListener('click', _goStep2);
 
+  // Quit session (any step)
+  document.getElementById('quit-btn')?.addEventListener('click', _quitSession);
+
   // Step 2
   document.getElementById('open-modal-btn')?.addEventListener('click', () => {
     openDrugsModal(_dispensedDrugs, drugs => {
       _dispensedDrugs = drugs;
       _renderChips();
     });
-  });
-  document.getElementById('back-to-1-btn')?.addEventListener('click', () => {
-    _step = 1; _updateStepper();
   });
   document.getElementById('confirm-drugs-btn')?.addEventListener('click', _goStep3);
 
@@ -486,6 +486,13 @@ function _stopVoice() {
   geminiTTSStop();
 }
 
+function _quitSession() {
+  if (!confirm('ยุติเคสนี้และกลับหน้าหลักใช่ไหม?\n\nเซสชันนี้จะนับเป็น 1 ครั้งในโควต้าวันนี้')) return;
+  _stopVoice();
+  _synth?.cancel();
+  Router.go('dashboard');
+}
+
 function _setVoiceStatus(panelStep, text, animate) {
   const el = document.getElementById(`voice-status-${panelStep}`);
   if (el) el.textContent = text;
@@ -673,10 +680,13 @@ async function _sendCounseling() {
 // ── Step 4: Evaluation ─────────────────────────────────────────
 
 async function _goStep4() {
-  _stopVoice(); // stop voice mode if active
+  _stopVoice();
   _step = 4;
   _updateStepper();
   _synth?.cancel();
+  // Hide quit button — no point aborting once evaluation starts
+  const quitBtn = document.getElementById('quit-btn');
+  if (quitBtn) quitBtn.style.display = 'none';
   try { await completeSession(_session.id, _session.startedAt); } catch (_) {}
   await _runEval();
 }
