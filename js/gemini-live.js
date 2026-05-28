@@ -27,6 +27,7 @@ class GeminiLiveClient {
     this._pendingModelText    = '';
     this._resumptionToken     = null;
     this._playbackInitPromise = null;   // singleton — prevents concurrent setup racing
+    this._msgChain            = Promise.resolve();  // serial message processing — preserves arrival order
 
     // ── Public callbacks ──────────────────────────────────────
     this.onUserTranscript         = null;  // (text: string) => void
@@ -80,8 +81,12 @@ class GeminiLiveClient {
       }, 20000);
 
       this._ws.onmessage = (evt) => {
-        console.log('GeminiLive raw ←', typeof evt.data, String(evt.data).slice(0, 400));
-        this._handleMessage(evt.data, () => { clearTimeout(_setupTimer); resolve(); });
+        const doneFn = () => { clearTimeout(_setupTimer); resolve(); };
+        // Chain serially so Blob.text() resolution order == WS arrival order
+        this._msgChain = this._msgChain.then(async () => {
+          const text = evt.data instanceof Blob ? await evt.data.text() : String(evt.data);
+          await this._handleMessage(text, doneFn);
+        }).catch(e => console.warn('GeminiLive chain error:', e.message));
       };
 
       this._ws.onerror = () => {
@@ -186,7 +191,8 @@ class GeminiLiveClient {
       try { this._ws.close(); } catch (_) {}
       this._ws = null;
     }
-    this._connected = false;
+    this._connected  = false;
+    this._msgChain   = Promise.resolve();  // drop any queued messages
     this.onStateChange?.('disconnected');
   }
 
@@ -250,23 +256,17 @@ class GeminiLiveClient {
     this._playbackInitPromise = null;  // allow re-init on next connect
   }
 
-  // ── Internal: message handler ─────────────────────────────────
-  _handleMessage(raw, setupResolve) {
-    if (raw instanceof Blob) {
-      raw.text().then(text => {
-        console.log('GeminiLive Blob →', text.slice(0, 500));
-        this._handleMessage(text, setupResolve);
-      });
-      return;
-    }
+  // ── Internal: message handler (async — must be awaited inside _msgChain) ──
+  async _handleMessage(text, setupResolve) {
     let data;
-    try { data = JSON.parse(raw); } catch { return; }
+    try { data = JSON.parse(text); } catch { return; }
 
     console.log('GeminiLive ←', JSON.stringify(data).slice(0, 300));
 
     // ── Setup complete ──
     if (data.setupComplete !== undefined || data.setup_complete !== undefined) {
       this._connected = true;
+      await this._setupPlayback();  // pre-warm worklet before any audio chunk arrives
       setupResolve?.();
       this.onStateChange?.('ready');
       return;
@@ -289,7 +289,7 @@ class GeminiLiveClient {
       for (const part of modelTurn.parts) {
         const inlineData = part.inlineData || part.inline_data;
         if (inlineData?.data && this.audioEnabled) {
-          this._scheduleAudio(inlineData.data);
+          await this._scheduleAudio(inlineData.data);  // awaited — enforces chunk order
           this.onStateChange?.('ai-speaking');
         }
       }
