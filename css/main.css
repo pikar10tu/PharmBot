@@ -512,15 +512,21 @@ p  { line-height: 1.7; color: var(--text-dim); }
 
 /* ── Character Avatar (experimental) ─────────────────────── */
 .patient-char {
-  width: 120px; height: 120px; border-radius: 50%;
-  object-fit: cover; object-position: top center;
-  border: 3px solid var(--glass-border);
-  transition: border-color 0.15s, box-shadow 0.15s;
+  width: auto; height: 220px;
+  max-width: 180px;
+  border-radius: 16px;
+  object-fit: contain;
+  object-position: center bottom;
+  border: 2px solid var(--glass-border);
+  background: transparent;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
   display: block;
+  filter: drop-shadow(0 8px 24px rgba(0,0,0,0.35));
 }
 .patient-char.char-speaking {
   border-color: var(--accent);
-  box-shadow: 0 0 28px var(--teal-glow);
+  box-shadow: 0 0 32px var(--teal-glow);
+  transform: scale(1.03);
 }
 
 /* ── Theme Picker ─────────────────────────────────────────── */

@@ -137,7 +137,7 @@ function _renderChatUI(container, pid) {
             <div class="orb-ring"></div>
             <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
           </div>
-          <img src="img/patient-idle.jpg" id="patient-char-1"
+          <img src="img/patient-idle.png" id="patient-char-1"
                class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
           <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
           <div class="voice-waveform" id="waveform-1">
@@ -198,7 +198,7 @@ function _renderChatUI(container, pid) {
             <div class="orb-ring"></div>
             <div class="orb-avatar">${c.gender === 'male' ? '🧑' : '👩'}</div>
           </div>
-          <img src="img/patient-idle.jpg" id="patient-char-3"
+          <img src="img/patient-idle.png" id="patient-char-3"
                class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
           <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
           <div class="voice-waveform" id="waveform-3">
@@ -581,7 +581,7 @@ function _startCharAnim(panelStep) {
     const img = document.getElementById(`patient-char-${panelStep}`);
     if (!img) { clearInterval(_charInterval); return; }
     tick = !tick;
-    img.src = `img/patient-${tick ? 'speak' : 'idle'}.jpg`;
+    img.src = `img/patient-${tick ? 'speak' : 'idle'}.png`;
     img.classList.toggle('char-speaking', tick);
   }, 220);
 }
@@ -590,7 +590,7 @@ function _stopCharAnim(panelStep) {
   clearInterval(_charInterval);
   _charInterval = null;
   const img = document.getElementById(`patient-char-${panelStep}`);
-  if (img) { img.src = 'img/patient-idle.jpg'; img.classList.remove('char-speaking'); }
+  if (img) { img.src = 'img/patient-idle.png'; img.classList.remove('char-speaking'); }
 }
 
 function _quitSession() {
