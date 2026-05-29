@@ -27,6 +27,28 @@ let _charMode          = localStorage.getItem('pharmbot-char') === 'true'; // ch
 let _charImgIdle       = 'img/patient-idle.png';  // resolved per session based on gender
 let _charImgSpeak      = 'img/patient-speak.png';
 
+// ── Session countdown timer (OSPE-style time limit) ──────────────
+const SESSION_TIME_LIMIT_SEC = 5 * 60;   // 5:00 — covers Steps 1–3 (not evaluation)
+const TIMER_WARNING_SEC      = 30;        // blink/warn in the final 30 s
+let _timerInterval     = null;            // setInterval handle
+let _timerRemaining    = SESSION_TIME_LIMIT_SEC;
+let _timerExpired      = false;           // true once time is up (guards double-fire)
+
+// ── Refresh guard ────────────────────────────────────────────────
+// Native beforeunload prompt to catch accidental F5 / tab-close during a
+// live session. Browsers can't be silently blocked — this only warns.
+let _refreshGuardActive = false;
+function _beforeUnloadHandler(e) {
+  if (!_refreshGuardActive) return;
+  // Only warn while the chat screen is actually mounted — prevents a stale
+  // guard from firing after the user navigated away via the navbar.
+  if (!document.getElementById('session-timer')) return;
+  e.preventDefault();
+  e.returnValue = '';   // required for Chrome to show the prompt
+  return '';
+}
+function _disableRefreshGuard() { _refreshGuardActive = false; }
+
 const _synth = window.speechSynthesis || null;
 
 // ── Entry Point ────────────────────────────────────────────────
@@ -54,6 +76,13 @@ async function renderChat(container, params = {}) {
   _displayRecog = null;
   _isRandomCase  = !!params.random;
   _caseStarted   = false;
+  _stopSessionTimer();
+  _timerRemaining = SESSION_TIME_LIMIT_SEC;
+  _timerExpired   = false;
+  // Refresh guard: ensure a single listener, inactive until the session exists
+  window.removeEventListener('beforeunload', _beforeUnloadHandler);
+  window.addEventListener('beforeunload', _beforeUnloadHandler);
+  _refreshGuardActive = false;
 
   container.innerHTML = `
     ${renderNavbar(pid)}
@@ -85,6 +114,7 @@ async function renderChat(container, params = {}) {
     }
 
     _session = await createSession(user.uid, _caseData);
+    _refreshGuardActive = true;   // warn on accidental refresh from here on
     _renderChatUI(container, pid);
     await _initConversation();
 
@@ -111,7 +141,8 @@ function _renderChatUI(container, pid) {
         ${_isRandomCase ? '' : `<span class="font-bold">${_esc(c.title || c.id)}</span>`}
         <span class="difficulty-badge difficulty-${c.difficulty || 'easy'}">${diffLabel(c.difficulty)}</span>
         <span class="text-dim text-sm">${c.gender === 'male' ? 'ชาย' : 'หญิง'} ${c.age} ปี${c.occupation ? ' · ' + _esc(c.occupation) : ''}</span>
-        <button class="btn btn-ghost btn-sm" id="quit-btn" style="margin-left:auto;color:var(--error,#ef4444);">✕ ยุติเคส</button>
+        <span class="session-timer" id="session-timer" style="margin-left:auto;" title="เวลาทำเคส (เริ่มนับเมื่อกดเริ่มเคส)">⏱ 5:00</span>
+        <button class="btn btn-ghost btn-sm" id="quit-btn" style="color:var(--error,#ef4444);">✕ ยุติเคส</button>
       </div>
 
       <!-- Stepper -->
@@ -300,6 +331,7 @@ function _attachEvents() {
   document.getElementById('start-case-btn')?.addEventListener('click', () => {
     _caseStarted = true;
     document.getElementById('start-case-btn')?.classList.add('hidden');
+    _startSessionTimer();
     _startVoice(1).catch(e => console.warn('start voice:', e.message));
   });
 
@@ -374,8 +406,8 @@ async function _startVoice(panelStep) {
   if (apiKey && !_liveConnecting) {
     _liveConnecting = true;
     const sysPrompt = panelStep === 1
-      ? buildSystemPrompt(_caseData)
-      : buildCounselingPrompt(_caseData, _dispensedDrugs);
+      ? buildSystemPrompt(_caseData, true)
+      : buildCounselingPrompt(_caseData, _dispensedDrugs, true);
     const voiceName = _caseData?.gender === 'male' ? 'Puck' : 'Aoede';
     const client    = new GeminiLiveClient();
     client.audioEnabled = false;
@@ -594,6 +626,8 @@ function _stopCharAnim(panelStep) {
 
 function _quitSession() {
   if (!confirm('ยุติเคสนี้และกลับหน้าหลักใช่ไหม?\n\nเซสชันนี้จะนับเป็น 1 ครั้งในโควต้าวันนี้')) return;
+  _disableRefreshGuard();
+  _stopSessionTimer();
   _stopVoice();
   _synth?.cancel();
   Router.go('dashboard');
@@ -604,6 +638,73 @@ function _setVoiceStatus(panelStep, text, animate) {
   if (el) el.textContent = text;
   const wv = document.getElementById(`waveform-${panelStep}`);
   if (wv) wv.classList.toggle('wave-active', animate);
+}
+
+// ── Session Timer ──────────────────────────────────────────────
+
+function _startSessionTimer() {
+  if (_timerInterval) return;            // already running
+  _timerRemaining = SESSION_TIME_LIMIT_SEC;
+  _timerExpired   = false;
+  _renderTimer();
+  _timerInterval = setInterval(() => {
+    _timerRemaining--;
+    _renderTimer();
+    if (_timerRemaining <= 0) _onTimeUp();
+  }, 1000);
+}
+
+function _stopSessionTimer() {
+  if (_timerInterval) { clearInterval(_timerInterval); _timerInterval = null; }
+}
+
+function _renderTimer() {
+  const el = document.getElementById('session-timer');
+  if (!el) return;
+  const r = Math.max(0, _timerRemaining);
+  const m = Math.floor(r / 60);
+  const s = r % 60;
+  el.textContent = `⏱ ${m}:${String(s).padStart(2, '0')}`;
+  el.classList.toggle('timer-warning', r > 0 && r <= TIMER_WARNING_SEC);
+  el.classList.toggle('timer-expired', r <= 0);
+}
+
+// Time's up: lock Steps 1–3, leave only the "ประเมินผล" action available.
+function _onTimeUp() {
+  if (_timerExpired) return;
+  _timerExpired = true;
+  _stopSessionTimer();
+  _renderTimer();
+  if (_step >= 4) return;                // evaluation already started — nothing to lock
+
+  _stopVoice();
+  _synth?.cancel();
+
+  // Disable every input/button inside the working panels (Steps 1–3)
+  ['panel-1', 'panel-2', 'panel-3'].forEach(pid => {
+    document.getElementById(pid)
+      ?.querySelectorAll('input, button, textarea')
+      .forEach(el => { el.disabled = true; });
+  });
+
+  _showTimeUpBanner();
+}
+
+function _showTimeUpBanner() {
+  if (document.getElementById('timeup-banner')) return;
+  const host = document.querySelector('.container.fade-in');
+  if (!host) { _goStep4(); return; }     // fallback — go straight to evaluation
+  const banner = document.createElement('div');
+  banner.id = 'timeup-banner';
+  banner.className = 'timeup-banner';
+  banner.innerHTML = `
+    <div class="timeup-text">⏰ หมดเวลาทำเคสแล้ว — ดำเนินการต่อได้เฉพาะการประเมินผล</div>
+    <button class="btn btn-primary" id="timeup-eval-btn">📊 ประเมินผล →</button>`;
+  host.insertBefore(banner, host.firstChild);
+  document.getElementById('timeup-eval-btn')?.addEventListener('click', () => {
+    banner.remove();
+    _goStep4();
+  });
 }
 
 // ── Step 1: History Taking ─────────────────────────────────────
@@ -795,6 +896,7 @@ async function _sendCounseling() {
 
 async function _goStep4() {
   _stopVoice();
+  _stopSessionTimer();
   _step = 4;
   _updateStepper();
   _synth?.cancel();
@@ -823,6 +925,7 @@ async function _runEval() {
 
     const user   = getCurrentUser();
     const result = await saveResult(_session.id, user.uid, evalJson, _caseData);
+    _disableRefreshGuard();   // evaluation saved — safe to leave
     Router.go('summary', { sessionId: _session.id, resultId: result.id });
 
   } catch (e) {
@@ -876,6 +979,7 @@ function _hideTyping(containerId) {
 }
 
 function _lockInput(locked, inputId, btnId) {
+  if (_timerExpired) locked = true;   // never re-enable after time is up
   const inp = document.getElementById(inputId);
   const btn = document.getElementById(btnId);
   if (inp) inp.disabled = locked;

@@ -525,6 +525,46 @@ p  { line-height: 1.7; color: var(--text-dim); }
 .difficulty-medium { background: rgba(245,158,11,0.15); color: var(--warning); }
 .difficulty-hard   { background: rgba(239,68,68,0.15);  color: var(--danger); }
 
+/* ── Session countdown timer ──────────────────────────────── */
+.session-timer {
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 0.2rem 0.7rem;
+  border-radius: 20px;
+  background: rgba(20,184,166,0.15);
+  color: var(--teal, #14b8a6);
+  border: 1px solid rgba(20,184,166,0.3);
+  white-space: nowrap;
+}
+.session-timer.timer-warning {
+  background: rgba(239,68,68,0.18);
+  color: var(--danger, #ef4444);
+  border-color: rgba(239,68,68,0.4);
+  animation: timerBlink 1s steps(2, start) infinite;
+}
+.session-timer.timer-expired {
+  background: rgba(239,68,68,0.25);
+  color: var(--danger, #ef4444);
+  border-color: var(--danger, #ef4444);
+  animation: none;
+}
+@keyframes timerBlink { 50% { opacity: 0.35; } }
+
+/* ── Time-up banner ───────────────────────────────────────── */
+.timeup-banner {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem; margin-bottom: 1rem;
+  border-radius: var(--radius-sm);
+  background: rgba(239,68,68,0.12);
+  border: 1px solid rgba(239,68,68,0.4);
+  animation: fadeUp 0.3s ease;
+}
+.timeup-banner .timeup-text {
+  font-weight: 600; color: var(--danger, #ef4444); flex: 1 1 240px;
+}
+
 /* ── Rate limit bar ───────────────────────────────────────── */
 .rate-bar { display: flex; gap: 0.4rem; align-items: center; }
 .rate-pip {
