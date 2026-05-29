@@ -81,6 +81,10 @@ Hash-based SPA (`js/router.js`). Routes: `#login → #dashboard → #groups → 
 
 Rate limit: 5 sessions per user per day (`getTodaySessionCount` in `db.js`).
 
+**Session timer (OSPE-style):** A 5:00 countdown starts when the student presses "เริ่มเคส" and spans Steps 1–3 (evaluation is not timed). The final 30 s blinks red. On expiry, all Step 1–3 inputs are locked and a banner offers only a "ประเมินผล" action that jumps to Step 4. Timer stops on quit or when entering Step 4. Implemented in `chat.js` (`_startSessionTimer` / `_onTimeUp`); `_lockInput` refuses to re-enable inputs once `_timerExpired`.
+
+**Refresh guard:** While a session is live, a `beforeunload` handler warns on accidental refresh/tab-close. It is auto-disabled on quit and after the evaluation is saved, and no-ops once the chat screen is unmounted (checks for the `session-timer` element). Note: this only warns — a confirmed refresh still resets the session (route params are lost on reload).
+
 ### Case Schema (Firestore `/cases`)
 ```js
 {
@@ -126,7 +130,7 @@ Login as `admin@pharmbot.local` → navigate to `#admin`. Supports adding/editin
 When creating/editing a case, `secretInfo` is built from 13 structured form fields (stored as `secretInfoFields` in Firestore for re-editing). The `_assembleSecretInfo()` function in `admin.js` assembles them into the 6-section AI prompt format, skipping empty fields. The assembled string is stored in `secretInfo` and used by `buildSystemPrompt()` at chat time.
 
 ### Voice Mode (Gemini Live)
-`js/gemini-live.js` contains `GeminiLiveClient` — a WebSocket client for Gemini Live API (`models/gemini-2.0-flash-live-001`). Activated via the mode tab bar in Steps 1 and 3. The client streams mic audio (16 kHz PCM16) → WebSocket → receives audio (24 kHz PCM16) + text transcripts. Transcripts are pushed into `_chatHistory` / `_counselingHistory` the same as text mode, so Step 4 evaluation works unchanged. Voice name is auto-selected: `Aoede` (female patient) / `Puck` (male patient).
+`js/gemini-live.js` contains `GeminiLiveClient` — a WebSocket client for Gemini Live API (`models/gemini-3.1-flash-live-preview`). Activated via the mode tab bar in Steps 1 and 3. The client streams mic audio (16 kHz PCM16) → WebSocket → receives audio (24 kHz PCM16) + text transcripts. Transcripts are pushed into `_chatHistory` / `_counselingHistory` the same as text mode, so Step 4 evaluation works unchanged. Voice name is auto-selected: `Aoede` (female patient) / `Puck` (male patient).
 
 `getGeminiKey()` in `gemini.js` exposes the loaded key for `GeminiLiveClient`. If connection fails, falls back to text mode automatically.
 
