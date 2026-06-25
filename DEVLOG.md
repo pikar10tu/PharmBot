@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-06-25 (รอบ 6) — ล็อกภาษา transcript เป็นไทย (รอ verify)
+
+**ปัญหา:** ตอนพูดในโหมดเสียง `inputAudioTranscription` ของ Gemini Live บางครั้ง auto-detect ภาษาผิด → transcript ขึ้นเป็นภาษาอื่น (กฎข้อ 11 ใน prompt คุมแค่ output ของผู้ป่วย ไม่ใช่ STT ฝั่ง input)
+
+**สิ่งที่ทำ:** เพิ่ม `languageCodes: ['th-TH']` ใน `inputAudioTranscription` + `outputAudioTranscription` (`gemini-live.js`) เพื่อบังคับภาษาถอดเสียงเป็นไทย
+
+**ข้อควรรู้:** param นี้ documented ฝั่ง Vertex AI แต่ public API (`generativelanguage.googleapis.com`) ที่แอปใช้ ไม่ระบุในเอกสาร → อาจถูกเพิกเฉย (no-op) ถ้าไม่หาย แผนถัดไปคือเอา Web Speech (th-TH) มาเป็น transcript หลักฝั่งเภสัชกร
+
+**ไฟล์ที่แตะ:** `js/gemini-live.js`
+
+**ทดสอบ:** node --check ผ่าน — **ยังไม่ได้ verify บนเครื่องจริง** (ต้องลองเสียงจริง: เขียว=ไทยแม่นขึ้น / เหลือง=ยังเพี้ยน(no-op) / แดง=setup reject แล้วหล่น Web Speech)
+
+**สถานะ:** ⏳ push ขึ้น main แล้ว รอผลทดสอบจากผู้ใช้
+
+---
+
 ## 2026-06-25 (รอบ 5) — จัดกลุ่มยาตามข้อบ่งใช้ + ลด voice path ให้เหลือ Live ล้วน
 
 **สิ่งที่ทำ**
