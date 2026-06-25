@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ใบเลือก Prompt &amp; Config — PharmBot v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f4f6fb;--card:#fff;--ink:#1d2433;--muted:#697089;--line:#e4e8f0;
+    --brand:#2f6df0;--brand-soft:#eaf1ff;--green:#16a34a;--green-soft:#e7f6ec;
+    --amber:#d98a04;--amber-soft:#fdf3e0;--red:#dc2a3a;--red-soft:#fdeaec}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Sarabun',-apple-system,'Segoe UI',sans-serif;line-height:1.6;font-size:15.5px}
+  .wrap{max-width:920px;margin:0 auto;padding:30px 22px 72px}
+  code{background:#eef1f7;padding:1px 6px;border-radius:5px;font-size:.88em}
+  .hero{background:linear-gradient(135deg,#16a34a,#2f6df0);color:#fff;border-radius:16px;padding:26px 30px;box-shadow:0 8px 26px rgba(22,163,74,.2)}
+  .hero h1{margin:0 0 6px;font-size:23px}
+  .hero p{margin:0;opacity:.93;font-size:14.5px}
+  .hero .chip{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);padding:4px 12px;border-radius:30px;font-size:13px;margin:12px 6px 0 0}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-top:18px;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  section>h2{margin:0 0 3px;font-size:19px;display:flex;align-items:center;gap:10px}
+  .grp{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--brand-soft);color:var(--brand);border-radius:9px;font-weight:700;flex:none}
+  .sub{color:var(--muted);font-size:13px;margin:2px 0 14px}
+  .opt{border:1px solid var(--line);border-radius:12px;padding:15px 17px;margin:12px 0;background:#fcfdff}
+  .opt.rec{border:2px solid var(--green);background:var(--green-soft)}
+  .opt h3{margin:0 0 4px;font-size:16px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .pick{width:16px;height:16px;border:2px solid #9aa1b4;border-radius:4px;flex:none;display:inline-block}
+  .badge{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 9px;border-radius:20px}
+  .b-rec{background:var(--green);color:#fff}
+  .b-safe{background:var(--brand-soft);color:var(--brand)}
+  .b-future{background:#eef0f5;color:var(--muted)}
+  .pc{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:8px}
+  @media(max-width:620px){.pc{grid-template-columns:1fr}}
+  .pc div{border-radius:8px;padding:8px 12px;font-size:13.7px}
+  .pro{background:var(--green-soft)}
+  .con{background:var(--red-soft)}
+  .pc b{display:block;margin-bottom:2px;font-size:12.5px}
+  .pro b{color:var(--green)} .con b{color:var(--red)}
+  table{width:100%;border-collapse:collapse;margin:6px 0;font-size:13.8px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f7f9fd;color:var(--muted);font-weight:600;font-size:12.5px}
+  .rowrec{background:var(--green-soft)}
+  .note{border-left:4px solid var(--brand);background:var(--brand-soft);padding:11px 15px;border-radius:0 9px 9px 0;margin:12px 0;font-size:14px}
+  .sumbox{border:2px solid var(--green);background:var(--green-soft);border-radius:12px;padding:16px 18px;margin-top:8px}
+  .lines{border:1px dashed #c4ccdd;border-radius:8px;min-height:40px;margin-top:5px;background:repeating-linear-gradient(transparent,transparent 22px,#eef1f7 23px)}
+  .foot{text-align:center;color:#9aa1b4;font-size:12.5px;margin-top:24px}
+  @media print{body{background:#fff}.hero{box-shadow:none}section{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>ใบเลือก Prompt &amp; Config (สำหรับทีมตัดสินใจ)</h1>
+    <p>เลือกชุดที่ดีที่สุด ณ ตอนนี้ เพื่อเดินหน้าทำ validation กับผู้เชี่ยวชาญให้ทัน</p>
+    <div>
+      <span class="chip">📅 25 มิ.ย. 2026</span>
+      <span class="chip">🟩 = อันแนะนำ</span>
+      <span class="chip">⏭️ การทดสอบ A/B = การศึกษาอนาคต</span>
+    </div>
+  </div>
+
+  <div class="note" style="margin-top:18px"><b>วิธีใช้:</b> ทีมอ่านแต่ละตัวเลือก ดูข้อดี/ข้อเสีย แล้วทำเครื่องหมายในช่อง ☐ ที่เลือก · ช่อง “ชุดที่แนะนำ” ด้านล่างคือคำแนะนำของเรา ถ้าเห็นด้วยเลือกตามได้เลย</div>
+
+  <!-- A. PROMPT -->
+  <section>
+    <h2><span class="grp">A</span> เลือก Prompt ของผู้ป่วยจำลอง</h2>
+    <p class="sub">ทั้งหมดอิงจาก <code>buildSystemPrompt</code> ที่มีอยู่ — ต่างกันที่ "แก้มาก/น้อย"</p>
+
+    <div class="opt">
+      <h3><span class="pick"></span> P1 — Prompt ปัจจุบัน (คงเดิม) <span class="badge b-safe">ปลอดภัย</span></h3>
+      <p>ใช้ 10 กฎ + voice overlay ที่มีอยู่ตอนนี้ ไม่แก้อะไรเลย</p>
+      <div class="pc">
+        <div class="pro"><b>ข้อดี</b>รู้พฤติกรรมแล้ว ไม่มีความเสี่ยงใหม่ เริ่ม validation ได้ทันที</div>
+        <div class="con"><b>ข้อเสีย</b>ยังมีช่องโหว่: ถ้าเภสัชกรพูดอังกฤษ/ชื่อยาอังกฤษ ผู้ป่วยอาจหลุดไปตอบภาษาอังกฤษ (native audio สลับภาษาเอง)</div>
+      </div>
+    </div>
+
+    <div class="opt rec">
+      <h3><span class="pick"></span> P2 — ปัจจุบัน + ปักภาษาไทย <span class="badge b-rec">★ แนะนำ</span></h3>
+      <p>เหมือน P1 ทุกอย่าง แต่<b>เพิ่มกฎเดียว</b>: “พูดภาษาไทยเสมอ ไม่ว่าเภสัชกรจะพูดภาษาอะไร แม้ถูกถามเป็นภาษาอังกฤษหรือมีชื่อยาภาษาอังกฤษ”</p>
+      <div class="pc">
+        <div class="pro"><b>ข้อดี</b>แก้ช่องโหว่เดียวที่ชัดเจน · เพิ่มแค่ 1 บรรทัด ความเสี่ยงต่ำมาก · คงพฤติกรรมเดิมที่ทำงานดีอยู่แล้ว · เริ่ม validation ได้เลย</div>
+        <div class="con"><b>ข้อเสีย</b>ไม่ได้ปรับเรื่องความยาว/ความเป็นธรรมชาติ (แต่ของเดิมก็โอเคแล้ว)</div>
+      </div>
+    </div>
+
+    <div class="opt">
+      <h3><span class="pick"></span> P3 — Voice variant กระชับ + ปักภาษาไทย <span class="badge b-future">เก็บไว้ศึกษาอนาคต</span></h3>
+      <p>ตัดกฎที่ไม่จำเป็นต่อการพูดออก เหลือเฉพาะกฎพฤติกรรมสำคัญ + ปักภาษา เพื่อลด over-instruction</p>
+      <div class="pc">
+        <div class="pro"><b>ข้อดี</b>อาจพูดเป็นธรรมชาติขึ้น</div>
+        <div class="con"><b>ข้อเสีย</b>เป็นการ<b>เปลี่ยนพฤติกรรมที่ยังไม่ทดสอบ</b> → เสี่ยงได้ผลไม่คาดคิด เหมาะกับเฟสทดสอบ A/B ในอนาคต ไม่เหมาะรีบใช้ตอนนี้</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- B. CONFIG -->
+  <section>
+    <h2><span class="grp">B</span> เลือกค่า Config ของ Gemini Live</h2>
+    <p class="sub">แถวพื้นเขียว = ค่าที่แนะนำ · ☐ ทำเครื่องหมายค่าที่ทีมเลือก</p>
+
+    <table>
+      <tr><th style="width:24%">พารามิเตอร์</th><th style="width:26%">ตัวเลือก</th><th>ข้อดี / ข้อเสีย</th></tr>
+
+      <tr class="rowrec"><td rowspan="1"><b>Model</b></td><td>☐ gemini-3.1-flash-live-preview</td><td>รุ่นเดียวที่แนะนำสำหรับ Live (รุ่นเก่าถูก deprecate) — ไม่มีทางเลือกอื่น</td></tr>
+
+      <tr class="rowrec"><td rowspan="2"><b>เสียง (voiceName)</b></td><td>☐ Aoede (เคสหญิง)</td><td>เลือกตามเพศของเคส (gender-matched) ให้สมจริง</td></tr>
+      <tr class="rowrec"><td>☐ Puck (เคสชาย)</td><td>เลือกตามเพศของเคส</td></tr>
+
+      <tr class="rowrec"><td rowspan="3"><b>thinkingLevel</b></td><td>☐ minimal &nbsp;★</td><td><b>แนะนำ</b> — latency ต่ำสุด สนทนาลื่นเป็นธรรมชาติ เหมาะ roleplay (กฎคุมพฤติกรรมอยู่ใน prompt แล้ว)</td></tr>
+      <tr><td>☐ low</td><td>อยู่ในกฎ/บทดีขึ้นเล็กน้อย แต่ช้าลง — เก็บไว้ลองในเฟสทดสอบ</td></tr>
+      <tr><td>☐ medium / high</td><td>ช้าชัดเจน เกินจำเป็นสำหรับ roleplay (ไม่แนะนำ)</td></tr>
+
+      <tr class="rowrec"><td rowspan="2"><b>VAD: startOfSpeechSensitivity</b></td><td>☐ LOW &nbsp;★</td><td><b>แนะนำ</b> — ต้องพูดชัดจึงตัด กันเสียง noise/หายใจตัดผู้ป่วยกลางคัน เหมาะห้องจริง</td></tr>
+      <tr><td>☐ HIGH</td><td>ตอบสนองการพูดแทรกไวขึ้น แต่เสี่ยงถูกตัดเพราะเสียงรบกวน</td></tr>
+
+      <tr class="rowrec"><td><b>prefixPaddingMs</b></td><td>☐ 300 &nbsp;★</td><td>ค่าปัจจุบัน สมดุลดีอยู่แล้ว แนะนำคงไว้</td></tr>
+
+      <tr class="rowrec"><td><b>temperature</b> (ผู้ป่วย)</td><td>☐ 0.8 &nbsp;★</td><td>ค่าปัจจุบัน — หลากหลายพอดี · สูงกว่านี้=ไม่นิ่ง (กระทบ reproducibility), ต่ำกว่า=พูดซ้ำๆ แข็ง</td></tr>
+    </table>
+    <p class="sub" style="margin-top:10px">หมายเหตุ: <code>thinkingLevel</code> ตอนนี้ยังไม่ได้ตั้งชัดในโค้ด (ค่า default = minimal อยู่แล้ว) ถ้าเลือก minimal แทบไม่ต้องแก้โค้ด แค่ระบุให้ชัดในการตั้งค่า</p>
+  </section>
+
+  <!-- C. ชุดแนะนำ -->
+  <section>
+    <h2><span class="grp">✓</span> ชุดที่แนะนำ (Recommended Bundle)</h2>
+    <p class="sub">สมดุลระหว่าง "ดีพอใช้งานจริง + ความเสี่ยงต่ำ + เริ่ม validation ได้ทันที"</p>
+    <div class="sumbox">
+      <b>Prompt:</b> P2 (ปัจจุบัน + ปักภาษาไทย)<br>
+      <b>Model:</b> gemini-3.1-flash-live-preview<br>
+      <b>เสียง:</b> Aoede (เคสหญิง) / Puck (เคสชาย) — ตามเพศเคส<br>
+      <b>thinkingLevel:</b> minimal &nbsp;·&nbsp; <b>VAD:</b> LOW + prefixPadding 300ms &nbsp;·&nbsp; <b>temperature:</b> 0.8
+    </div>
+    <div class="note"><b>เหตุผล:</b> เปลี่ยนจากของเดิมแค่ "ปักภาษาไทย" จุดเดียว ซึ่งเป็นการแก้ที่ถูกต้องชัดเจนและความเสี่ยงต่ำสุด ส่วน config ทั้งหมดใช้ค่าที่ระบบทำงานดีอยู่แล้ว → ทีมเดินหน้าเก็บข้อมูล/ทำ validation กับผู้เชี่ยวชาญได้เลย โดยเก็บการจูนละเอียดไว้เป็นการศึกษาในอนาคต</div>
+  </section>
+
+  <!-- D. มติทีม -->
+  <section>
+    <h2><span class="grp">D</span> มติทีม (กรอกหลังตกลง)</h2>
+    <table>
+      <tr><td style="width:30%"><b>Prompt ที่เลือก</b></td><td class="lines" style="min-height:24px"></td></tr>
+      <tr><td><b>ค่า Config ที่เลือก</b></td><td class="lines" style="min-height:24px"></td></tr>
+      <tr><td><b>เหตุผล/หมายเหตุ</b></td><td class="lines" style="min-height:40px"></td></tr>
+      <tr><td><b>ผู้ตัดสินใจ / วันที่</b></td><td class="lines" style="min-height:24px"></td></tr>
+    </table>
+    <p class="sub" style="margin-top:8px">เมื่อทีมเคาะแล้ว แจ้งกลับมาได้เลย เดี๋ยวช่วยทำให้ตรงตามมติ (เช่น เพิ่มกฎปักภาษาไทย + ตั้ง thinkingLevel ให้ชัดในโค้ด) และบันทึกลง DEVLOG ให้</p>
+  </section>
+
+  <p class="foot">PharmBot v2 · ใบเลือก Prompt &amp; Config · 25 มิถุนายน 2026</p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ประเด็นหารืออาจารย์ที่ปรึกษา — PharmBot v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f4f6fb;--card:#fff;--ink:#1d2433;--muted:#697089;--line:#e4e8f0;
+    --brand:#2f6df0;--brand-soft:#eaf1ff;--green:#16a34a;--amber:#d98a04;--amber-soft:#fdf3e0;--red:#dc2a3a}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Sarabun',-apple-system,'Segoe UI',sans-serif;line-height:1.62;font-size:15.5px}
+  .wrap{max-width:920px;margin:0 auto;padding:30px 22px 70px}
+  code{background:#eef1f7;padding:1px 6px;border-radius:5px;font-size:.9em}
+  .hero{background:linear-gradient(135deg,#2f6df0,#5b46e0);color:#fff;border-radius:16px;padding:26px 30px;box-shadow:0 8px 26px rgba(47,109,240,.22)}
+  .hero h1{margin:0 0 6px;font-size:24px}
+  .hero p{margin:0;opacity:.93;font-size:14.5px}
+  .hero .chip{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);padding:4px 12px;border-radius:30px;font-size:13px;margin:12px 6px 0 0}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-top:18px;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  section>h2{margin:0 0 3px;font-size:19px;display:flex;align-items:center;gap:10px}
+  .grp{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--brand-soft);color:var(--brand);border-radius:9px;font-weight:700;flex:none}
+  .sub{color:var(--muted);font-size:13px;margin:2px 0 14px}
+  .item{border:1px solid var(--line);border-radius:11px;padding:14px 16px;margin:12px 0;background:#fcfdff}
+  .item h3{margin:0 0 6px;font-size:15.5px}
+  .q{color:var(--brand);font-weight:600}
+  .item p{margin:6px 0}
+  .opts{margin:6px 0;padding-left:18px}
+  .opts li{margin:3px 0}
+  .rec{background:var(--brand-soft);border-left:3px solid var(--brand);padding:8px 12px;border-radius:0 8px 8px 0;font-size:14px;margin:8px 0}
+  .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:1px 9px;border-radius:20px;vertical-align:middle;margin-left:6px}
+  .t-dec{background:#fdeaec;color:var(--red)}
+  .t-conf{background:var(--amber-soft);color:var(--amber)}
+  .t-adv{background:#e7f6ec;color:var(--green)}
+  .note{margin-top:10px}
+  .note span{font-size:12.5px;color:var(--muted);font-weight:600}
+  .lines{border:1px dashed #c4ccdd;border-radius:8px;min-height:54px;margin-top:5px;
+    background:repeating-linear-gradient(transparent,transparent 26px,#eef1f7 27px)}
+  .foot{text-align:center;color:#9aa1b4;font-size:12.5px;margin-top:24px}
+  @media print{body{background:#fff}.hero{box-shadow:none}section{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>ประเด็นหารืออาจารย์ที่ปรึกษา</h1>
+    <p>โครงการ PharmBot v2 — ระบบจำลองร้านขายยาชุมชนสำหรับนักศึกษาเภสัชศาสตร์</p>
+    <div>
+      <span class="chip">📅 วันที่ประชุม: 25 มิ.ย. 2026</span>
+      <span class="chip">🎯 วาระหลัก: ทบทวนบทที่ 2</span>
+      <span class="chip">🏷️ <b>ตัดสินใจ</b> · <b>ยืนยัน</b> · <b>ขอคำแนะนำ</b></span>
+    </div>
+  </div>
+
+  <p style="font-size:13.5px;color:#697089;margin:16px 2px 0">
+  วิธีใช้: แต่ละข้อมี “ข้อเสนอของเรา” ไว้ตั้งต้น และมีช่องจด “มติ/ความเห็นอาจารย์” ระหว่างคุย ·
+  ป้าย <span class="tag t-dec">ตัดสินใจ</span> = ต้องให้อาจารย์เลือก,
+  <span class="tag t-conf">ยืนยัน</span> = ขอความเห็นชอบ,
+  <span class="tag t-adv">ขอคำแนะนำ</span> = ขอแนวทาง</p>
+
+  <!-- A. บทที่ 2 -->
+  <section>
+    <h2><span class="grp">A</span> บทที่ 2 (ทบทวนวรรณกรรม) — วาระหลัก</h2>
+    <p class="sub">อาจารย์ยังไม่ได้ตรวจ — ขอ feedback ภาพรวมและทิศทางการแก้</p>
+
+    <div class="item">
+      <h3>A1. กรอบวรรณกรรมครอบคลุมเพียงพอหรือไม่ <span class="tag t-adv">ขอคำแนะนำ</span></h3>
+      <p class="q">ขอให้อาจารย์ช่วยดูว่าครอบคลุมหัวข้อหลักครบไหม และควรเพิ่ม/ตัดส่วนใด</p>
+      <p>หัวข้อที่ควรมี (ทวนกับอาจารย์): การประเมินทักษะแบบ OSCE/OSPE ในเภสัชศาสตร์ · การใช้ผู้ป่วยจำลอง (simulated patient) · กรอบการซักประวัติ (WWHAM/self-care) · การนำ AI มาช่วยประเมิน · ทฤษฎีความมั่นใจ (self-efficacy) และการวัด usability (SUS)</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>A2. ช่องว่างงานวิจัย (research gap) และการเชื่อมเข้าวัตถุประสงค์ <span class="tag t-adv">ขอคำแนะนำ</span></h3>
+      <p class="q">บทที่ 2 ชี้ช่องว่างและนำไปสู่วัตถุประสงค์ทั้ง 3 ข้อชัดเจนพอหรือยัง</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>A3. รูปแบบการอ้างอิงและจำนวน/ความใหม่ของแหล่งอ้างอิง <span class="tag t-conf">ยืนยัน</span></h3>
+      <p class="q">ใช้รูปแบบอ้างอิงตามคู่มือ มธ. ถูกต้องไหม จำนวนและความทันสมัยของอ้างอิงเหมาะสมไหม</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+  </section>
+
+  <!-- B. การออกแบบงานวิจัยและการวัด -->
+  <section>
+    <h2><span class="grp">B</span> การออกแบบงานวิจัยและการวัดผล</h2>
+    <p class="sub">ส่งผลต่อทั้งระบบและการวิเคราะห์ ควรเคาะให้ชัดก่อนเริ่มเก็บข้อมูล</p>
+
+    <div class="item">
+      <h3>B1. วัด pretest–posttest แบบครั้งเดียว หรือ ทุก session <span class="tag t-dec">ตัดสินใจ</span></h3>
+      <p class="q">วัดความมั่นใจ 1 ครั้งก่อน–หลังทั้ง intervention หรือวัดทุกครั้งที่ฝึก?</p>
+      <ul class="opts">
+        <li><b>แบบครั้งเดียว</b> — เรียบง่าย วิเคราะห์ตรงไปตรงมา เชื่อมข้อมูลง่าย</li>
+        <li><b>ทุก session</b> — เห็นพัฒนาการเป็นช่วง แต่ซับซ้อนขึ้น ต้องพ่วงเลข session</li>
+      </ul>
+      <div class="rec"><b>ข้อเสนอของเรา:</b> เริ่มที่ <b>แบบครั้งเดียว</b> (ก่อน–หลังทั้งโปรแกรม) เพราะตรงกับนิยาม one-group pretest–posttest และลดความซับซ้อน</div>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>B2. กลุ่มตัวอย่างและเกณฑ์คัดเข้า/ออก <span class="tag t-dec">ตัดสินใจ</span></h3>
+      <p class="q">จำนวนกลุ่มตัวอย่าง (n) เท่าใด ชั้นปีใด และเกณฑ์คัดเข้า/ออกเป็นอย่างไร</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>B3. แผนการวิเคราะห์สถิติ <span class="tag t-conf">ยืนยัน</span></h3>
+      <p class="q">ใช้ paired t-test (ถ้าข้อมูลปกติ) หรือ Wilcoxon signed-rank + รายงาน effect size (Cohen's d) เห็นชอบไหม</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+  </section>
+
+  <!-- C. แบบสอบถาม -->
+  <section>
+    <h2><span class="grp">C</span> รูปแบบแบบสอบถามก่อน–หลัง และ SUS</h2>
+    <p class="sub">ประเด็นที่ขอให้อาจารย์ช่วยตัดสินใจโดยเฉพาะ</p>
+
+    <div class="item">
+      <h3>C1. ใช้ Google Form ภายนอก หรือ สร้างแบบสอบถามในแอป <span class="tag t-dec">ตัดสินใจ</span></h3>
+      <p class="q">ทำแบบสอบถามใน Google Form (ภายนอก) หรือพัฒนาเป็นหน้าจอในแอป?</p>
+      <ul class="opts">
+        <li><b>Google Form</b> — สร้างเร็ว ไม่ต้องเขียนโค้ด ส่งออก/วิเคราะห์ง่าย แต่ต้องเชื่อมข้อมูลกับคะแนนในแอปด้วยรหัส P-code เอง</li>
+        <li><b>สร้างในแอป</b> — เชื่อมข้อมูลอัตโนมัติและบังคับลำดับได้เต็มที่ แต่ใช้เวลาพัฒนามาก (หลายไฟล์ + Firestore)</li>
+        <li><b>แบบผสม (แนะนำ)</b> — ใช้ Google Form เป็นแบบสอบถาม แต่ให้แอปเปิดฟอร์มในจังหวะที่ถูกต้อง ด้วยลิงก์ที่เติม P-code มาให้อัตโนมัติ (pre-filled link)</li>
+      </ul>
+      <div class="rec"><b>ข้อเสนอของเรา:</b> เลือก <b>แบบผสม</b> — ได้ความเร็วของ Google Form + การเชื่อมข้อมูลที่แม่นยำ โดยแทบไม่ต้องเขียนระบบ survey เอง · ราคาที่จ่ายคือตอนวิเคราะห์ต้อง join สองไฟล์ด้วย P-code</div>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>C2. SUS ฉบับแปลไทย <span class="tag t-conf">ยืนยัน</span></h3>
+      <p class="q">ใช้ SUS ฉบับแปลไทยที่มีอยู่ หรือแปลเอง (พร้อม back-translation)? และเก็บ SUS เมื่อใด (หลัง session สุดท้าย)?</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+  </section>
+
+  <!-- D. คุณภาพเครื่องมือ -->
+  <section>
+    <h2><span class="grp">D</span> การตรวจสอบคุณภาพเครื่องมือ (Validity &amp; Reliability)</h2>
+    <p class="sub">รายละเอียดเต็มอยู่ในเอกสาร Validation Plan แยกอีกไฟล์</p>
+
+    <div class="item">
+      <h3>D1. ความตรงเชิงเนื้อหา — จำนวนและรายชื่อผู้เชี่ยวชาญ <span class="tag t-dec">ตัดสินใจ</span></h3>
+      <p class="q">ใช้ผู้เชี่ยวชาญกี่ท่านสำหรับคำนวณ IOC (เสนอ ≥ 3 ท่าน) และอาจารย์แนะนำใครได้บ้าง</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>D2. ความเที่ยงของการให้คะแนนด้วย AI <span class="tag t-dec">ตัดสินใจ</span></h3>
+      <p class="q">เห็นชอบให้เทียบคะแนน AI กับอาจารย์ผู้ประเมิน (inter-rater, ICC) ไหม จะใช้กี่ transcript และใครเป็นผู้ให้คะแนนเทียบ</p>
+      <div class="rec"><b>ข้อเสนอของเรา:</b> ใช้ 20–30 transcript เทียบ AI กับอาจารย์ ≥ 2 ท่าน รายงาน ICC (เกณฑ์ ≥ 0.75) + ทำ test–retest ของ AI</div>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>D3. น้ำหนักคะแนน 4 ด้าน (25 / 15 / 40 / 20) <span class="tag t-conf">ยืนยัน</span></h3>
+      <p class="q">เห็นชอบกับน้ำหนัก ซักประวัติ 25% · ประเมิน/red flag 15% · จ่ายยา 40% · counseling 20% หรือควรปรับ</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>D4. จำนวนและกลุ่มเคส + ผู้ตรวจสอบเนื้อหา <span class="tag t-dec">ตัดสินใจ</span></h3>
+      <p class="q">ปัจจุบันมี 5 เคส ควรเพิ่มเป็นกี่เคส (เสนอ 9–12) และครอบคลุมกลุ่มโรคใด ใครช่วยตรวจความถูกต้องทางคลินิก</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+  </section>
+
+  <!-- E. จริยธรรมและแผนงาน -->
+  <section>
+    <h2><span class="grp">E</span> จริยธรรมการวิจัยและแผนงาน</h2>
+    <p class="sub">ขั้นตอนที่มักเป็นคอขวด ควรเริ่มเตรียมแต่เนิ่นๆ</p>
+
+    <div class="item">
+      <h3>E1. การขอจริยธรรมการวิจัยในมนุษย์ <span class="tag t-adv">ขอคำแนะนำ</span></h3>
+      <p class="q">ต้องยื่นคณะกรรมการจริยธรรมชุดใด ใช้เวลาประมาณเท่าใด และต้องเตรียมเอกสาร/แบบฟอร์ม consent อย่างไร (ต้องผ่านก่อนเก็บข้อมูลจริง)</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>E2. ลำดับเวลา (timeline) และวันสอบโครงร่าง <span class="tag t-dec">ตัดสินใจ</span></h3>
+      <p class="q">กำหนดวันสอบโครงร่าง/ความก้าวหน้า และช่วงเวลาเก็บข้อมูลที่เหมาะสมเมื่อใด</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+
+    <div class="item">
+      <h3>E3. การใช้ AI (Gemini) เป็นผู้ให้คะแนนในวิทยานิพนธ์ <span class="tag t-adv">ขอคำแนะนำ</span></h3>
+      <p class="q">มีข้อกังวลด้านระเบียบวิธีหรือความเหมาะสมที่ต้องเตรียมชี้แจงในการสอบไหม</p>
+      <div class="note"><span>มติ/ความเห็นอาจารย์:</span><div class="lines"></div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2><span class="grp">✓</span> สรุปสิ่งที่ต้องทำต่อ (กรอกหลังประชุม)</h2>
+    <div class="lines" style="min-height:110px"></div>
+  </section>
+
+  <p class="foot">PharmBot v2 · เอกสารเตรียมประชุมอาจารย์ที่ปรึกษา · 25 มิถุนายน 2026</p>
+
+</div>
+</body>
+</html>

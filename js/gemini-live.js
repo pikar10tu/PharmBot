@@ -58,6 +58,9 @@ class GeminiLiveClient {
             model: 'models/gemini-3.1-flash-live-preview',
             generationConfig: {
               responseModalities: ['AUDIO'],
+              // minimal = latency ต่ำสุด เหมาะ roleplay (พฤติกรรมคุมด้วย system prompt แล้ว)
+              thinkingConfig: { thinkingLevel: 'minimal' },
+              temperature: 0.6,   // ให้ตรงกับโหมดข้อความ — ผู้ป่วยสม่ำเสมอขึ้นแต่ยังเป็นธรรมชาติ
               speechConfig: {
                 voiceConfig: {
                   prebuiltVoiceConfig: { voiceName }

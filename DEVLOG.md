@@ -1,0 +1,86 @@
+# PharmBot v2 — Development Log (บันทึกการพัฒนา)
+
+> บันทึกความคืบหน้าการพัฒนาเป็นช่วงๆ สำหรับใช้อ้างอิงในรายงาน/วิทยานิพนธ์
+> รูปแบบ: ใหม่สุดอยู่บนสุด · แต่ละรอบระบุ วันที่ / สิ่งที่ทำ / เหตุผล / ไฟล์ที่แตะ / สถานะ
+
+---
+
+## 2026-06-25 (รอบ 4) — Rubric รายข้อ + ปรับหน้าเพิ่มเคส
+
+**เป้าหมายรอบนี้:** ให้แต่ละเคสกำหนดน้ำหนักคะแนนรายข้อได้เอง, คำแนะนำเป็นข้อๆ มีน้ำหนัก, ลดช่อง free-text, แก้ bug หน้าเพิ่มเคส
+
+**สิ่งที่ทำ**
+1. **ระบบคะแนนรายข้อ (Rubric)** — เคสมี field `rubric` = ข้อประเมินที่กำหนดน้ำหนักได้ จัดกลุ่มเป็น 4 domain เดิม (history/diagnosis/drug/counseling) คงตัวแปรวิจัยเดิมครบ
+2. **AI ไม่คิดคะแนนเอง** — eval prompt ให้ AI ตัดสินแค่ earned รายข้อ (0/0.5/1) แล้ว `scoreRubric()` ใน JS คำนวณคะแนน domain + overall แบบ deterministic (น้ำหนักถูกเคารพ 100%)
+3. **หน้าเพิ่มเคส** — เพิ่ม Rubric editor (แก้น้ำหนัก/เพิ่ม-ลบข้อ/รีเซ็ตค่าเริ่มต้น/รวมแต้ม live), counseling เป็นข้อๆ มีน้ำหนัก, เพิ่มช่อง "ลักษณะอาการ"
+4. **ตัด free-text** — `personality` → dropdown โทนอารมณ์ (5 ระดับ, ป้อนเข้า patient prompt + โทนเสียง Live); ตัด `sceneDesc` → `buildSceneDesc()` สร้างฉากเปิดอัตโนมัติ; `specificChecklist` → ข้อ custom ใน rubric
+5. **แก้ bug จอดำ** — dropdown ค้นยาใช้ตัวแปร `--surface` ที่ไม่มีใน `:root` → เปลี่ยนเป็น `--bg2`/`--text` ที่มีจริง
+6. **Backward compatible** — เคสเดิมไม่มี rubric → `buildRubricForCase()` seed default + migrate counseling/specificChecklist เดิมอัตโนมัติ
+
+**เหตุผล:** ให้ผู้สอนคุมน้ำหนักการประเมินต่อเคสได้ละเอียด และทำให้คะแนนเสถียร/ตรวจสอบได้สำหรับงานวิจัย (ไม่พึ่ง AI คำนวณเลข)
+
+**ไฟล์ที่แตะ:** `js/prompts.js`, `js/screens/chat.js`, `js/screens/admin.js`, `docs/specs/2026-06-25-case-rubric-redesign.md` (ใหม่)
+
+**ทดสอบ:** syntax check ผ่านทั้ง 3 ไฟล์ + unit test logic คะแนน 14/14 (คำนวณถูก, migrate, ตัด pregnancy เมื่อผู้ป่วยชาย, eval prompt ไม่ leak) — **ยังไม่ได้ทดสอบฟอร์มจริงในเบราว์เซอร์**
+
+**สถานะ:** ✅ โค้ดเสร็จ + push ขึ้น main
+
+**งานถัดไปที่แนะนำ:** ทดสอบฟอร์ม admin จริง (rubric editor + บันทึก/โหลด); ถ้าจะใส่ rubric ตั้งต้นในไฟล์ `seed-cases.js` ค่อยทำภายหลัง (ตอนนี้ทำงานได้ผ่าน migration)
+
+---
+
+## 2026-06-25 (รอบ 3) — ปรับ temperature
+
+**สิ่งที่ทำ:** ลด temperature เพื่อความเที่ยง/มาตรฐาน — ผู้ประเมิน `0.2 → 0` (คะแนน reproducible), ผู้ป่วย `0.8 → 0.6` ทั้งโหมดข้อความ (`gemini.js` geminiChat) และเสียง (`gemini-live.js` เพิ่ม temperature ใน generationConfig)
+
+**เหตุผล:** ผู้ประเมินต้องคงที่สูงสุด; ผู้ป่วยลดแบบปานกลางให้สม่ำเสมอขึ้น (มาตรฐานต่อผู้เข้าร่วม) แต่ยังเป็นธรรมชาติ ไม่ลงต่ำจนพูดแข็ง
+
+**ไฟล์ที่แตะ:** `js/gemini.js`, `js/gemini-live.js` + อัปเดต `System_Prompting_Config_Rationale.docx`, `CLAUDE_CODE_HANDOFF.md`
+
+**สถานะ:** ✅ เสร็จ (gemini.js ผ่าน node --check; gemini-live.js ตรวจฝั่งจริงครบถ้วน) — รวมใน commit ของ handoff
+
+---
+
+## 2026-06-25 (รอบ 2) — เลือกและปรับใช้ชุด prompt/config + ปักภาษาไทย
+
+**เป้าหมายรอบนี้:** ตัดสินใจเลือกชุด prompt/config ที่ดีที่สุด ณ ปัจจุบัน เพื่อเดินหน้าทำ validation กับผู้เชี่ยวชาญ (เลื่อนการทดสอบ A/B เป็นการศึกษาอนาคต)
+
+**สิ่งที่ทำ**
+1. **ปักภาษาไทยใน prompt ผู้ป่วย** — เพิ่มกฎข้อ 11 ใน `buildSystemPrompt` ให้ตอบภาษาไทยเสมอ แม้เภสัชกรพูดอังกฤษ/ชื่อยาอังกฤษ (กัน native audio สลับภาษา)
+2. **ตั้ง thinkingLevel = minimal ชัดเจน** — เพิ่ม `thinkingConfig` ใน `gemini-live.js` setup (เดิม default อยู่แล้ว แต่ระบุให้ชัด)
+3. **คงค่า config อื่นตามเดิม** — VAD LOW/300, voice ตามเพศเคส, temperature ผู้ป่วย 0.8 / ผู้ประเมิน 0.2
+
+**เหตุผล:** เปลี่ยนจากของเดิมจุดเดียว (ปักภาษา) ที่เป็นการแก้ชัดเจน-เสี่ยงต่ำ ส่วน config ใช้ค่าที่ระบบทำงานดีอยู่แล้ว → เริ่มเก็บข้อมูล/validation ได้ทันที
+
+**ไฟล์ที่แตะ:** `js/prompts.js`, `js/gemini-live.js`, `CLAUDE_CODE_HANDOFF.md` (ใหม่), เอกสารประกอบ (System_Prompting_Config_Rationale.docx, Prompt_Config_Selection.html, Voice_Prompt_Tuning_Playbook.html)
+
+**ทดสอบ:** ทั้งสองไฟล์ผ่าน `node --check`
+
+**สถานะ:** ✅ เสร็จ — ส่งต่อ Claude Code review + test + commit ตาม `CLAUDE_CODE_HANDOFF.md`
+
+---
+
+## 2026-06-25 — ยกระดับคุณภาพ AI (Prompt quality + Model separation)
+
+**เป้าหมายรอบนี้:** เพิ่มความน่าเชื่อถือของผู้ป่วยจำลองและการให้คะแนน เพื่อรองรับความถูกต้องของงานวิจัย
+
+**สิ่งที่ทำ**
+1. **กันผู้ป่วยจำลองแต่งข้อมูลเอง** — เพิ่มกฎใน prompt (Step 1 และ Step 3) ให้ AI ตอบ "ไม่แน่ใจ/จำไม่ได้/ไม่ได้สังเกต" เมื่อถูกถามเรื่องที่ไม่มีในเคส แทนการสุ่มสร้างอาการใหม่
+2. **ให้ AI ผู้ประเมินคิดก่อนให้คะแนน** — เพิ่ม field `reasoning` ใน eval JSON ให้วิเคราะห์ทีละหมวดโดยอ้างหลักฐานจาก transcript ก่อนสรุปคะแนน
+3. **ปรับ checklist ให้ตรงน้ำหนักคะแนน** — จาก 30/20/50 เป็น 4 หมวดจับคู่ 1:1 กับ domain น้ำหนัก 25/15/40/20 (เกณฑ์เฉพาะโรคเลื่อนเป็นหมวด 5)
+4. **Phase 4 — แยก eval model ออกจาก patient model** — เพิ่ม `_evalModel` + `getEvalModel()` ใน `gemini.js`, ขั้นตอนประเมินใช้ model แยก + เปิด reasoning/thinking, รองรับ config เดิมแบบ backward-compatible
+5. **สคริปต์อัพเดต model** — `setup/update-models.js` พร้อมรัน (patient=gemini-2.0-flash, eval=gemini-2.5-flash)
+
+**เหตุผล:** ลดความแปรปรวนของข้อมูลผู้ป่วยและคะแนนระหว่างรอบ → เพิ่มความเที่ยงของเครื่องมือวัด; แยก model ให้ผู้ประเมินใช้ตัวที่ reasoning แม่นขึ้น
+
+**ไฟล์ที่แตะ:** `js/prompts.js`, `js/gemini.js`, `setup/update-models.js` (ใหม่), `PROGRESS_REPORT.html` (ใหม่)
+
+**ทดสอบ:** syntax check ผ่าน + functional test ผ่าน (กฎใหม่มีครบ, eval มี reasoning + น้ำหนักถูก, model fallback ทำงานและไม่ทำให้ระบบเดิมพัง)
+
+**สถานะ:** ✅ เสร็จ — ยังไม่ commit (แนะนำ commit จากเครื่องตัวเอง)
+
+**งานถัดไปที่แนะนำ:** Phase 1 (ระบบแบบสอบถาม confidence + SUS + CSV export + pretest/posttest) = blocker ใหญ่สุดของการเก็บข้อมูลวิจัย
+
+---
+
+<!-- เพิ่มรอบใหม่เหนือเส้นนี้ โดยคัดลอกหัวข้อด้านบนเป็นแม่แบบ -->

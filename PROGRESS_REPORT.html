@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PharmBot v2 — รายงานความคืบหน้าโปรเจค</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&family=IBM+Plex+Mono&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f4f6fb; --card:#ffffff; --ink:#1d2433; --muted:#697089;
+    --line:#e4e8f0; --brand:#2f6df0; --brand-soft:#eaf1ff;
+    --green:#16a34a; --green-soft:#e7f6ec; --amber:#d98a04; --amber-soft:#fdf3e0;
+    --red:#dc2a3a; --red-soft:#fdeaec; --grey:#9aa1b4;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:'Sarabun',-apple-system,'Segoe UI',sans-serif;line-height:1.65;font-size:15.5px}
+  .wrap{max-width:980px;margin:0 auto;padding:32px 22px 80px}
+  code,.mono{font-family:'IBM Plex Mono',monospace;font-size:.86em;background:#eef1f7;
+    padding:1px 6px;border-radius:5px}
+  h1,h2,h3{line-height:1.3}
+  a{color:var(--brand)}
+
+  /* header */
+  .hero{background:linear-gradient(135deg,#2f6df0,#5b46e0);color:#fff;border-radius:18px;
+    padding:30px 32px;box-shadow:0 10px 30px rgba(47,109,240,.25)}
+  .hero h1{margin:0 0 6px;font-size:27px;font-weight:700}
+  .hero p{margin:0;opacity:.92;font-size:15px}
+  .hero .meta{margin-top:18px;display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);
+    padding:5px 12px;border-radius:30px;font-size:13px;font-weight:500}
+
+  /* layout */
+  section{background:var(--card);border:1px solid var(--line);border-radius:16px;
+    padding:24px 26px;margin-top:20px;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  section>h2{margin:0 0 4px;font-size:20px;display:flex;align-items:center;gap:10px}
+  .sub{color:var(--muted);font-size:13.5px;margin:0 0 18px}
+  .num{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;
+    background:var(--brand-soft);color:var(--brand);border-radius:9px;font-size:15px;font-weight:700;flex:none}
+
+  /* badges */
+  .badge{display:inline-block;padding:2px 10px;border-radius:30px;font-size:12.5px;font-weight:600;white-space:nowrap}
+  .b-done{background:var(--green-soft);color:var(--green)}
+  .b-prog{background:var(--amber-soft);color:var(--amber)}
+  .b-todo{background:var(--red-soft);color:var(--red)}
+  .b-plan{background:#eef0f5;color:var(--muted)}
+  .p-hi{color:var(--red);font-weight:700}
+  .p-mid{color:var(--amber);font-weight:700}
+  .p-low{color:var(--green);font-weight:700}
+
+  /* progress bar */
+  .bar{height:12px;background:#e9edf5;border-radius:30px;overflow:hidden;margin:6px 0 2px}
+  .bar>i{display:block;height:100%;border-radius:30px;background:linear-gradient(90deg,#2f6df0,#5b46e0)}
+  .barwrap{margin:14px 0}
+  .barwrap .lab{display:flex;justify-content:space-between;font-size:13.5px;margin-bottom:2px}
+
+  /* tables */
+  table{width:100%;border-collapse:collapse;margin:6px 0;font-size:14px}
+  th,td{text-align:left;padding:9px 11px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f7f9fd;color:var(--muted);font-weight:600;font-size:13px}
+  tr:last-child td{border-bottom:none}
+
+  /* feature grid */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:11px}
+  @media(max-width:680px){.grid{grid-template-columns:1fr}}
+  .fcard{border:1px solid var(--line);border-radius:11px;padding:13px 15px;background:#fcfdff}
+  .fcard b{display:block;font-size:14.5px;margin-bottom:3px}
+  .fcard span{font-size:13px;color:var(--muted)}
+
+  /* callouts */
+  .note{border-left:4px solid var(--brand);background:var(--brand-soft);padding:13px 16px;
+    border-radius:0 10px 10px 0;margin:14px 0;font-size:14px}
+  .note.win{border-color:var(--green);background:var(--green-soft)}
+  .note.warn{border-color:var(--amber);background:var(--amber-soft)}
+
+  ul.clean{margin:8px 0;padding-left:20px}
+  ul.clean li{margin:5px 0}
+  .timeline{list-style:none;margin:0;padding:0}
+  .timeline li{position:relative;padding:0 0 16px 26px;border-left:2px solid var(--line);margin-left:6px}
+  .timeline li:last-child{border-left-color:transparent}
+  .timeline li::before{content:'';position:absolute;left:-7px;top:3px;width:12px;height:12px;
+    border-radius:50%;background:var(--brand);border:2px solid #fff;box-shadow:0 0 0 2px var(--brand-soft)}
+  .timeline b{font-size:14.5px}
+  .timeline small{color:var(--muted)}
+  .foot{text-align:center;color:var(--grey);font-size:12.5px;margin-top:26px}
+  @media print{body{background:#fff}.hero{box-shadow:none}section{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>PharmBot v2 — รายงานความคืบหน้าโปรเจค</h1>
+    <p>ระบบจำลองร้านขายยาชุมชนสำหรับฝึกซักประวัติและจ่ายยา · โปรเจคจบ นศภ. ปี 5</p>
+    <div class="meta">
+      <span class="chip">📅 ปรับปรุงล่าสุด: 25 มิถุนายน 2026</span>
+      <span class="chip">👥 ทีม 3 คน</span>
+      <span class="chip">🧪 Quasi-experimental: One-group pretest–posttest</span>
+      <span class="chip">⚙️ Vanilla JS + Firebase + Gemini</span>
+    </div>
+  </div>
+
+  <!-- 1. ภาพรวม -->
+  <section>
+    <h2><span class="num">1</span> ภาพรวมโปรเจคและวัตถุประสงค์</h2>
+    <p class="sub">บริบทและกรอบงานวิจัยสำหรับผู้ฟังที่ยังไม่ทราบรายละเอียด</p>
+    <p>PharmBot v2 เป็นเว็บแอปจำลองสถานการณ์ร้านขายยาชุมชน ให้นักศึกษาเภสัชศาสตร์ฝึก
+    <b>ซักประวัติ → จ่ายยา → ให้คำแนะนำ</b> กับ "ผู้ป่วยจำลอง" ที่ขับเคลื่อนด้วย AI (Gemini)
+    แล้วได้รับการประเมินและ feedback อัตโนมัติ ระบบ deploy แบบ static บน GitHub Pages โดยใช้
+    Firebase สำหรับ Authentication และ Firestore เป็นฐานข้อมูล</p>
+    <table>
+      <tr><th>วัตถุประสงค์การวิจัย</th><th>วิธีวัด</th><th>สถานะการเก็บข้อมูล</th></tr>
+      <tr><td>1. ทักษะการซักประวัติ &amp; การจ่ายยา</td><td>คะแนนจาก AI evaluation (4 ด้าน)</td><td><span class="badge b-done">เก็บได้แล้ว</span></td></tr>
+      <tr><td>2. ความมั่นใจ (Self-efficacy)</td><td>แบบสอบถาม Likert ก่อน–หลัง</td><td><span class="badge b-todo">ยังไม่มีระบบ</span></td></tr>
+      <tr><td>3. ความพึงพอใจ / การใช้งาน</td><td>แบบสอบถาม SUS 10 ข้อ</td><td><span class="badge b-todo">ยังไม่มีระบบ</span></td></tr>
+    </table>
+    <div class="note warn"><b>ประเด็นสำคัญต่ออาจารย์:</b> ตัวโปรแกรมพร้อมใช้งานแล้ว แต่กลไกเก็บข้อมูล
+    วัตถุประสงค์ข้อ 2–3 (ความมั่นใจ + ความพึงพอใจ) <b>ยังไม่ได้พัฒนา</b> ซึ่งเป็นสิ่งที่ต้องทำก่อน deploy เก็บข้อมูลจริง</div>
+  </section>
+
+  <!-- 2. ความคืบหน้าโดยรวม -->
+  <section>
+    <h2><span class="num">2</span> ความคืบหน้าโดยรวม</h2>
+    <p class="sub">ประเมินตามเฟสในแผนพัฒนา (DEV_PLAN)</p>
+    <div class="barwrap">
+      <div class="lab"><span><b>ระบบแกนหลัก (Core simulation)</b></span><span>~95%</span></div>
+      <div class="bar"><i style="width:95%"></i></div>
+    </div>
+    <div class="barwrap">
+      <div class="lab"><span>คุณภาพ Prompt &amp; AI (Phase 4 + ปรับ prompt)</span><span>~80%</span></div>
+      <div class="bar"><i style="width:80%"></i></div>
+    </div>
+    <div class="barwrap">
+      <div class="lab"><span>เครื่องมือเก็บข้อมูลวิจัย (Phase 1)</span><span>0%</span></div>
+      <div class="bar"><i style="width:3%"></i></div>
+    </div>
+    <div class="barwrap">
+      <div class="lab"><span>เนื้อหาเคสคลินิก (Phase 3)</span><span>~55%</span></div>
+      <div class="bar"><i style="width:55%"></i></div>
+    </div>
+    <div class="barwrap">
+      <div class="lab"><span>Refactor &amp; Testing (Phase 2, 5)</span><span>~20%</span></div>
+      <div class="bar"><i style="width:20%"></i></div>
+    </div>
+  </section>
+
+  <!-- 3. สิ่งที่พัฒนาเสร็จแล้ว -->
+  <section>
+    <h2><span class="num">3</span> สิ่งที่พัฒนาเสร็จแล้ว</h2>
+    <p class="sub">ฟังก์ชันที่ใช้งานได้จริงในระบบปัจจุบัน</p>
+    <div class="grid">
+      <div class="fcard"><b>✅ Flow การฝึก 4 ขั้นตอน</b><span>ซักประวัติ → จ่ายยา → counseling → ประเมินด้วย AI</span></div>
+      <div class="fcard"><b>✅ ผู้ป่วยจำลองด้วย AI</b><span>persona ตามเพศ/อายุ, ไม่เปิดเผยข้อมูลจนกว่าจะถูกถาม</span></div>
+      <div class="fcard"><b>✅ โหมดเสียง (Gemini Live)</b><span>พูดโต้ตอบภาษาไทยแบบ real-time + transcript</span></div>
+      <div class="fcard"><b>✅ การประเมินอัตโนมัติ</b><span>ให้คะแนน 4 ด้านเป็น JSON + feedback + checklist</span></div>
+      <div class="fcard"><b>✅ จับเวลาแบบ OSPE</b><span>นับถอยหลัง 5 นาที + เตือน + กันรีเฟรชหลุดกลางคัน</span></div>
+      <div class="fcard"><b>✅ Admin panel</b><span>จัดการเคส/ยา/กลุ่มโรค + ดูผลนักศึกษาทั้งหมด</span></div>
+      <div class="fcard"><b>✅ ระบบล็อกอินนักศึกษา</b><span>รหัส P-code + จำกัด 5 ครั้ง/คน/วัน</span></div>
+      <div class="fcard"><b>✅ คลังเคส 5 เคส</b><span>เจ็บคอ, ท้องเสีย, ปวดหลัง, เชื้อราที่เท้า, ปวดหัว (refer)</span></div>
+    </div>
+  </section>
+
+  <!-- 4. ความคืบหน้าล่าสุด -->
+  <section>
+    <h2><span class="num">4</span> ความคืบหน้าล่าสุด (รอบวันที่ 25 มิ.ย. 2026)</h2>
+    <p class="sub">เน้นยกระดับ "คุณภาพ AI" เพื่อความน่าเชื่อถือของงานวิจัย</p>
+    <ul class="clean">
+      <li><b>กันผู้ป่วยจำลอง "แต่งข้อมูลเอง"</b> — เพิ่มกฎให้ AI ตอบ "ไม่แน่ใจ/จำไม่ได้" เมื่อถูกถามเรื่องที่ไม่ได้ระบุในเคส
+      แทนการสุ่มสร้างอาการใหม่ → <b>ลดความเสี่ยงที่ผู้ป่วยคนเดียวกันให้ข้อมูลไม่ตรงกันในแต่ละรอบ</b> (กระทบความเที่ยงของการให้คะแนน)</li>
+      <li><b>ให้ AI ผู้ประเมิน "คิดก่อนให้คะแนน"</b> — เพิ่ม field <code>reasoning</code> ใน output ให้วิเคราะห์ทีละหมวดโดยอ้างหลักฐานจาก transcript
+      ก่อนสรุปเป็นคะแนน → คะแนนนิ่งขึ้นและอธิบายต่ออาจารย์ได้</li>
+      <li><b>ปรับ checklist ให้สอดคล้องกับน้ำหนักคะแนน</b> — จากเดิม 30/20/50 ที่ขัดกับสูตรถ่วงน้ำหนัก เปลี่ยนเป็น 4 หมวดตรงกับ
+      4 domain แบบ 1:1 (<b>25 / 15 / 40 / 20</b>) ดูภาคผนวกสำหรับเหตุผลรองรับ</li>
+      <li><b>แยก AI model สำหรับผู้ป่วย ออกจาก model สำหรับการประเมิน</b> (Phase 4) — เพิ่ม <code>evalModel</code> ในระบบ
+      พร้อมสคริปต์ <code>setup/update-models.js</code> ที่รันอัพเกรดได้ทันที (รองรับค่าเดิมแบบ backward-compatible)</li>
+    </ul>
+    <div class="note win"><b>ทดสอบแล้ว:</b> ทุกการแก้ไขผ่าน syntax check และ functional test (ผู้ป่วยมีกฎใหม่,
+    eval มี reasoning + น้ำหนักถูกต้อง, การ fallback ของ model ทำงานและไม่ทำให้ระบบเดิมพัง)</div>
+  </section>
+
+  <!-- 5. สิ่งที่ยังขาด + ข้อแนะนำ -->
+  <section>
+    <h2><span class="num">5</span> สิ่งที่ยังขาด และข้อแนะนำ (เรียงตามความสำคัญ)</h2>
+    <p class="sub">สิ่งที่ทีมควรวางแผนทำต่อ</p>
+    <table>
+      <tr><th>ลำดับ</th><th>งาน</th><th>ทำไมสำคัญ</th><th>สถานะ</th></tr>
+      <tr>
+        <td class="p-hi">สูงสุด</td>
+        <td><b>Phase 1 — เครื่องมือเก็บข้อมูลวิจัย</b><br><small>แบบวัดความมั่นใจ (ก่อน–หลัง), SUS, แยก pretest/posttest, ส่งออก CSV</small></td>
+        <td>เป็น <b>blocker</b> ของวัตถุประสงค์ข้อ 2–3 — ถ้าไม่มี จะเก็บข้อมูลวิจัยไม่ครบและวิเคราะห์ผลไม่ได้</td>
+        <td><span class="badge b-todo">ยังไม่เริ่ม</span></td>
+      </tr>
+      <tr>
+        <td class="p-mid">กลาง</td>
+        <td><b>Phase 3 — เพิ่มเคสคลินิก</b><br><small>จาก 5 → 9–12 เคส + ให้อาจารย์เภสัชกรตรวจสอบพฤติกรรมผู้ป่วย</small></td>
+        <td>ความหลากหลายของเคส + ความถูกต้องทางคลินิก (ต้องเผื่อเวลารออาจารย์รีวิว)</td>
+        <td><span class="badge b-prog">5/9–12</span></td>
+      </tr>
+      <tr>
+        <td class="p-mid">กลาง</td>
+        <td><b>Phase 2 — Refactor โค้ด</b><br><small>สร้าง <code>config.js</code> รวมค่าคงที่ + แยกไฟล์ <code>chat.js</code> ที่ใหญ่เกินไป</small></td>
+        <td>โค้ด <code>chat.js</code> ~1,300 บรรทัด ดูแล/ตรวจสอบยาก เสี่ยงพลาดเวลาแก้ใหญ่</td>
+        <td><span class="badge b-todo">ยังไม่เริ่ม</span></td>
+      </tr>
+      <tr>
+        <td class="p-low">ต่อเนื่อง</td>
+        <td><b>Phase 5 — Validation &amp; Testing</b><br><small>แก้ Playwright tests ที่ fail + ทำ inter-rater reliability (AI vs ผู้เชี่ยวชาญ)</small></td>
+        <td>ยืนยันความน่าเชื่อถือของคะแนน AI เพื่อใช้อ้างอิงในงานวิจัย</td>
+        <td><span class="badge b-prog">บางส่วน fail</span></td>
+      </tr>
+    </table>
+    <div class="note warn"><b>งานค้างเล็กน้อย:</b> มีการแก้ <code>chat.js</code> (animation) และไฟล์ <code>DEV_PLAN.md</code>
+    ที่ยังไม่ได้ commit เข้า git — แนะนำให้ commit เก็บก่อนเริ่มงานใหม่</div>
+  </section>
+
+  <!-- 6. Roadmap -->
+  <section>
+    <h2><span class="num">6</span> แผนถัดไป (Roadmap ที่แนะนำ)</h2>
+    <p class="sub">ลำดับที่ลดความเสี่ยงและปลดล็อกงานวิจัยเร็วที่สุด</p>
+    <ul class="timeline">
+      <li><b>ขั้นที่ 1 · Phase 1 — ระบบแบบสอบถาม</b> <span class="badge b-todo">ทำก่อน</span><br>
+        <small>สร้าง <code>/surveys</code>, หน้า survey (confidence + SUS), เพิ่ม <code>sessionNumber</code>, ปุ่มส่งออก CSV — ปลดล็อกการเก็บข้อมูลวิจัยทั้งหมด</small></li>
+      <li><b>ขั้นที่ 2 · Phase 3 — เพิ่มเคส + Expert review</b><br>
+        <small>เริ่มคู่ขนานได้ทันที เพราะต้องรอตารางอาจารย์ — มอบหมายให้เพื่อนช่วยเขียนเนื้อหาเคส</small></li>
+      <li><b>ขั้นที่ 3 · Pilot test ภายในทีม</b><br>
+        <small>ทดลองใช้กันเองให้ครบ flow + ทดสอบ CSV export ก่อนเก็บข้อมูลจริง</small></li>
+      <li><b>ขั้นที่ 4 · Phase 2 &amp; 5 — Refactor + Test + Reliability</b><br>
+        <small>ปรับคุณภาพโค้ด, แก้ test, เทียบคะแนน AI กับผู้เชี่ยวชาญ</small></li>
+      <li><b>ขั้นที่ 5 · Deploy &amp; เก็บข้อมูลจริง</b><br>
+        <small>เปิดให้กลุ่มตัวอย่างใช้งานตามแผน pretest–posttest</small></li>
+    </ul>
+  </section>
+
+  <!-- 7. ความเสี่ยง -->
+  <section>
+    <h2><span class="num">7</span> ความเสี่ยงและข้อจำกัดที่ควรระบุในรายงาน</h2>
+    <p class="sub">เพื่อความโปร่งใสและเตรียมตอบคำถามอาจารย์</p>
+    <ul class="clean">
+      <li><b>ความเที่ยงตรงของการให้คะแนนด้วย AI</b> — ต้องทำ inter-rater reliability เทียบกับผู้เชี่ยวชาญ เพื่อยืนยันว่าคะแนน AI ใช้อ้างอิงได้</li>
+      <li><b>ความถูกต้องของผู้ป่วยจำลอง</b> — แม้เพิ่มกฎกัน AI แต่งข้อมูลแล้ว ยังควรให้อาจารย์เภสัชกรตรวจสอบพฤติกรรมผู้ป่วยในแต่ละเคส</li>
+      <li><b>ข้อจำกัดของ design</b> — One-group pretest–posttest ไม่มีกลุ่มควบคุม ทำให้สรุปสาเหตุได้จำกัด ควรระบุเป็น limitation</li>
+      <li><b>ความแม่นของ transcript เสียง</b> — โหมดเสียงอาศัยการถอดเสียงภาษาไทย ซึ่งอาจมีความคลาดเคลื่อนและกระทบการให้คะแนน</li>
+      <li><b>ขนาดและการเลือกกลุ่มตัวอย่าง</b> — ควรระบุเกณฑ์คัดเข้า/ออกและจำนวนให้ชัดเจน</li>
+    </ul>
+  </section>
+
+  <!-- 8. หัวข้อที่แนะนำให้มีในรายงานฉบับเต็ม -->
+  <section>
+    <h2><span class="num">8</span> หัวข้อที่แนะนำให้มีในรายงานฉบับเต็ม / สไลด์นำเสนอ</h2>
+    <p class="sub">โครงหัวข้อสำหรับเล่มวิทยานิพนธ์หรือการนำเสนอความก้าวหน้า</p>
+    <table>
+      <tr><th>หัวข้อ</th><th>ควรมีอะไรบ้าง</th></tr>
+      <tr><td><b>1. บทนำ / ที่มาและความสำคัญ</b></td><td>ปัญหาการฝึกทักษะร้านยา, ช่องว่างที่ระบบนี้มาเติม, คำถามวิจัย</td></tr>
+      <tr><td><b>2. วัตถุประสงค์ &amp; สมมติฐาน</b></td><td>3 วัตถุประสงค์ (ทักษะ/ความมั่นใจ/ความพึงพอใจ) + ตัวแปรต้น–ตาม</td></tr>
+      <tr><td><b>3. ทบทวนวรรณกรรม</b></td><td>OSCE/OSPE ในเภสัช, WWHAM, การใช้ simulated patient, AI ในการศึกษาเภสัช</td></tr>
+      <tr><td><b>4. ระเบียบวิธีวิจัย</b></td><td>Quasi-experimental one-group pretest–posttest, กลุ่มตัวอย่าง, เครื่องมือ, การวิเคราะห์สถิติ</td></tr>
+      <tr><td><b>5. การออกแบบและพัฒนาระบบ</b></td><td>สถาปัตยกรรม (Vanilla JS + Firebase + Gemini), flow 4 ขั้นตอน, การออกแบบ prompt, การให้คะแนน</td></tr>
+      <tr><td><b>6. เครื่องมือวัดและการเก็บข้อมูล</b></td><td>เกณฑ์ให้คะแนน (rubric/น้ำหนัก), แบบวัดความมั่นใจ, SUS, การ map ตัวแปรกับฐานข้อมูล</td></tr>
+      <tr><td><b>7. ความคืบหน้าการพัฒนา</b></td><td>สิ่งที่เสร็จแล้ว, สิ่งที่กำลังทำ, ปัญหา/อุปสรรค (ส่วนนี้คือเนื้อห​าในรายงานฉบับนี้)</td></tr>
+      <tr><td><b>8. ผลเบื้องต้น / Pilot</b> (ถ้ามี)</td><td>ผลทดลองใช้ภายในทีม, ตัวอย่างคะแนนและ feedback</td></tr>
+      <tr><td><b>9. การประกันคุณภาพ</b></td><td>Inter-rater reliability, expert review เคส, การทดสอบระบบ</td></tr>
+      <tr><td><b>10. ข้อจำกัดและความเสี่ยง</b></td><td>ตามหัวข้อที่ 7 ด้านบน</td></tr>
+      <tr><td><b>11. แผนงานและการแบ่งงานทีม</b></td><td>Timeline, ผู้รับผิดชอบแต่ละเฟส, milestone</td></tr>
+      <tr><td><b>12. ภาคผนวก</b></td><td>เกณฑ์ให้คะแนนฉบับเต็ม, ตัวอย่าง prompt, แบบสอบถาม, ภาพหน้าจอระบบ</td></tr>
+    </table>
+  </section>
+
+  <!-- ภาคผนวก -->
+  <section>
+    <h2><span class="num">A</span> ภาคผนวก — เกณฑ์ให้คะแนนและเหตุผลรองรับน้ำหนัก</h2>
+    <p class="sub">ใช้ตอบอาจารย์เมื่อถูกถามว่าทำไมถ่วงน้ำหนักแบบนี้</p>
+    <table>
+      <tr><th>ด้าน</th><th>น้ำหนัก</th><th>เหตุผล</th></tr>
+      <tr><td>การจ่ายยา (drug)</td><td><b>40%</b></td><td>การเลือกยาถูกต้อง/ปลอดภัยคือ core competency และผลลัพธ์ด้านความปลอดภัยหลัก</td></tr>
+      <tr><td>การซักประวัติ (history/WWHAM)</td><td><b>25%</b></td><td>เป็นฐานสำคัญของการตัดสินใจ แต่เป็น "วิธีการ" ไม่ใช่ปลายทาง</td></tr>
+      <tr><td>การให้คำแนะนำ (counseling)</td><td><b>20%</b></td><td>จำเป็นต่อการใช้ยาอย่างปลอดภัยและความร่วมมือในการรักษา</td></tr>
+      <tr><td>การประเมิน + Red flag (diagnosis)</td><td><b>15%</b></td><td>น้ำหนักต่ำกว่า แต่ข้อ safety-critical (แพ้ยา/ตั้งครรภ์/refer) ถูกบังคับเพิ่มด้วยการหักคะแนนหนัก (CRITICAL)</td></tr>
+    </table>
+    <p style="font-size:13.5px;color:var(--muted);margin-top:10px">
+    หมายเหตุ: งานวิจัยด้าน OSCE/OSPE ในเภสัชศาสตร์ไม่มีน้ำหนักมาตรฐานตายตัว แต่ละสถาบันต่างกัน
+    แนวโน้มคือให้น้ำหนักผลลัพธ์เชิงคลินิกและความปลอดภัยสูง โดยมี WWHAM เป็นฐาน
+    (อ้างอิง: BMC Medical Education OSCE pilot, PMC10091678; งานวิจัยความสัมพันธ์ WWHAM score กับผลลัพธ์ที่สอดคล้องแนวทาง)</p>
+  </section>
+
+  <p class="foot">PharmBot v2 · รายงานความคืบหน้าสร้างเมื่อ 25 มิถุนายน 2026 · จัดทำเพื่อรายงานทีมและอาจารย์ที่ปรึกษา</p>
+
+</div>
+</body>
+</html>

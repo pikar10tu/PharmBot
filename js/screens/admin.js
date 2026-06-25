@@ -9,6 +9,7 @@ let _adminCases   = [];
 let _adminDrugs   = [];
 let _adminResults = [];
 let _selectedDrugEntries = []; // { drugCode, category, regimen }
+let _caseRubric          = []; // [{ id, domain, label, weight, critical, femaleOnly, active }]
 
 async function renderAdmin(container) {
   const profile = getUserProfile();
@@ -195,20 +196,24 @@ function _buildCaseFormHtml() {
       </div>
     </div>
     <div class="mb-2">
-      <label class="input-label">ฉากเปิด — บรรยายภาพผู้ป่วยก่อนเริ่มสนทนา</label>
-      <textarea class="input" id="cf-sceneDesc" rows="2" style="resize:vertical;${fieldStyle}"></textarea>
-    </div>
-    <div class="mb-2">
       <label class="input-label">Chief Complaint — อาการที่ผู้ป่วยบอกเอง (กระชับ ไม่ระบุระยะเวลา)</label>
       <input class="input" type="text" id="cf-chiefComplaint" placeholder="เช่น เจ็บคอค่ะ / ท้องร่วงครับ" />
     </div>
 
     ${sectionHdr('โพยลับผู้ป่วย', '— กรอกเฉพาะที่มี ช่องที่ว่างจะไม่แสดงในระบบ')}
 
-    <div class="mb-2">
-      <label class="input-label">บุคลิก / อารมณ์ผู้ป่วย</label>
-      <input class="input" type="text" id="cf-si-personality"
-        placeholder="เช่น พูดจาสุภาพ เป็นธรรมชาติ / พูดเร็ว ดูกังวล" style="${fieldStyle}" />
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;" class="mb-2">
+      <div>
+        <label class="input-label">โทนอารมณ์ผู้ป่วย <span class="text-dim text-xs">(มีผลกับเสียง/การพูด)</span></label>
+        <select class="input" id="cf-si-tone" style="${fieldStyle}">
+          ${TONE_OPTIONS.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
+        </select>
+      </div>
+      <div>
+        <label class="input-label">ลักษณะอาการ <span class="text-dim text-xs">(เช่น แสบ/ปวดตุบๆ/แน่น/คัน)</span></label>
+        <input class="input" type="text" id="cf-si-symptomCharacter"
+          placeholder="เช่น เจ็บแสบเวลากลืน / ปวดตุบๆ เป็นพักๆ" style="${fieldStyle}" />
+      </div>
     </div>
 
     <div class="mb-2">
@@ -284,24 +289,18 @@ function _buildCaseFormHtml() {
         placeholder="เช่น ไม่มีไข้สูง ไม่เจ็บคอ ไม่หายใจลำบาก"></textarea>
     </div>
 
-    ${sectionHdr('การประเมิน')}
+    ${sectionHdr('การวินิจฉัย')}
     <div class="mb-2">
-      <label class="input-label">เกณฑ์เฉพาะโรค (specificChecklist)</label>
-      <textarea class="input" id="cf-specificChecklist" rows="4" style="resize:vertical;${fieldStyle}"
-        placeholder="เช่น&#10;1. ถามยืนยัน no fever&#10;2. ไม่จ่าย antibiotic สำหรับ viral infection"></textarea>
-    </div>
-    <div class="mb-2">
-      <label class="input-label">การวินิจฉัย (diagnosisAnswer)</label>
+      <label class="input-label">การวินิจฉัยที่ถูกต้อง (diagnosisAnswer)</label>
       <input class="input" type="text" id="cf-diagnosisAnswer"
         placeholder="เช่น ไข้หวัดธรรมดา (Common Cold / Viral URTI)" />
     </div>
+
     ${sectionHdr('ยาที่แนะนำ', '— ค้นหาและเลือกยาที่ถูกต้องสำหรับเคสนี้')}
     ${_buildDrugPickerHtml()}
-    <div class="mb-2">
-      <label class="input-label">คำแนะนำการใช้ยา (counseling) <span class="text-dim text-xs">— บรรทัดละ 1 ข้อ</span></label>
-      <textarea class="input" id="cf-counseling" rows="4" style="resize:vertical;${fieldStyle}"
-        placeholder="เช่น&#10;ยานี้กินหลังอาหาร&#10;ห้ามหยุดยาเองก่อนครบคอร์ส&#10;ดื่มน้ำมากๆ"></textarea>
-    </div>`;
+
+    ${sectionHdr('เกณฑ์การให้คะแนน (Rubric)', '— แต่ละข้อกำหนดน้ำหนักได้ · คำแนะนำอยู่ในหมวด Counseling')}
+    <div id="rubric-editor"></div>`;
 }
 
 // ── Drug Picker helpers ───────────────────────────────────────
@@ -312,7 +311,8 @@ function _buildDrugPickerHtml() {
       <input class="input" type="text" id="dp-search"
         placeholder="พิมพ์ชื่อยาเพื่อเพิ่ม เช่น Amoxicillin, Ibuprofen..." autocomplete="off" />
       <div id="dp-dropdown" style="display:none;position:absolute;z-index:20;width:100%;
-        background:var(--surface,#1e2030);border:1px solid var(--glass-border,rgba(255,255,255,0.12));
+        background:var(--bg2,#1e293b);color:var(--text,#e2e8f0);
+        border:1px solid var(--glass-border,rgba(255,255,255,0.12));
         border-radius:8px;max-height:230px;overflow-y:auto;margin-top:2px;
         box-shadow:0 4px 16px rgba(0,0,0,0.4);"></div>
     </div>
@@ -452,12 +452,7 @@ function _loadDrugAnswerIntoPicker(drugAnswer) {
   }
 
   _renderSelectedDrugs();
-
-  const counselingEl = document.getElementById('cf-counseling');
-  if (counselingEl) {
-    const pts = drugAnswer?.counseling || [];
-    counselingEl.value = Array.isArray(pts) ? pts.join('\n') : '';
-  }
+  // counseling ย้ายไปอยู่ในหมวด counseling ของ Rubric editor แล้ว
 }
 
 function _buildDrugAnswerFromPicker() {
@@ -470,12 +465,124 @@ function _buildDrugAnswerFromPicker() {
     .filter(e => e.category !== 'unacceptable' && e.regimen.trim())
     .forEach(e => { regimen[e.drugCode] = e.regimen.trim(); });
 
-  const counselingEl = document.getElementById('cf-counseling');
-  const counseling   = counselingEl
-    ? counselingEl.value.split('\n').map(l => l.trim()).filter(Boolean)
-    : [];
+  // counseling = label ของข้อในหมวด counseling ของ rubric (mirror ไว้เพื่อความเข้ากันได้)
+  const counseling = _caseRubric
+    .filter(it => it.domain === 'counseling' && it.active !== false)
+    .map(it => (it.label || '').trim())
+    .filter(Boolean);
 
   return { firstLine, alternatives, unacceptable, regimen, counseling };
+}
+
+// ── Rubric editor ─────────────────────────────────────────────
+let _rubricUid = 0;
+function _newRubricId(domain) {
+  return `${domain[0]}x${Date.now().toString(36)}${(_rubricUid++).toString(36)}`;
+}
+
+function _renderRubricEditor() {
+  const host = document.getElementById('rubric-editor');
+  if (!host) return;
+
+  host.innerHTML = DOMAIN_ORDER.map(dom => {
+    const items   = _caseRubric.filter(it => it.domain === dom);
+    const total   = items.filter(it => it.active !== false)
+                         .reduce((s, it) => s + (Number(it.weight) || 0), 0);
+    const domPct  = Math.round((DOMAIN_WEIGHTS[dom] || 0) * 100);
+
+    const rows = items.map(it => {
+      const dim = it.active === false ? 'opacity:0.45;' : '';
+      const tags = `${it.critical ? '<span class="badge" style="font-size:0.62rem;background:rgba(239,68,68,0.18);">CRITICAL</span>' : ''}${it.femaleOnly ? '<span class="badge" style="font-size:0.62rem;">♀ เฉพาะหญิง</span>' : ''}`;
+      return `
+        <div class="dp-entry" data-id="${_escA(it.id)}" style="display:grid;grid-template-columns:auto 1fr auto auto;gap:0.4rem 0.5rem;align-items:center;
+          padding:0.4rem 0.55rem;background:var(--glass-bg,rgba(255,255,255,0.04));
+          border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;margin-bottom:0.35rem;${dim}">
+          <input type="checkbox" class="rb-active" data-id="${_escA(it.id)}" ${it.active !== false ? 'checked' : ''} title="เปิด/ปิดข้อนี้" />
+          <input class="input rb-label" data-id="${_escA(it.id)}" type="text" value="${_escA(it.label)}"
+            style="font-size:0.8rem;padding:0.25rem 0.45rem;" />
+          <div class="flex items-center gap-1">
+            ${tags}
+            <input class="input rb-weight" data-id="${_escA(it.id)}" type="number" min="0" max="50" value="${Number(it.weight) || 0}"
+              style="font-size:0.8rem;width:3.4rem;padding:0.25rem 0.35rem;text-align:center;" title="น้ำหนักข้อ" />
+          </div>
+          <button class="btn btn-danger btn-sm rb-remove" data-id="${_escA(it.id)}"
+            style="padding:0.15rem 0.4rem;font-size:0.78rem;line-height:1.2;">✕</button>
+        </div>`;
+    }).join('') || '<div class="text-dim text-xs" style="padding:0.3rem 0;">ยังไม่มีข้อในหมวดนี้</div>';
+
+    return `
+      <div style="margin-bottom:1rem;">
+        <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:0.4rem;margin-bottom:0.4rem;">
+          <div class="font-bold text-sm">${_escA(DOMAIN_LABELS[dom])}
+            <span class="text-dim text-xs">· น้ำหนักหมวด ${domPct}% · รวม ${total} แต้ม</span>
+          </div>
+          <div class="flex gap-1">
+            <button class="btn btn-ghost btn-sm rb-add" data-domain="${dom}" style="font-size:0.74rem;">+ เพิ่มข้อ</button>
+            <button class="btn btn-ghost btn-sm rb-reset" data-domain="${dom}" style="font-size:0.74rem;">↺ ค่าเริ่มต้น</button>
+          </div>
+        </div>
+        ${rows}
+      </div>`;
+  }).join('');
+
+  _wireRubricEditor();
+}
+
+function _wireRubricEditor() {
+  const host = document.getElementById('rubric-editor');
+  if (!host) return;
+
+  const find = id => _caseRubric.find(it => it.id === id);
+
+  host.querySelectorAll('.rb-label').forEach(inp =>
+    inp.addEventListener('input', () => { const it = find(inp.dataset.id); if (it) it.label = inp.value; }));
+
+  host.querySelectorAll('.rb-weight').forEach(inp =>
+    inp.addEventListener('input', () => {
+      const it = find(inp.dataset.id);
+      if (it) { it.weight = parseInt(inp.value) || 0; _refreshRubricTotals(); }
+    }));
+
+  host.querySelectorAll('.rb-active').forEach(chk =>
+    chk.addEventListener('change', () => {
+      const it = find(chk.dataset.id);
+      if (it) { it.active = chk.checked; _renderRubricEditor(); }
+    }));
+
+  host.querySelectorAll('.rb-remove').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const i = _caseRubric.findIndex(it => it.id === btn.dataset.id);
+      if (i >= 0) { _caseRubric.splice(i, 1); _renderRubricEditor(); }
+    }));
+
+  host.querySelectorAll('.rb-add').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const dom = btn.dataset.domain;
+      _caseRubric.push({ id: _newRubricId(dom), domain: dom, label: '', weight: 3, critical: false, active: true, custom: true });
+      _renderRubricEditor();
+    }));
+
+  host.querySelectorAll('.rb-reset').forEach(btn =>
+    btn.addEventListener('click', () => {
+      const dom = btn.dataset.domain;
+      if (!confirm(`รีเซ็ตหมวดนี้เป็นค่าเริ่มต้น? ข้อที่แก้ไว้ในหมวดนี้จะหายไป`)) return;
+      _caseRubric = _caseRubric.filter(it => it.domain !== dom)
+        .concat(getDefaultRubric().filter(it => it.domain === dom));
+      _renderRubricEditor();
+    }));
+}
+
+// อัปเดตเฉพาะตัวเลขรวมต่อหมวด (ไม่ re-render ทั้งหมด เพื่อไม่ให้ช่องที่กำลังพิมพ์เด้ง)
+function _refreshRubricTotals() {
+  const host = document.getElementById('rubric-editor');
+  if (!host) return;
+  const blocks = host.querySelectorAll('.font-bold .text-dim');
+  DOMAIN_ORDER.forEach((dom, i) => {
+    const total = _caseRubric.filter(it => it.domain === dom && it.active !== false)
+      .reduce((s, it) => s + (Number(it.weight) || 0), 0);
+    const el = blocks[i];
+    if (el) el.textContent = `· น้ำหนักหมวด ${Math.round((DOMAIN_WEIGHTS[dom] || 0) * 100)}% · รวม ${total} แต้ม`;
+  });
 }
 
 function _openCaseForm(c) {
@@ -490,15 +597,18 @@ function _openCaseForm(c) {
   document.getElementById('cf-occupation').value        = c?.occupation   || '';
   document.getElementById('cf-gender').value            = c?.gender       || 'random';
   document.getElementById('cf-age').value               = c?.age          ?? 0;
-  document.getElementById('cf-sceneDesc').value         = c?.sceneDesc    || '';
   document.getElementById('cf-chiefComplaint').value    = c?.chiefComplaint || '';
-  document.getElementById('cf-specificChecklist').value = c?.specificChecklist || '';
   document.getElementById('cf-diagnosisAnswer').value   = c?.diagnosisAnswer   || '';
   _loadDrugAnswerIntoPicker(c?.drugAnswer || null);
 
+  // โหลด rubric (เคสเดิมไม่มี → seed + migrate counseling/specificChecklist เดิม)
+  _caseRubric = JSON.parse(JSON.stringify(buildRubricForCase(c || {})));
+  _renderRubricEditor();
+
   // โพยลับ — ใช้ secretInfoFields ถ้ามี (กรอกแบบ structured)
   const f = c?.secretInfoFields || {};
-  document.getElementById('cf-si-personality').value    = f.personality    || '';
+  document.getElementById('cf-si-tone').value           = TONE_OPTIONS.some(t => t.value === f.tone) ? f.tone : 'neutral';
+  document.getElementById('cf-si-symptomCharacter').value = f.symptomCharacter || '';
   document.getElementById('cf-si-mainSymptoms').value   = f.mainSymptoms   || '';
   document.getElementById('cf-si-duration').value       = f.duration       || '';
   document.getElementById('cf-si-severity').value       = f.severity       || '';
@@ -519,8 +629,7 @@ function _openCaseForm(c) {
 function _assembleSecretInfo(f) {
   const lines = [];
 
-  if (f.personality)
-    lines.push(`บุคลิก/อารมณ์: ${f.personality}`);
+  lines.push(`โทนอารมณ์: ${getToneLabel(f.tone)}`);
 
   const section1 = [f.mainSymptoms].filter(Boolean);
   if (section1.length) {
@@ -530,6 +639,7 @@ function _assembleSecretInfo(f) {
   }
 
   const detail = [
+    f.symptomCharacter && `ลักษณะอาการ: ${f.symptomCharacter}`,
     f.duration       && `ระยะเวลา: ${f.duration}`,
     f.severity       && `ความรุนแรง: ${f.severity}`,
     f.associated     && `อาการร่วม: ${f.associated}`,
@@ -585,7 +695,8 @@ async function _saveCaseForm() {
 
   // รวบรวม structured fields
   const sif = {
-    personality:       document.getElementById('cf-si-personality').value.trim(),
+    tone:              document.getElementById('cf-si-tone').value,
+    symptomCharacter:  document.getElementById('cf-si-symptomCharacter').value.trim(),
     mainSymptoms:      document.getElementById('cf-si-mainSymptoms').value.trim(),
     duration:          document.getElementById('cf-si-duration').value.trim(),
     severity:          document.getElementById('cf-si-severity').value.trim(),
@@ -600,6 +711,20 @@ async function _saveCaseForm() {
     redFlags:          document.getElementById('cf-si-redFlags').value.trim(),
   };
 
+  // rubric: ตัดข้อที่ไม่มี label และ normalize ค่า
+  const rubric = _caseRubric
+    .filter(it => (it.label || '').trim())
+    .map(it => ({
+      id:       it.id,
+      domain:   it.domain,
+      label:    it.label.trim(),
+      weight:   Number(it.weight) || 0,
+      critical: !!it.critical,
+      active:   it.active !== false,
+      ...(it.femaleOnly ? { femaleOnly: true } : {}),
+      ...(it.custom ? { custom: true } : {}),
+    }));
+
   const caseData = {
     groupId:           document.getElementById('cf-groupId').value,
     difficulty:        document.getElementById('cf-difficulty').value,
@@ -607,13 +732,14 @@ async function _saveCaseForm() {
     occupation:        document.getElementById('cf-occupation').value.trim() || 'random',
     gender:            document.getElementById('cf-gender').value,
     age:               parseInt(document.getElementById('cf-age').value) || 0,
-    sceneDesc:         document.getElementById('cf-sceneDesc').value.trim(),
     chiefComplaint:    document.getElementById('cf-chiefComplaint').value.trim(),
     secretInfo:        _assembleSecretInfo(sif),   // ประกอบจาก structured fields
     secretInfoFields:  sif,                         // เก็บต้นฉบับไว้แก้ไขครั้งหน้า
-    specificChecklist: document.getElementById('cf-specificChecklist').value.trim(),
     diagnosisAnswer:   document.getElementById('cf-diagnosisAnswer').value.trim(),
     drugAnswer,
+    rubric,
+    sceneDesc:         '',   // ตัดออก → chat.js สร้างฉากเปิดอัตโนมัติ
+    specificChecklist: '',   // ย้ายเข้าไปเป็นข้อใน rubric แล้ว
     isActive:          true,
   };
 

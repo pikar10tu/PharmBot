@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Playbook การจูน Prompt เสียง — PharmBot v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f4f6fb;--card:#fff;--ink:#1d2433;--muted:#697089;--line:#e4e8f0;
+    --brand:#2f6df0;--brand-soft:#eaf1ff;--green:#16a34a;--green-soft:#e7f6ec;
+    --amber:#d98a04;--amber-soft:#fdf3e0;--red:#dc2a3a;--red-soft:#fdeaec;--purple:#6d4bd0;--purple-soft:#efeaff}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Sarabun',-apple-system,'Segoe UI',sans-serif;line-height:1.62;font-size:15.5px}
+  .wrap{max-width:940px;margin:0 auto;padding:30px 22px 72px}
+  code{background:#eef1f7;padding:1px 6px;border-radius:5px;font-size:.9em}
+  .hero{background:linear-gradient(135deg,#6d4bd0,#2f6df0);color:#fff;border-radius:16px;padding:26px 30px;box-shadow:0 8px 26px rgba(109,75,208,.22)}
+  .hero h1{margin:0 0 6px;font-size:24px}
+  .hero p{margin:0;opacity:.93;font-size:14.5px}
+  .hero .chip{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.25);padding:4px 12px;border-radius:30px;font-size:13px;margin:12px 6px 0 0}
+  section{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px 24px;margin-top:18px;box-shadow:0 1px 3px rgba(20,30,60,.04)}
+  section>h2{margin:0 0 3px;font-size:19px;display:flex;align-items:center;gap:10px}
+  .grp{display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;background:var(--purple-soft);color:var(--purple);border-radius:9px;font-weight:700;flex:none}
+  .sub{color:var(--muted);font-size:13px;margin:2px 0 14px}
+  .steps{counter-reset:s;list-style:none;margin:0;padding:0}
+  .steps li{position:relative;padding:4px 0 10px 38px;margin:0}
+  .steps li::before{counter-increment:s;content:counter(s);position:absolute;left:0;top:2px;width:26px;height:26px;background:var(--brand);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700}
+  table{width:100%;border-collapse:collapse;margin:8px 0;font-size:13.8px}
+  th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+  th{background:#f7f9fd;color:var(--muted);font-weight:600;font-size:12.5px}
+  .say{background:var(--brand-soft);border-radius:8px;padding:7px 11px;font-weight:600;display:inline-block;margin:2px 0}
+  .trap td{background:#fff8f1}
+  .tag{display:inline-block;font-size:11px;font-weight:700;padding:1px 8px;border-radius:20px}
+  .t-wwham{background:var(--green-soft);color:var(--green)}
+  .t-trap{background:var(--red-soft);color:var(--red)}
+  .note{border-left:4px solid var(--brand);background:var(--brand-soft);padding:11px 15px;border-radius:0 9px 9px 0;margin:12px 0;font-size:14px}
+  .note.warn{border-color:var(--amber);background:var(--amber-soft)}
+  .fill{border:1px solid #c4ccdd;border-radius:6px;min-height:22px;background:#fff}
+  .lines{border:1px dashed #c4ccdd;border-radius:8px;min-height:46px;margin-top:5px;background:repeating-linear-gradient(transparent,transparent 22px,#eef1f7 23px)}
+  .foot{text-align:center;color:#9aa1b4;font-size:12.5px;margin-top:24px}
+  .small{font-size:12.5px;color:var(--muted)}
+  @media print{body{background:#fff}.hero{box-shadow:none}section{box-shadow:none;break-inside:avoid}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="hero">
+    <h1>Playbook การจูน Prompt เสียง (Voice Prompt Tuning)</h1>
+    <p>คู่มือทดสอบและปรับ system prompt ของผู้ป่วยจำลอง (Gemini Live) แบบมีตัวแปรควบคุม</p>
+    <div>
+      <span class="chip">🎯 เป้าหมาย: รองรับการซักประวัติทางเภสัช (WWHAM)</span>
+      <span class="chip">🧪 วิธี: controlled experiment</span>
+      <span class="chip">👥 สำหรับทีมพัฒนา</span>
+    </div>
+  </div>
+
+  <!-- 1. หลักการ -->
+  <section>
+    <h2><span class="grp">1</span> หลักการ (อ่านก่อนเริ่ม)</h2>
+    <p class="sub">ทำไมต้องคุมตัวแปร — เพื่อให้รู้ว่า "prompt ที่เปลี่ยน" คือสาเหตุที่ทำให้ดีขึ้นจริง</p>
+    <table>
+      <tr><th style="width:170px">บทบาทตัวแปร</th><th>คืออะไรในการทดสอบนี้</th></tr>
+      <tr><td><b>ตัวแปรควบคุม</b> (ล็อกไว้)</td><td>บททดสอบเดียวกัน + เคสเดียวกัน + ค่า config เดียวกัน + คนทดสอบคนเดิม</td></tr>
+      <tr><td><b>ตัวแปรต้น</b> (สิ่งที่เปลี่ยน)</td><td><b>prompt เท่านั้น</b> — เปลี่ยนทีละเวอร์ชัน</td></tr>
+      <tr><td><b>ตัวแปรตาม</b> (สิ่งที่วัด)</td><td>คุณภาพคำตอบของผู้ป่วยจำลอง ตาม rubric ในข้อ 4</td></tr>
+    </table>
+    <div class="note warn"><b>กฎเหล็ก 2 ข้อ:</b> (1) เปลี่ยน prompt อย่างเดียว ห้ามแตะ config อื่นพร้อมกัน · (2) รันแต่ละเวอร์ชัน <b>5 รอบ</b> แล้วดูแนวโน้มรวม เพราะ AI ตอบไม่เหมือนกันทุกครั้ง (สุ่ม) — ห้ามตัดสินจากรอบเดียว</div>
+  </section>
+
+  <!-- 2. ล็อกค่า -->
+  <section>
+    <h2><span class="grp">2</span> ล็อกค่าก่อนเริ่ม (กรอกครั้งเดียว ใช้ทุกเวอร์ชัน)</h2>
+    <p class="sub">ทุกค่าด้านล่างต้องเท่ากันทุกการทดสอบ ถ้าจำเป็นต้องเปลี่ยน ให้เริ่มตารางผลใหม่</p>
+    <table>
+      <tr><th style="width:50%">รายการ</th><th>ค่าที่ใช้ (ล็อก)</th></tr>
+      <tr><td>Model</td><td class="fill"> gemini-3.1-flash-live-preview</td></tr>
+      <tr><td>เสียง (voiceName)</td><td class="fill"> Aoede (หญิง) / Puck (ชาย)</td></tr>
+      <tr><td>thinkingLevel</td><td class="fill"> minimal / low</td></tr>
+      <tr><td>VAD: startOfSpeechSensitivity</td><td class="fill"> LOW</td></tr>
+      <tr><td>VAD: prefixPaddingMs</td><td class="fill"> 300</td></tr>
+      <tr><td>เคสที่ใช้ทดสอบ</td><td class="fill"> case001 เจ็บคอ (หญิง)</td></tr>
+      <tr><td>คนทดสอบ (อ่านบท)</td><td class="fill"> ชื่อ.............. (คนเดิมทุกรอบ ใส่หูฟัง)</td></tr>
+      <tr><td>จำนวนรอบต่อเวอร์ชัน</td><td class="fill"> 5</td></tr>
+    </table>
+  </section>
+
+  <!-- 3. บททดสอบ -->
+  <section>
+    <h2><span class="grp">3</span> บททดสอบมาตรฐาน (คนทดสอบอ่านบท "เภสัชกร" เหมือนเดิมทุกรอบ)</h2>
+    <p class="sub">บทเรียงตามลำดับการซักประวัติ WWHAM <span class="tag t-wwham">วัดการซักประวัติ</span> สลับด้วย "กับดัก" <span class="tag t-trap">ทดสอบ failure mode</span> · สังเกตคำตอบของผู้ป่วย เทียบกับ "พฤติกรรมที่ควรเป็น"</p>
+    <table>
+      <tr><th style="width:34px">#</th><th style="width:38%">บทของเภสัชกร (อ่านออกเสียง)</th><th>ทดสอบอะไร / พฤติกรรมที่ควรเป็น</th></tr>
+      <tr><td>1</td><td><span class="say">"สวัสดีครับ วันนี้มีอะไรให้ช่วยไหมครับ"</span></td><td><span class="tag t-wwham">เปิดบทสนทนา</span> ตอบสั้นๆ แล้วบอกอาการหลัก ("เจ็บคอ") เท่านั้น ไม่เริ่มทักก่อน</td></tr>
+      <tr><td>2</td><td><span class="say">"มีอาการอะไรบ้างครับ"</span></td><td><span class="tag t-wwham">W-What (ปลายเปิด)</span> ย้ำอาการหลัก ไม่เทข้อมูลระยะเวลา/แพ้ยา/โรคประจำตัวออกมาเอง</td></tr>
+      <tr><td>3</td><td><span class="say">"เป็นมากี่วันแล้วครับ"</span></td><td><span class="tag t-wwham">H-How long</span> ตอบระยะเวลาตามเคส สมจริง สั้น</td></tr>
+      <tr><td>4</td><td><span class="say">"มีอาการอื่นร่วมด้วยไหม เช่น ไข้ ไอ น้ำมูก"</span></td><td><span class="tag t-wwham">อาการร่วม</span> ตอบเฉพาะที่ถูกถาม ตามข้อมูลในเคส</td></tr>
+      <tr><td>5</td><td><span class="say">"ก่อนมาได้กินยาอะไรมาหรือยังครับ"</span></td><td><span class="tag t-wwham">A-Action taken</span> ตอบการรักษา/ยาที่ใช้ก่อนหน้า</td></tr>
+      <tr><td>6</td><td><span class="say">"มีโรคประจำตัว หรือยาที่กินประจำไหมครับ"</span></td><td><span class="tag t-wwham">M-Medication</span> เพิ่งเปิดเผยตรงนี้ (ต้องไม่เผยตั้งแต่ข้อ 2)</td></tr>
+      <tr><td>7</td><td><span class="say">"แพ้ยาอะไรไหมครับ"</span></td><td><span class="tag t-wwham">แพ้ยา (critical)</span> ตอบชัด — หลังข้อนี้ควรเริ่ม signal ถามหายา (ดูข้อ 14)</td></tr>
+      <tr><td>8</td><td><span class="say">"ตอนนี้ตั้งครรภ์หรือให้นมบุตรอยู่ไหมครับ"</span></td><td><span class="tag t-wwham">ตั้งครรภ์ (critical, เคสหญิง)</span> ตอบตามเคส</td></tr>
+      <tr class="trap"><td>9</td><td><span class="say">"เมื่อเช้ารถติดมากไหมครับกว่าจะมาถึง"</span></td><td><span class="tag t-trap">นอกบริบท</span> งงๆ/ถามกลับ ไม่ออกนอกบทบาทผู้ป่วย</td></tr>
+      <tr class="trap"><td>10</td><td><span class="say">"มีอาการ dysphagia ไหมครับ"</span></td><td><span class="tag t-trap">ศัพท์แพทย์</span> ถามกลับว่า "คือยังไงหรอคะ" ไม่แกล้งเข้าใจ</td></tr>
+      <tr class="trap"><td>11</td><td><span class="say">"Do you have a fever now?" (พูดอังกฤษ)</span></td><td><span class="tag t-trap">ปักภาษา</span> ต้องตอบ <b>ภาษาไทย</b> เสมอ ไม่สลับเป็นอังกฤษ</td></tr>
+      <tr class="trap"><td>12</td><td><span class="say">"เคยผ่าตัดต่อมทอนซิลไหมครับ" (เคสไม่ได้ระบุ)</span></td><td><span class="tag t-trap">ไม่แต่งข้อมูล</span> ตอบ "ไม่แน่ใจ/จำไม่ได้" ไม่กุเรื่องใหม่</td></tr>
+      <tr class="trap"><td>13</td><td><span class="say">เริ่มพูดแทรกขณะผู้ป่วยกำลังตอบ: "เดี๋ยวๆ ขอถามอีกเรื่อง..."</span></td><td><span class="tag t-trap">พูดแทรก (barge-in)</span> หยุดพูดทันที รอฟัง ไม่พูดต่อจากที่ค้าง</td></tr>
+      <tr><td>14</td><td><span class="say">(ไม่ต้องพูด — สังเกตเอง หลังข้อ 6–7)</span></td><td><span class="tag t-wwham">Signal รับยา</span> ผู้ป่วยถาม "แล้วมียาอะไรให้กินได้บ้างคะ" <b>ครั้งเดียว</b> ไม่ถามซ้ำ</td></tr>
+    </table>
+  </section>
+
+  <!-- 4. rubric -->
+  <section>
+    <h2><span class="grp">4</span> เกณฑ์ให้คะแนน (Rubric) — ให้คะแนน 1–5 ต่อข้อ</h2>
+    <p class="sub">1 = แย่/ผิดชัดเจน · 3 = พอใช้ · 5 = ดีมาก/เป็นธรรมชาติ · ผู้ให้คะแนนควรไม่รู้ว่าเป็น prompt เวอร์ชันไหน (blind)</p>
+    <table>
+      <tr><th style="width:60px">รหัส</th><th>เกณฑ์</th></tr>
+      <tr><td><b>ด้านการซักประวัติ</b></td><td></td></tr>
+      <tr><td>H1</td><td>คำถามปลายเปิด → ตอบแค่อาการหลัก ไม่เทข้อมูลทั้งหมด</td></tr>
+      <tr><td>H2</td><td>ไม่เปิดเผยแพ้ยา/โรคประจำตัว จนกว่าถูกถามตรงๆ</td></tr>
+      <tr><td>H3</td><td>ตอบแต่ละประเด็น (ระยะเวลา/อาการร่วม/ฯลฯ) ตรงและสมจริงตามเคส</td></tr>
+      <tr><td>H4</td><td>Signal ถามหายาทำงานถูกจังหวะ และทำครั้งเดียว</td></tr>
+      <tr><td>H5</td><td>ไม่แต่งข้อมูลที่ไม่มีในเคส (ตอบ "ไม่แน่ใจ/จำไม่ได้")</td></tr>
+      <tr><td><b>ด้านการพูด/เสียง</b></td><td></td></tr>
+      <tr><td>V1</td><td>ตอบสั้น 1–2 ประโยค ไม่ยืดยาว</td></tr>
+      <tr><td>V2</td><td>พูดภาษาไทยตลอด แม้เภสัชกรพูดอังกฤษ/ชื่อยาอังกฤษ</td></tr>
+      <tr><td>V3</td><td>ไม่มีตัวเลข หัวข้อ หรือสัญลักษณ์ในคำพูด</td></tr>
+      <tr><td>V4</td><td>คำลงท้าย (ค่ะ/ครับ) ไม่ถี่เกินคนจริง</td></tr>
+      <tr><td>V5</td><td>อารมณ์/น้ำเสียงสมจริงตามสถานการณ์ ไม่บ่นทุกประโยค</td></tr>
+      <tr><td>V6</td><td>หยุดทันทีเมื่อถูกพูดแทรก</td></tr>
+    </table>
+  </section>
+
+  <!-- 5. ตารางบันทึกผล -->
+  <section>
+    <h2><span class="grp">5</span> ตารางบันทึกผล (ทำซ้ำต่อ 1 เวอร์ชัน prompt)</h2>
+    <p class="sub">คัดลอกบล็อกนี้สำหรับ prompt แต่ละเวอร์ชัน · ใส่คะแนน 1–5 แต่ละรอบ แล้วหาค่าเฉลี่ย</p>
+
+    <p style="margin:6px 0 2px"><b>Prompt เวอร์ชัน:</b> <span class="fill" style="display:inline-block;width:120px">&nbsp;v....</span>
+    &nbsp; <b>เปลี่ยนอะไรจากเวอร์ชันก่อน:</b> <span class="fill" style="display:inline-block;width:300px">&nbsp;</span></p>
+    <table>
+      <tr><th>เกณฑ์</th><th>รอบ1</th><th>รอบ2</th><th>รอบ3</th><th>รอบ4</th><th>รอบ5</th><th>เฉลี่ย</th></tr>
+      <tr><td>H1 ปลายเปิด</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>H2 ไม่เผยก่อนถาม</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>H3 ตอบตรงสมจริง</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>H4 signal รับยา</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>H5 ไม่แต่งข้อมูล</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>V1 สั้น</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>V2 ภาษาไทยตลอด</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>V3 ไม่มีสัญลักษณ์</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>V4 คำลงท้ายพอดี</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>V5 อารมณ์สมจริง</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td>V6 หยุดเมื่อแทรก</td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+      <tr><td><b>คะแนนรวมเฉลี่ย</b></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td><td class="fill"></td></tr>
+    </table>
+    <p class="small">บันทึกข้อสังเกต/ตัวอย่างคำตอบที่ดีหรือพัง:</p>
+    <div class="lines" style="min-height:70px"></div>
+  </section>
+
+  <!-- 6. ขั้นตอน -->
+  <section>
+    <h2><span class="grp">6</span> ขั้นตอนการใช้งาน</h2>
+    <ol class="steps">
+      <li>กรอกค่าล็อก (ข้อ 2) ให้ครบ — ใช้ค่าเดียวกันทุกเวอร์ชัน</li>
+      <li>ตั้ง prompt เป็นเวอร์ชันที่จะทดสอบ (เปลี่ยนจากเวอร์ชันก่อนแค่จุดเดียวถ้าทำได้ จะรู้ว่าอะไรมีผล)</li>
+      <li>คนทดสอบเข้าโหมดเสียง อ่านบทข้อ 3 ตามลำดับ ครบ 1 รอบ</li>
+      <li>ผู้ให้คะแนน (คนละคนกับคนอ่านบทยิ่งดี) ให้คะแนนตาม rubric ข้อ 4 ลงตารางข้อ 5</li>
+      <li>ทำซ้ำให้ครบ 5 รอบต่อเวอร์ชัน → หาค่าเฉลี่ย</li>
+      <li>เปลี่ยน prompt เป็นเวอร์ชันถัดไป ทำซ้ำ แล้วเทียบค่าเฉลี่ยระหว่างเวอร์ชัน</li>
+      <li>เลือกเวอร์ชันที่คะแนนรวมดีที่สุด + ดูว่าตกเกณฑ์ข้อไหนซ้ำๆ เพื่อแก้ prompt ต่อ</li>
+    </ol>
+    <div class="note"><b>เคล็ดลับ:</b> ถ้าเพิ่มกฎใน prompt แล้วคะแนน "ด้านการพูด" (V) ตกลง (เช่น พูดแข็ง) แสดงว่า over-instruction → ลองตัดกฎที่ไม่จำเป็นออก กฎทุกข้อต้องคุ้มค่าที่จะอยู่</div>
+  </section>
+
+  <p class="foot">PharmBot v2 · Playbook การจูน Prompt เสียง · ใช้คู่กับเอกสาร Validation Plan</p>
+
+</div>
+</body>
+</html>
