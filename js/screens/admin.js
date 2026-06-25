@@ -8,7 +8,7 @@ let _adminGroups  = [];
 let _adminCases   = [];
 let _adminDrugs   = [];
 let _adminResults = [];
-let _selectedDrugEntries = []; // { drugCode, category, regimen }
+let _drugIndications     = []; // [{ id, name, drugs:[{drugCode,category,regimen}] }]
 let _caseRubric          = []; // [{ id, domain, label, weight, critical, femaleOnly, active }]
 
 async function renderAdmin(container) {
@@ -307,163 +307,238 @@ function _buildCaseFormHtml() {
 
 function _buildDrugPickerHtml() {
   return `
-    <div style="position:relative;" class="mb-2">
-      <input class="input" type="text" id="dp-search"
-        placeholder="พิมพ์ชื่อยาเพื่อเพิ่ม เช่น Amoxicillin, Ibuprofen..." autocomplete="off" />
-      <div id="dp-dropdown" style="display:none;position:absolute;z-index:20;width:100%;
-        background:var(--bg2,#1e293b);color:var(--text,#e2e8f0);
-        border:1px solid var(--glass-border,rgba(255,255,255,0.12));
-        border-radius:8px;max-height:230px;overflow-y:auto;margin-top:2px;
-        box-shadow:0 4px 16px rgba(0,0,0,0.4);"></div>
-    </div>
-    <div id="dp-selected-list" class="mb-1">
-      <div class="text-dim text-xs" style="text-align:center;padding:0.4rem 0;">ยังไม่ได้เลือกยา</div>
-    </div>`;
+    <div id="drug-indications" class="mb-2"></div>
+    <button class="btn btn-ghost btn-sm" id="add-indication-btn" style="font-size:0.8rem;">+ เพิ่มข้อบ่งใช้</button>`;
 }
 
+let _indicationUid = 0;
+function _newIndicationId() { return 'ind' + Date.now().toString(36) + (_indicationUid++).toString(36); }
+function _findIndication(iid) { return _drugIndications.find(x => x.id === iid); }
+function _findDrugEntry(iid, idx) { const ind = _findIndication(iid); return ind ? ind.drugs[idx] : null; }
+
 function _setupDrugPicker() {
-  const searchEl = document.getElementById('dp-search');
-  const dropEl   = document.getElementById('dp-dropdown');
-  if (!searchEl || !dropEl) return;
-
-  searchEl.addEventListener('input', () => {
-    const q = searchEl.value.trim().toLowerCase();
-    if (!q) { dropEl.style.display = 'none'; return; }
-
-    const already = new Set(_selectedDrugEntries.map(e => e.drugCode));
-    const matches = _adminDrugs.filter(d =>
-      !already.has(d.id) && (
-        (d.name || '').toLowerCase().includes(q) ||
-        (d.strength || '').toLowerCase().includes(q) ||
-        (d.category || '').toLowerCase().includes(q)
-      )
-    ).slice(0, 14);
-
-    if (!matches.length) { dropEl.style.display = 'none'; return; }
-
-    dropEl.innerHTML = matches.map(d => `
-      <div class="dp-item" data-code="${_escA(d.id)}"
-        style="padding:0.45rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.07));">
-        <div style="font-size:0.84rem;font-weight:600;">${_escA(d.name)} <span style="font-weight:400;">${_escA(d.strength || '')}</span></div>
-        <div style="font-size:0.73rem;opacity:0.55;">${_escA(d.form || '')} · ${_escA(d.category || '')}</div>
-      </div>`).join('');
-    dropEl.style.display = 'block';
+  const addBtn = document.getElementById('add-indication-btn');
+  if (addBtn) addBtn.addEventListener('click', () => {
+    _drugIndications.push({ id: _newIndicationId(), name: '', drugs: [] });
+    _renderDrugIndications();
   });
 
-  dropEl.addEventListener('click', e => {
+  const host = document.getElementById('drug-indications');
+  if (!host) return;
+
+  // ── delegated events (rows are re-rendered dynamically) ──
+  host.addEventListener('input', e => {
+    const s = e.target.closest('.di-search');
+    if (s) { _renderIndicationDropdown(s.dataset.iid, s.value); return; }
+    const n = e.target.closest('.di-name');
+    if (n) { const ind = _findIndication(n.dataset.iid); if (ind) ind.name = n.value; return; }
+    const r = e.target.closest('.di-regimen');
+    if (r) { const d = _findDrugEntry(r.dataset.iid, +r.dataset.idx); if (d) d.regimen = r.value; return; }
+  });
+
+  host.addEventListener('change', e => {
+    const c = e.target.closest('.di-cat');
+    if (!c) return;
+    const d = _findDrugEntry(c.dataset.iid, +c.dataset.idx);
+    if (d) { d.category = c.value; _renderDrugIndications(); }   // re-render → toggle regimen visibility
+  });
+
+  host.addEventListener('click', e => {
     const item = e.target.closest('.dp-item');
-    if (!item) return;
-    const code = item.dataset.code;
-    if (!_selectedDrugEntries.find(e => e.drugCode === code)) {
-      _selectedDrugEntries.push({ drugCode: code, category: 'firstLine', regimen: '' });
+    if (item) {
+      const ind = _findIndication(item.dataset.iid);
+      if (ind && !ind.drugs.find(x => x.drugCode === item.dataset.code)) {
+        ind.drugs.push({ drugCode: item.dataset.code, category: 'firstLine', regimen: '' });
+      }
+      _renderDrugIndications();
+      return;
     }
-    _renderSelectedDrugs();
-    searchEl.value = '';
-    dropEl.style.display = 'none';
-    searchEl.focus();
+    const rmDrug = e.target.closest('.di-drug-remove');
+    if (rmDrug) {
+      const ind = _findIndication(rmDrug.dataset.iid);
+      if (ind) ind.drugs.splice(+rmDrug.dataset.idx, 1);
+      _renderDrugIndications();
+      return;
+    }
+    const rmInd = e.target.closest('.di-remove');
+    if (rmInd) {
+      const i = _drugIndications.findIndex(x => x.id === rmInd.dataset.iid);
+      if (i >= 0) _drugIndications.splice(i, 1);
+      _renderDrugIndications();
+    }
   });
 
-  // close dropdown on outside click — self-removes when element leaves DOM
-  document.addEventListener('click', function _dpOutside(e) {
-    const d = document.getElementById('dp-dropdown');
-    if (!d) { document.removeEventListener('click', _dpOutside, true); return; }
-    if (!searchEl.contains(e.target) && !d.contains(e.target)) d.style.display = 'none';
+  // close dropdowns on outside click — self-removes when picker leaves DOM
+  document.addEventListener('click', function _diOutside(e) {
+    const h = document.getElementById('drug-indications');
+    if (!h) { document.removeEventListener('click', _diOutside, true); return; }
+    if (!e.target.closest('.di-search') && !e.target.closest('.di-dropdown')) {
+      h.querySelectorAll('.di-dropdown').forEach(d => { d.style.display = 'none'; });
+    }
   }, true);
 }
 
-function _renderSelectedDrugs() {
-  const listEl = document.getElementById('dp-selected-list');
-  if (!listEl) return;
+function _renderIndicationDropdown(iid, query) {
+  const drop = document.querySelector(`.di-dropdown[data-iid="${iid}"]`);
+  if (!drop) return;
+  const q = (query || '').trim().toLowerCase();
+  if (!q) { drop.style.display = 'none'; return; }
 
-  if (!_selectedDrugEntries.length) {
-    listEl.innerHTML = '<div class="text-dim text-xs" style="text-align:center;padding:0.4rem 0;">ยังไม่ได้เลือกยา</div>';
+  const ind     = _findIndication(iid);
+  const already = new Set((ind?.drugs || []).map(e => e.drugCode));
+  const matches = _adminDrugs.filter(d =>
+    !already.has(d.id) && (
+      (d.name || '').toLowerCase().includes(q) ||
+      (d.strength || '').toLowerCase().includes(q) ||
+      (d.category || '').toLowerCase().includes(q)
+    )
+  ).slice(0, 14);
+
+  if (!matches.length) { drop.style.display = 'none'; return; }
+
+  drop.innerHTML = matches.map(d => `
+    <div class="dp-item" data-iid="${_escA(iid)}" data-code="${_escA(d.id)}"
+      style="padding:0.45rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.07));">
+      <div style="font-size:0.84rem;font-weight:600;">${_escA(d.name)} <span style="font-weight:400;">${_escA(d.strength || '')}</span></div>
+      <div style="font-size:0.73rem;opacity:0.55;">${_escA(d.form || '')} · ${_escA(d.category || '')}</div>
+    </div>`).join('');
+  drop.style.display = 'block';
+}
+
+function _drugEntryHtml(iid, entry, i, drugMap) {
+  const d = drugMap[entry.drugCode] || {};
+  const noRegimen = entry.category === 'unacceptable';
+  return `
+    <div class="dp-entry" style="display:grid;grid-template-columns:1fr auto;gap:0.35rem 0.5rem;
+      padding:0.45rem 0.6rem;background:var(--glass-bg,rgba(255,255,255,0.04));
+      border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;margin-bottom:0.35rem;align-items:start;">
+      <div>
+        <span style="font-size:0.83rem;font-weight:600;">${_escA(d.name || entry.drugCode)}</span>
+        <span style="font-size:0.73rem;opacity:0.5;margin-left:0.3rem;">${_escA(d.strength || '')} ${_escA(d.form || '')}</span>
+      </div>
+      <div class="flex gap-1 items-center">
+        <select class="input di-cat" data-iid="${_escA(iid)}" data-idx="${i}"
+          style="font-size:0.78rem;padding:0.18rem 0.35rem;height:auto;min-width:8rem;">
+          <option value="firstLine"    ${entry.category === 'firstLine'    ? 'selected' : ''}>✅ First line</option>
+          <option value="alternatives" ${entry.category === 'alternatives' ? 'selected' : ''}>🔄 Alternative</option>
+          <option value="unacceptable" ${entry.category === 'unacceptable' ? 'selected' : ''}>❌ ห้ามจ่าย</option>
+        </select>
+        <button class="btn btn-danger btn-sm di-drug-remove" data-iid="${_escA(iid)}" data-idx="${i}"
+          style="padding:0.18rem 0.45rem;font-size:0.8rem;line-height:1.2;">✕</button>
+      </div>
+      <div style="grid-column:span 2;${noRegimen ? 'display:none;' : ''}">
+        <input class="input di-regimen" data-iid="${_escA(iid)}" data-idx="${i}" type="text"
+          value="${_escA(entry.regimen || '')}"
+          placeholder="วิธีใช้ เช่น กิน 1 เม็ด วันละ 3 ครั้ง หลังอาหาร"
+          style="font-size:0.8rem;" />
+      </div>
+    </div>`;
+}
+
+function _renderDrugIndications() {
+  const host = document.getElementById('drug-indications');
+  if (!host) return;
+
+  if (!_drugIndications.length) {
+    host.innerHTML = '<div class="text-dim text-xs" style="text-align:center;padding:0.4rem 0;">ยังไม่มีข้อบ่งใช้ — กด "+ เพิ่มข้อบ่งใช้"</div>';
     return;
   }
 
   const drugMap = {};
   _adminDrugs.forEach(d => { drugMap[d.id] = d; });
 
-  listEl.innerHTML = _selectedDrugEntries.map((entry, i) => {
-    const d  = drugMap[entry.drugCode] || {};
-    const noRegimen = entry.category === 'unacceptable';
+  host.innerHTML = _drugIndications.map((ind, ii) => {
+    const drugs = ind.drugs.map((entry, i) => _drugEntryHtml(ind.id, entry, i, drugMap)).join('')
+      || '<div class="text-dim text-xs" style="padding:0.25rem 0 0.4rem;">ยังไม่ได้เลือกยาในข้อบ่งใช้นี้</div>';
     return `
-      <div class="dp-entry" style="display:grid;grid-template-columns:1fr auto;gap:0.35rem 0.5rem;
-        padding:0.45rem 0.6rem;background:var(--glass-bg,rgba(255,255,255,0.04));
-        border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;margin-bottom:0.35rem;align-items:start;">
-        <div>
-          <span style="font-size:0.83rem;font-weight:600;">${_escA(d.name || entry.drugCode)}</span>
-          <span style="font-size:0.73rem;opacity:0.5;margin-left:0.3rem;">${_escA(d.strength || '')} ${_escA(d.form || '')}</span>
+      <div class="di-card" style="border:1px solid var(--glass-border,rgba(255,255,255,0.1));border-radius:10px;
+        padding:0.6rem 0.65rem;margin-bottom:0.6rem;background:rgba(255,255,255,0.02);">
+        <div class="flex items-center gap-1" style="margin-bottom:0.45rem;">
+          <span class="text-dim text-xs" style="white-space:nowrap;">ข้อบ่งใช้ ${ii + 1}</span>
+          <input class="input di-name" data-iid="${_escA(ind.id)}" type="text" value="${_escA(ind.name)}"
+            placeholder="เช่น ลดไข้/แก้ปวด, ฆ่าเชื้อ, แก้ไอ" style="font-size:0.83rem;font-weight:600;" />
+          <button class="btn btn-danger btn-sm di-remove" data-iid="${_escA(ind.id)}" title="ลบข้อบ่งใช้นี้"
+            style="padding:0.15rem 0.45rem;font-size:0.8rem;line-height:1.2;">✕</button>
         </div>
-        <div class="flex gap-1 items-center">
-          <select class="input dp-cat" data-idx="${i}"
-            style="font-size:0.78rem;padding:0.18rem 0.35rem;height:auto;min-width:8rem;">
-            <option value="firstLine"    ${entry.category === 'firstLine'    ? 'selected' : ''}>✅ First line</option>
-            <option value="alternatives" ${entry.category === 'alternatives' ? 'selected' : ''}>🔄 Alternative</option>
-            <option value="unacceptable" ${entry.category === 'unacceptable' ? 'selected' : ''}>❌ ห้ามจ่าย</option>
-          </select>
-          <button class="btn btn-danger btn-sm dp-remove" data-idx="${i}"
-            style="padding:0.18rem 0.45rem;font-size:0.8rem;line-height:1.2;">✕</button>
-        </div>
-        <div style="grid-column:span 2;${noRegimen ? 'display:none;' : ''}">
-          <input class="input dp-regimen" data-idx="${i}" type="text"
-            value="${_escA(entry.regimen || '')}"
-            placeholder="วิธีใช้ เช่น กิน 1 เม็ด วันละ 3 ครั้ง หลังอาหาร"
-            style="font-size:0.8rem;" />
+        <div class="di-drugs">${drugs}</div>
+        <div style="position:relative;margin-top:0.4rem;">
+          <input class="input di-search" data-iid="${_escA(ind.id)}" type="text" autocomplete="off"
+            placeholder="พิมพ์ชื่อยาเพื่อเพิ่มในข้อบ่งใช้นี้..." style="font-size:0.8rem;" />
+          <div class="di-dropdown" data-iid="${_escA(ind.id)}" style="display:none;position:absolute;z-index:20;width:100%;
+            background:var(--bg2,#1e293b);color:var(--text,#e2e8f0);
+            border:1px solid var(--glass-border,rgba(255,255,255,0.12));
+            border-radius:8px;max-height:230px;overflow-y:auto;margin-top:2px;
+            box-shadow:0 4px 16px rgba(0,0,0,0.4);"></div>
         </div>
       </div>`;
   }).join('');
-
-  listEl.querySelectorAll('.dp-cat').forEach(sel => {
-    sel.addEventListener('change', () => {
-      _selectedDrugEntries[+sel.dataset.idx].category = sel.value;
-      _renderSelectedDrugs();
-    });
-  });
-  listEl.querySelectorAll('.dp-remove').forEach(btn => {
-    btn.addEventListener('click', () => {
-      _selectedDrugEntries.splice(+btn.dataset.idx, 1);
-      _renderSelectedDrugs();
-    });
-  });
-  listEl.querySelectorAll('.dp-regimen').forEach(inp => {
-    inp.addEventListener('input', () => {
-      _selectedDrugEntries[+inp.dataset.idx].regimen = inp.value;
-    });
-  });
 }
 
 function _loadDrugAnswerIntoPicker(drugAnswer) {
-  _selectedDrugEntries = [];
+  _drugIndications = [];
 
-  if (drugAnswer) {
-    const toEntries = (codes, cat) => {
+  if (drugAnswer && Array.isArray(drugAnswer.indications) && drugAnswer.indications.length) {
+    // โครงสร้างใหม่ (จัดกลุ่มตามข้อบ่งใช้)
+    drugAnswer.indications.forEach(ind => {
+      _drugIndications.push({
+        id:    _newIndicationId(),
+        name:  ind.name || '',
+        drugs: (ind.drugs || []).map(x => {
+          const code = typeof x === 'string' ? x : x.drugCode;
+          return {
+            drugCode: code,
+            category: (typeof x === 'object' && x.category) ? x.category : 'firstLine',
+            regimen:  (typeof x === 'object' ? (x.regimen || '') : '') || drugAnswer.regimen?.[code] || '',
+          };
+        }).filter(d => d.drugCode),
+      });
+    });
+  } else if (drugAnswer) {
+    // เคสเดิม (flat) → รวมเป็นข้อบ่งใช้เดียว
+    const drugs = [];
+    const add = (codes, cat) => {
       if (!Array.isArray(codes)) return;
       codes.forEach(item => {
-        const code    = typeof item === 'string' ? item : (item?.drugs?.[0] || null);
+        const code = typeof item === 'string' ? item : (item?.drugs?.[0] || null);
         if (!code) return;
         const regimen = drugAnswer.regimen?.[code] ||
                         (typeof item === 'object' ? (item.regimen || '') : '') || '';
-        _selectedDrugEntries.push({ drugCode: code, category: cat, regimen });
+        drugs.push({ drugCode: code, category: cat, regimen });
       });
     };
-    toEntries(drugAnswer.firstLine,    'firstLine');
-    toEntries(drugAnswer.alternatives, 'alternatives');
-    toEntries(drugAnswer.unacceptable, 'unacceptable');
+    add(drugAnswer.firstLine,    'firstLine');
+    add(drugAnswer.alternatives, 'alternatives');
+    add(drugAnswer.unacceptable, 'unacceptable');
+    if (drugs.length) _drugIndications.push({ id: _newIndicationId(), name: '', drugs });
   }
 
-  _renderSelectedDrugs();
+  _renderDrugIndications();
   // counseling ย้ายไปอยู่ในหมวด counseling ของ Rubric editor แล้ว
 }
 
 function _buildDrugAnswerFromPicker() {
-  const firstLine    = _selectedDrugEntries.filter(e => e.category === 'firstLine').map(e => e.drugCode);
-  const alternatives = _selectedDrugEntries.filter(e => e.category === 'alternatives').map(e => e.drugCode);
-  const unacceptable = _selectedDrugEntries.filter(e => e.category === 'unacceptable').map(e => e.drugCode);
+  // โครงสร้างจัดกลุ่มตามข้อบ่งใช้ (source of truth ใหม่)
+  const indications = _drugIndications.map(ind => ({
+    name:  (ind.name || '').trim(),
+    drugs: ind.drugs.map(e => ({
+      drugCode: e.drugCode,
+      category: e.category,
+      regimen:  (e.regimen || '').trim(),
+    })),
+  }));
 
-  const regimen = {};
-  _selectedDrugEntries
-    .filter(e => e.category !== 'unacceptable' && e.regimen.trim())
-    .forEach(e => { regimen[e.drugCode] = e.regimen.trim(); });
+  // derive flat fields (รวมทุกข้อบ่งใช้) ให้ eval/โค้ดเดิมใช้ได้เหมือนเดิม
+  const firstLine = [], alternatives = [], unacceptable = [], regimen = {};
+  _drugIndications.forEach(ind => {
+    ind.drugs.forEach(e => {
+      if (e.category === 'firstLine')         firstLine.push(e.drugCode);
+      else if (e.category === 'alternatives') alternatives.push(e.drugCode);
+      else if (e.category === 'unacceptable') unacceptable.push(e.drugCode);
+      if (e.category !== 'unacceptable' && (e.regimen || '').trim() && !regimen[e.drugCode]) {
+        regimen[e.drugCode] = e.regimen.trim();
+      }
+    });
+  });
 
   // counseling = label ของข้อในหมวด counseling ของ rubric (mirror ไว้เพื่อความเข้ากันได้)
   const counseling = _caseRubric
@@ -471,7 +546,7 @@ function _buildDrugAnswerFromPicker() {
     .map(it => (it.label || '').trim())
     .filter(Boolean);
 
-  return { firstLine, alternatives, unacceptable, regimen, counseling };
+  return { firstLine, alternatives, unacceptable, regimen, counseling, indications };
 }
 
 // ── Rubric editor ─────────────────────────────────────────────
