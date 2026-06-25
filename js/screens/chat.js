@@ -20,7 +20,6 @@ let _voicePanelStep    = 0;      // which panel is in voice mode (1 or 3)
 let _liveClient        = null;   // GeminiLiveClient instance (Live API voice mode)
 let _liveMode          = false;  // true = Live API active, false = Web Speech fallback
 let _liveConnecting    = false;  // true while awaiting Live API connect (prevents double-connect)
-let _displayRecog      = null;   // Web Speech API for accurate Thai transcript display (Live mode only)
 let _isRandomCase      = false;  // true = entered via random case — hide case title
 let _caseStarted       = false;  // true after student presses "เริ่มเคส" button
 let _charMode          = localStorage.getItem('pharmbot-char') === 'true'; // character avatar mode
@@ -73,8 +72,6 @@ async function renderChat(container, params = {}) {
   _voiceRecognition = null; _voiceMode = false; _voicePanelStep = 0;
   if (_liveClient) { try { _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   _liveMode = false; _liveConnecting = false;
-  try { _displayRecog?.abort(); } catch (_) {}
-  _displayRecog = null;
   _isRandomCase  = !!params.random;
   _caseStarted   = false;
   _stopSessionTimer();
@@ -414,43 +411,10 @@ async function _startVoice(panelStep) {
     const voiceName = _caseData?.gender === 'male' ? 'Puck' : 'Aoede';
     const client    = new GeminiLiveClient();
     client.audioEnabled = false;
-    let _pharmacistSpoke    = false;
-    let _pendingDisplayText = '';  // accurate Thai text from Web Speech API for this turn
-    let _aiIsSpeaking       = false;
-
-    // ── Web Speech API: display-only recognizer (accurate Thai transcript) ──
-    // Gemini Live receives the raw audio; Web Speech API runs concurrently
-    // just to produce a more accurate text representation for display + evaluation.
-    const _startDisplayRecog = () => {
-      if (!_voiceMode || !_liveMode || _displayRecog) return;
-      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SR) return;
-      _displayRecog = new SR();
-      _displayRecog.lang           = 'th-TH';
-      _displayRecog.continuous     = true;
-      _displayRecog.interimResults = true;
-      _displayRecog.onresult = (e) => {
-        if (!_voiceMode || !_liveMode || !_pharmacistSpoke || _aiIsSpeaking) return;
-        const result = e.results[e.results.length - 1];
-        const text   = result[0].transcript.trim();
-        if (!text) return;
-        // Interim preview only — do NOT set _pendingDisplayText;
-        // Gemini native transcript is now authoritative (better context awareness)
-        const sub = document.getElementById(`voice-subtitle-${panelStep}`);
-        if (sub) sub.textContent = '🎙️ ' + text;
-        if (result.isFinal) _pendingDisplayText = text;  // authoritative Thai transcript for this turn
-      };
-      _displayRecog.onerror = () => {};
-      _displayRecog.onend   = () => {
-        _displayRecog = null;
-        if (_voiceMode && _liveMode) setTimeout(_startDisplayRecog, 100);
-      };
-      try { _displayRecog.start(); } catch (_) {}
-    };
+    let _pharmacistSpoke = false;
 
     client.onStateChange = (state) => {
       if (!_voiceMode || _voicePanelStep !== panelStep) return;
-      _aiIsSpeaking = (state === 'ai-speaking');
       const labels = {
         connecting:    '⏳ กำลังเชื่อมต่อ…',
         ready:         '🎙️ พร้อมแล้ว — เภสัชกรพูดได้เลยครับ',
@@ -474,11 +438,7 @@ async function _startVoice(panelStep) {
       // Character animation
       if (state === 'ai-speaking') _startCharAnim(panelStep);
       else _stopCharAnim(panelStep);
-      // Pause display recog while AI speaks to avoid transcribing speaker audio through mic
-      if (state === 'ai-speaking') {
-        try { _displayRecog?.stop(); } catch (_) {}
-      }
-      // Clear subtitle when AI stops (display recog restarts via onend)
+      // Clear subtitle when AI stops streaming
       if (state !== 'ai-speaking') {
         const sub = document.getElementById(`voice-subtitle-${panelStep}`);
         if (sub) sub.textContent = '';
@@ -491,12 +451,10 @@ async function _startVoice(panelStep) {
         client.audioEnabled = true;
       }
       if (!_voiceMode) return;
-      // Prefer Gemini Live's inputTranscription — the AI already understood this
-      // correctly (evidenced by on-topic responses), so it is more accurate than
-      // Web Speech API for Thai medical vocabulary. Web Speech is kept as fallback
-      // only when Live transcript arrives empty.
-      const displayText = (text || _pendingDisplayText || '').trim();
-      _pendingDisplayText = '';
+      // Gemini Live's inputTranscription is the single source of truth for the
+      // pharmacist's speech (accurate for Thai medical vocabulary) — used for
+      // both display and evaluation.
+      const displayText = (text || '').trim();
       if (!displayText) return;
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
       hist.push({ role: 'user', text: displayText });
@@ -524,8 +482,6 @@ async function _startVoice(panelStep) {
       if (!_liveMode || !_voiceMode || _voicePanelStep !== panelStep) return;
       console.warn('GeminiLive error, falling back to Web Speech:', errMsg);
       _addMsg(msgId, 'system', '⚠️ Live API ไม่พร้อมใช้ — สลับไป Web Speech');
-      try { _displayRecog?.abort(); } catch (_) {}
-      _displayRecog = null;
       try { _liveClient?.disconnect(); } catch (_) {}
       _liveClient = null;
       _liveMode   = false;
@@ -539,7 +495,6 @@ async function _startVoice(panelStep) {
       if (!_voiceMode || _voicePanelStep !== panelStep) { client.disconnect(); return; }
       _liveClient = client;
       _liveMode   = true;
-      _startDisplayRecog();  // start Web Speech for accurate Thai transcript display
       return;
     } catch (e) {
       _liveConnecting = false;
@@ -614,8 +569,6 @@ function _stopVoice() {
   if (_liveClient) { try { _liveClient.interruptPlayback(); _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   try { _voiceRecognition?.abort(); } catch (_) {}
   _voiceRecognition = null;
-  try { _displayRecog?.abort(); } catch (_) {}
-  _displayRecog = null;
   geminiTTSStop();
 }
 

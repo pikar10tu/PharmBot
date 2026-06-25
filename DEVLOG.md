@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-25 (รอบ 5) — จัดกลุ่มยาตามข้อบ่งใช้ + ลด voice path ให้เหลือ Live ล้วน
+
+**สิ่งที่ทำ**
+1. **รายการยาในหน้าเพิ่มเคส จัดกลุ่มตาม "ข้อบ่งใช้"** — ข้อบ่งใช้เป็นหัวข้อใหญ่ (ตั้งชื่อ/เพิ่ม/ลบได้) แต่ละข้อบ่งใช้มีรายการยา + ช่องค้นยาของตัวเอง คงตัวเลือก first-line/alternative/ห้ามจ่าย + regimen ที่ตัวยา (`drugAnswer.indications`); ยัง derive flat `firstLine/alternatives/unacceptable/regimen` ให้ eval ใช้เหมือนเดิม เคสเดิมโหลดเป็นข้อบ่งใช้เดียวอัตโนมัติ (commit `583773e`)
+2. **ลด voice path ให้เหลือ transcript เดียว** — ลบ Web Speech recognizer (`_displayRecog`) ที่รันซ้อนกับ Gemini Live ออก ใช้ `inputTranscription`/`outputTranscription` ของ Gemini Live เป็นแหล่งเดียวสำหรับทั้งแสดงผลและ eval; คง Web Speech ไว้เฉพาะ fallback mode ตอน Live เชื่อมต่อไม่ได้
+
+**เหตุผล:** (1) ผู้สอนจัดยาตามข้อบ่งใช้ได้ตรงเวชปฏิบัติ (2) ตัดความซ้ำซ้อนของ STT 2 ตัวที่ฟังไมค์เดียวกัน → โค้ด voice เข้าใจง่ายขึ้น และ transcript ที่เข้า eval มาจากแหล่งเดียวที่ AI เข้าใจบริบทจริง
+
+**ไฟล์ที่แตะ:** `js/screens/admin.js` (รอบก่อน, pushed), `js/screens/chat.js`
+
+**ทดสอบ:** node --check ผ่าน + drug picker round-trip 16/16 + Playwright ไม่มี hard regression ใหม่ (fail 2 ตัวเดิมที่เป็น known-failing) — ยังไม่ได้ทดสอบโหมดเสียงจริงในเบราว์เซอร์
+
+**สถานะ:** ✅ เสร็จ + push ขึ้น main
+
+**งานถัดไปที่แนะนำ:** ทดสอบโหมดเสียงจริง 1 เคส (Live transcript เข้า chat + eval ครบ) และฟอร์มข้อบ่งใช้ในเบราว์เซอร์
+
+---
+
 ## 2026-06-25 (รอบ 4) — Rubric รายข้อ + ปรับหน้าเพิ่มเคส
 
 **เป้าหมายรอบนี้:** ให้แต่ละเคสกำหนดน้ำหนักคะแนนรายข้อได้เอง, คำแนะนำเป็นข้อๆ มีน้ำหนัก, ลดช่อง free-text, แก้ bug หน้าเพิ่มเคส
