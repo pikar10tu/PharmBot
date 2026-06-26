@@ -5,6 +5,24 @@
 
 ---
 
+## 2026-06-26 (รอบ 8) — revert `languageCodes` ออกจาก Live setup (แก้ voice พังสนิท)
+
+**ปัญหา:** ทีมเทสโหมดเสียงจริงวันนี้ → ต่อ Gemini Live ไม่ติดเลย WS ปิดทันทีด้วย `code=1007` พร้อม reason: `Invalid JSON payload received. Unknown name "languageCodes" at 'setup.input_audio_transcription': Cannot find field.` → setup timeout 20s → หล่นไป Web Speech ทุกครั้ง
+
+**ต้นเหตุ:** การแก้รอบ 6 (commit `0e0eb0f`) เดาว่า `languageCodes` จะถูกเพิกเฉย (no-op) บน public API — **เดาผิด** จริงๆ คือ `AudioTranscriptionConfig` บน public Live API (`generativelanguage.googleapis.com` v1beta) **ไม่มี field นี้เลย** (มีเฉพาะฝั่ง Vertex) field แปลกปลอมทำให้ setup JSON ทั้งก้อน invalid → server ฆ่า connection
+
+**สิ่งที่ทำ:** เปลี่ยน `inputAudioTranscription`/`outputAudioTranscription` กลับเป็น object ว่าง `{}` (ค่าที่ public API ต้องการเพื่อ "เปิด" transcription) — transcript ยังทำงาน Step 4 eval ยังได้ข้อความเหมือนเดิม + bump cache-bust `gemini-live.js?v=20→21` ใน `index.html`
+
+**ยืนยันกับเอกสารทางการ:** ตรวจกับ skill `gemini-live-api-dev` (Google official) — ตัวอย่างใช้ `AudioTranscriptionConfig()` (object ว่าง ไม่มี argument) ตรงกับที่แก้; และระบุว่า native audio model "ตรวจจับ/สลับภาษาอัตโนมัติ" → **ไม่มีวิธี pin ภาษา STT บน public API** (การ pin ภาษามีเฉพาะ use case แปลภาษาด้วย `translationConfig` + คนละโมเดล) สรุปคือ `languageCodes` ไม่เคยช่วยอะไรตั้งแต่แรก
+
+**ไฟล์ที่แตะ:** `js/gemini-live.js`, `index.html`
+
+**ทดสอบ:** node --check ผ่าน — รอทีม verify เสียงจริง (เป้าหมาย: console ขึ้น `setupComplete` / state `ready` แทน close 1007)
+
+**สถานะ:** ⏳ push ขึ้น main แล้ว รอผลทดสอบจากทีม
+
+---
+
 ## 2026-06-25 (รอบ 7) — แก้พฤติกรรม AI ผู้ป่วย 3 จุด (จาก feedback ทีม)
 
 **ที่มา:** ทีมทดลองใช้แล้วบ่น 3 เรื่อง — (1) อยากให้ผู้ป่วยถามวิธีใช้ยา (กินยังไง/กี่วัน) ตอน counseling, (2) ผู้ป่วยตอบไม่ตรงคำถาม (ถาม "เป็นเองไหม" ตอบ "เป็นมา 3 วัน"), (3) ผู้ป่วยทวงยาซ้ำๆ ทั้งที่เภสัชยังถามไม่จบ

@@ -67,10 +67,11 @@ class GeminiLiveClient {
                 }
               },
             },
-            // languageCodes = บอกให้ STT ถอดเสียงเป็นภาษาไทย (กัน auto-detect เพี้ยนเป็นภาษาอื่น)
-            // เป็น param ที่ documented ฝั่ง Vertex; บน public API อาจถูกเพิกเฉย (no-op) แต่ไม่ทำให้พัง
-            inputAudioTranscription:  { languageCodes: ['th-TH'] },
-            outputAudioTranscription: { languageCodes: ['th-TH'] },
+            // ต้องส่งเป็น object ว่าง — public Live API (v1beta) แค่ "เปิด" transcription ด้วย config นี้
+            // ⚠️ ห้ามใส่ languageCodes: AudioTranscriptionConfig บน public API ไม่มี field นี้
+            //    (มีเฉพาะฝั่ง Vertex) → ใส่แล้ว setup JSON invalid, WS ปิดด้วย code 1007
+            inputAudioTranscription:  {},
+            outputAudioTranscription: {},
             realtimeInputConfig: {
               automaticActivityDetection: {
                 // LOW = ต้องพูดชัดๆ จึงจะ interrupt — เสียง background / breathing ไม่ตัด
