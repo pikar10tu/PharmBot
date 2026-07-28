@@ -1,27 +1,40 @@
 // ============================================================
-//  screens/groups.js
+//  screens/groups.js — หน้าเริ่มซักประวัติ
+//  4 ตัวเลือก: สุ่มทุกระบบ + 3 ระบบโรค (เลือกแล้วสุ่มเคสในระบบนั้นทันที)
+//  นักศึกษาเลือกเคสแบบเจาะจงไม่ได้ (ตามสเปกงานวิจัย)
 // ============================================================
 
-const STATIC_GROUPS = [
-  { id: 'MSK',       labelTh: 'Musculoskeletal — ปวดกล้ามเนื้อ/ข้อ',          emoji: '🦴', sortOrder: 1 },
-  { id: 'CVD',       labelTh: 'Cardiovascular — หัวใจและหลอดเลือด',           emoji: '🫀', sortOrder: 2 },
-  { id: 'DERM',      labelTh: 'Dermatologic — ผิวหนัง',                        emoji: '🩹', sortOrder: 3 },
-  { id: 'ENDO',      labelTh: 'Endocrine — ต่อมไร้ท่อ / เบาหวาน',             emoji: '💉', sortOrder: 4 },
-  { id: 'GI',        labelTh: 'Gastrointestinal — ทางเดินอาหาร',              emoji: '🤢', sortOrder: 5 },
-  { id: 'HEMO',      labelTh: 'Hematologic — โลหิตวิทยา',                     emoji: '🩸', sortOrder: 6 },
-  { id: 'IMMUNO',    labelTh: 'Immunologic/Allergy — ภูมิแพ้',                emoji: '🤧', sortOrder: 7 },
-  { id: 'INF_URI',   labelTh: 'Infectious — Upper Respiratory',               emoji: '🫁', sortOrder: 8 },
-  { id: 'INF_UTI',   labelTh: 'Infectious — Urinary Tract',                   emoji: '💊', sortOrder: 9 },
-  { id: 'INF_OTHER', labelTh: 'Infectious — STD / Other',                     emoji: '🦠', sortOrder: 10 },
-  { id: 'NEURO',     labelTh: 'Neurologic — ระบบประสาท',                      emoji: '🧠', sortOrder: 11 },
-  { id: 'PSYCH',     labelTh: 'Psychiatric — จิตเวช',                         emoji: '🧘', sortOrder: 12 },
-  { id: 'PULM',      labelTh: 'Pulmonary — ระบบทางเดินหายใจ',                 emoji: '🌬️', sortOrder: 13 },
-  { id: 'GYN',       labelTh: 'Gynecologic — นรีเวช',                         emoji: '🌸', sortOrder: 14 },
-  { id: 'ENT_EYE',   labelTh: 'Eye & Ear Disorder — ตาและหู',                 emoji: '👁️', sortOrder: 15 },
-  { id: 'RENAL',     labelTh: 'Renal — ไต',                                   emoji: '🫘', sortOrder: 16 },
-  { id: 'REFER',     labelTh: 'Red Flag — เคสต้องส่งต่อ',                     emoji: '🚨', sortOrder: 17 },
-  { id: 'SPECIAL',   labelTh: 'Special — Polypharmacy / ตั้งครรภ์',           emoji: '⚠️', sortOrder: 18 },
+// 3 กลุ่มโรคตามสเปก (§3.4.1) — ต้องตรงกับ GROUPS ใน setup/seed-cases.js
+const SYSTEMS = [
+  { id: 'RESP',   labelTh: 'ระบบทางเดินหายใจ',                                emoji: '🫁' },
+  { id: 'GU_STI', labelTh: 'ติดเชื้อทางเดินปัสสาวะ<br>และโรคติดต่อทางเพศสัมพันธ์', emoji: '🧫' },
+  { id: 'NEURO',  labelTh: 'ระบบประสาท',                                       emoji: '🧠' },
 ];
+
+// สุ่มเคส 1 เคสจากชุดที่โหลดมา แล้วเข้าโหมดซักประวัติ (random:true = ซ่อนชื่อเคส)
+async function _startRandomCase(loader, cardEl) {
+  if (cardEl.dataset.busy) return;
+  cardEl.dataset.busy = '1';
+  const orig = cardEl.innerHTML;
+  cardEl.style.opacity = '0.6';
+  cardEl.innerHTML = '<div class="text-center p-2"><span class="spinner"></span></div>';
+
+  const restore = () => { cardEl.innerHTML = orig; cardEl.style.opacity = ''; delete cardEl.dataset.busy; };
+
+  try {
+    const cases = await loader();
+    if (!cases.length) {
+      restore();
+      alert('ยังไม่มีเคสในระบบนี้ กำลังเพิ่มเนื้อหา — ลองเลือกระบบอื่นหรือ “สุ่มทุกระบบ” ดูนะ');
+      return;
+    }
+    const pick = cases[Math.floor(Math.random() * cases.length)];
+    Router.go('chat', { caseId: pick.id, random: true });
+  } catch (_) {
+    restore();
+    alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
+  }
+}
 
 async function renderGroups(container) {
   const profile = getUserProfile();
@@ -33,60 +46,51 @@ async function renderGroups(container) {
       <div class="flex items-center gap-2 mb-3">
         <button class="btn btn-ghost btn-sm" id="back-btn">← กลับ</button>
         <div style="flex:1">
-          <h2>เลือกหมวดโรค</h2>
-          <p class="text-dim text-sm">เลือกหมวดที่ต้องการฝึก</p>
+          <h2>เริ่มซักประวัติ</h2>
+          <p class="text-dim text-sm">สุ่มทุกระบบ หรือเลือกเจาะจงระบบโรค — ระบบจะสุ่มเคสให้โดยอัตโนมัติ</p>
         </div>
-        <button class="btn btn-primary btn-sm" id="random-case-btn">🎲 สุ่มเคส</button>
       </div>
-      <div id="groups-grid" class="group-grid">
-        <div class="text-center p-3" style="grid-column:1/-1;"><span class="spinner"></span></div>
+
+      <!-- สุ่มทุกระบบ -->
+      <div class="card mb-3" id="pick-all" style="cursor:pointer;text-align:center;transition:all 0.2s;
+            border:1px solid var(--accent);background:var(--teal-glow);">
+        <div style="font-size:2.2rem;margin-bottom:0.35rem;">🎲</div>
+        <h3>สุ่มทุกระบบ</h3>
+        <p class="text-dim text-sm mt-1">สุ่มเคสจากทุกกลุ่มโรค</p>
+      </div>
+
+      <p class="text-dim text-sm mb-2">หรือเลือกเจาะจงระบบโรค</p>
+      <div id="systems-grid"
+           style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:0.75rem;">
+        ${SYSTEMS.map(s => `
+          <div class="card" data-group="${s.id}" style="cursor:pointer;text-align:center;transition:all 0.2s;">
+            <div style="font-size:2rem;margin-bottom:0.35rem;">${s.emoji}</div>
+            <div class="font-bold">${s.labelTh}</div>
+          </div>`).join('')}
       </div>
     </div>`;
 
   document.getElementById('back-btn').addEventListener('click', () => Router.go('dashboard'));
 
-  document.getElementById('random-case-btn').addEventListener('click', async () => {
-    const btn = document.getElementById('random-case-btn');
-    btn.disabled = true;
-    btn.textContent = '⏳ กำลังสุ่ม…';
-    try {
-      const all = await getAllCases();
-      if (!all.length) { alert('ยังไม่มีเคสในระบบ'); btn.disabled = false; btn.textContent = '🎲 สุ่มเคส'; return; }
-      const pick = all[Math.floor(Math.random() * all.length)];
-      Router.go('chat', { caseId: pick.id, random: true });
-    } catch (_) {
-      btn.disabled = false;
-      btn.textContent = '🎲 สุ่มเคส';
-    }
+  // Hover feedback
+  document.querySelectorAll('.card[id], .card[data-group]').forEach(el => {
+    el.addEventListener('mouseenter', () => { el.style.borderColor = 'var(--accent)'; el.style.transform = 'translateY(-2px)'; });
+    el.addEventListener('mouseleave', () => {
+      el.style.transform = '';
+      if (el.id !== 'pick-all') el.style.borderColor = '';
+    });
   });
 
-  // Load groups from Firestore; fallback to STATIC_GROUPS if empty/error
-  let groups;
-  try {
-    const rows = await getGroups();
-    groups = rows.length
-      ? rows.map(g => ({
-          id:       g.id,
-          labelTh:  g.label || g.labelTh || g.id,
-          emoji:    g.emoji || STATIC_GROUPS.find(s => s.id === g.id)?.emoji || '📦',
-          sortOrder: g.sortOrder ?? 99,
-        }))
-      : STATIC_GROUPS;
-  } catch (_) {
-    groups = STATIC_GROUPS;
-  }
+  // สุ่มทุกระบบ → เคส active ทั้งหมด
+  document.getElementById('pick-all').addEventListener('click', function () {
+    _startRandomCase(getAllCases, this);
+  });
 
-  document.getElementById('groups-grid').innerHTML = groups.map(g => `
-    <div class="group-card" data-group="${g.id}">
-      <div class="group-emoji">${g.emoji}</div>
-      <div class="group-label">${g.labelTh}</div>
-    </div>`).join('');
-
-  document.querySelectorAll('.group-card').forEach(card => {
-    card.addEventListener('click', () => {
-      const groupId    = card.dataset.group;
-      const groupLabel = groups.find(g => g.id === groupId)?.labelTh || groupId;
-      Router.go('cases', { groupId, groupLabel });
+  // เลือกระบบ → สุ่มเคส active ในระบบนั้น
+  document.querySelectorAll('.card[data-group]').forEach(card => {
+    card.addEventListener('click', function () {
+      const groupId = this.dataset.group;
+      _startRandomCase(() => getCasesByGroup(groupId), this);
     });
   });
 }

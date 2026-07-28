@@ -21,29 +21,22 @@ admin.initializeApp({ credential: admin.credential.cert(require(keyPath)) });
 const db = admin.firestore();
 
 // ── Disease Groups ─────────────────────────────────────────────
+// 3 กลุ่มโรคตามสเปกงานวิจัย (บท 1-3 ฉบับทีมล่าสุด §3.4.1) — กลุ่มละ 3 เคส รวม 9 เคสฝึก
+// เคสเป้าหมายที่ทีมต้องเติมให้ครบ:
+//   RESP   → Bacterial pharyngitis, Bacterial sinusitis, Allergic rhinitis
+//   GU_STI → Vulvovaginal candidiasis, Gonorrhea, Uncomplicated UTI
+//   NEURO  → Migraine without aura, Tension headache, Stroke
 const GROUPS = [
-  { id: 'INF_URI',   label: 'URI — โรคระบบทางเดินหายใจส่วนบน', sortOrder: 1  },
-  { id: 'GI',        label: 'GI — โรคระบบทางเดินอาหาร',        sortOrder: 2  },
-  { id: 'MSK',       label: 'MSK — กล้ามเนื้อและกระดูก',        sortOrder: 3  },
-  { id: 'DERM',      label: 'DERM — ผิวหนัง',                   sortOrder: 4  },
-  { id: 'CVD',       label: 'CVD — หัวใจและหลอดเลือด',          sortOrder: 5  },
-  { id: 'ENDO',      label: 'ENDO — ต่อมไร้ท่อ / เบาหวาน',     sortOrder: 6  },
-  { id: 'NEURO',     label: 'NEURO — ระบบประสาท',               sortOrder: 7  },
-  { id: 'PULM',      label: 'PULM — ระบบหายใจ',                 sortOrder: 8  },
-  { id: 'RENAL',     label: 'RENAL — ไต / ระบบปัสสาวะ',        sortOrder: 9  },
-  { id: 'INF_UTI',   label: 'INF_UTI — ติดเชื้อทางเดินปัสสาวะ',sortOrder: 10 },
-  { id: 'ENT_EYE',   label: 'ENT/EYE — หู คอ จมูก ตา',         sortOrder: 11 },
-  { id: 'GYN',       label: 'GYN — สูติ-นรีเวช',               sortOrder: 12 },
-  { id: 'PSYCH',     label: 'PSYCH — จิตเวช',                   sortOrder: 13 },
-  { id: 'REFER',     label: 'REFER — Red Flag / ส่งต่อ',        sortOrder: 14 },
-  { id: 'SPECIAL',   label: 'SPECIAL — Polypharmacy / พิเศษ',   sortOrder: 15 },
+  { id: 'RESP',   label: 'ระบบทางเดินหายใจ',                                sortOrder: 1 },
+  { id: 'GU_STI', label: 'ติดเชื้อทางเดินปัสสาวะและโรคติดต่อทางเพศสัมพันธ์', sortOrder: 2 },
+  { id: 'NEURO',  label: 'ระบบประสาท',                                       sortOrder: 3 },
 ];
 
 // ── Cases ──────────────────────────────────────────────────────
 const CASES = [
   {
     id: 'case001_uri_pharyngitis',
-    groupId:    'INF_URI',
+    groupId:    'RESP',
     difficulty: 'easy',
     title:      'เจ็บคอ — Bacterial Pharyngitis',
     gender:     'female',
@@ -126,7 +119,7 @@ const CASES = [
         'ถ้ามีไข้สูง ถ่ายมีเลือด หรืออาการไม่ดีขึ้นใน 2 วัน ให้รีบไปพบแพทย์',
       ],
     },
-    isActive: true,
+    isActive: false,   // นอกสเปก 3 กลุ่มใหม่ (GI) — ปิดไว้ก่อน
   },
 
   // ── case003: ปวดหลัง (MSK) ───────────────────────────────────
@@ -173,7 +166,7 @@ const CASES = [
         'ถ้ามีอาการชาขา ปัสสาวะผิดปกติ หรือปวดมากขึ้น ให้รีบไปพบแพทย์',
       ],
     },
-    isActive: true,
+    isActive: false,   // นอกสเปก 3 กลุ่มใหม่ (MSK) — ปิดไว้ก่อน
   },
 
   // ── case004: เชื้อราที่เท้า (DERM) ──────────────────────────
@@ -217,7 +210,7 @@ const CASES = [
         'ห้ามใช้ยา steroid ทาเพราะจะทำให้เชื้อราลุกลามมากขึ้น',
       ],
     },
-    isActive: true,
+    isActive: false,   // นอกสเปก 3 กลุ่มใหม่ (DERM) — ปิดไว้ก่อน
   },
 
   // ── case005: Red Flag — ปวดหัวรุนแรง (REFER) ─────────────────
@@ -257,7 +250,8 @@ const CASES = [
         'ถ้ามีรถ ให้นำส่งโรงพยาบาลเอง ถ้าไม่มีให้โทร 1669',
       ],
     },
-    isActive: true,
+    isActive: false,   // นอกสเปก 3 กลุ่มใหม่ (REFER) — ปิดไว้ก่อน
+                       // NOTE: ถ้าทีมอยากได้เคส neuro ชั่วคราว remap groupId → 'NEURO' + isActive:true ได้
   },
 ];
 
@@ -278,6 +272,19 @@ async function main() {
   });
   await groupBatch.commit();
   console.log(`  ✅  ${GROUPS.length} groups seeded`);
+
+  // ลบกลุ่มโรคเก่าที่ไม่อยู่ในชุด 3 กลุ่มใหม่ (merge-seed ไม่ลบให้เอง)
+  const keepIds  = new Set(GROUPS.map(g => g.id));
+  const existing = await db.collection('diseaseGroups').get();
+  const delBatch = db.batch();
+  let delCount = 0;
+  existing.forEach(doc => {
+    if (!keepIds.has(doc.id)) { delBatch.delete(doc.ref); delCount++; }
+  });
+  if (delCount) {
+    await delBatch.commit();
+    console.log(`  🗑️   ลบกลุ่มโรคเก่า ${delCount} กลุ่ม`);
+  }
 
   // Seed cases
   console.log(`\n[Cases] ${CASES.length} เคส`);
