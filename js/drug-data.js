@@ -99,6 +99,11 @@ const DRUG_SEED = [
   { drugCode: 'zinc_10',           name: 'Zinc',               strength: '10mg',        form: 'เม็ด',      category: 'วิตามิน/อาหารเสริม',    isOtc: true,  isActive: true },
   { drugCode: 'ferrous_200',       name: 'Ferrous fumarate',   strength: '200mg',       form: 'เม็ด',      category: 'วิตามิน/อาหารเสริม',    isOtc: true,  isActive: true },
   { drugCode: 'calcium_600',       name: 'Calcium carbonate',  strength: '600mg',       form: 'เม็ด',      category: 'วิตามิน/อาหารเสริม',    isOtc: true,  isActive: true },
+
+  // ── ยาเพิ่มสำหรับเคสใหม่ 3 กลุ่มโรค (DRAFT — รอทีมตรวจ) ──
+  { drugCode: 'sumatriptan_50',    name: 'Sumatriptan',        strength: '50mg',        form: 'เม็ด',      category: 'ยาแก้ไมเกรน',           isOtc: false, isActive: true },
+  { drugCode: 'cefixime_400',      name: 'Cefixime',           strength: '400mg',       form: 'แคปซูล',   category: 'ยาปฏิชีวนะ',           isOtc: false, isActive: true },
+  { drugCode: 'fluticasone_nasal', name: 'Fluticasone nasal spray', strength: '27.5mcg', form: 'สเปรย์พ่นจมูก', category: 'ยาพ่นจมูก/สเตียรอยด์', isOtc: true, isActive: true },
 ];
 
 const DRUG_CATEGORIES = [...new Set(DRUG_SEED.map(d => d.category))];

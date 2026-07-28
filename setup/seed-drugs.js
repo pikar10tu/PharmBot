@@ -52,6 +52,7 @@ const DRUGS = [
   { drugCode: 'cefalexin_500',      name: 'Cefalexin',                strength: '500mg',     form: 'แคปซูล',      category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
   { drugCode: 'doxycycline_100',    name: 'Doxycycline',              strength: '100mg',     form: 'แคปซูล',      category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
   { drugCode: 'norfloxacin_400',    name: 'Norfloxacin',              strength: '400mg',     form: 'เม็ด',        category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
+  { drugCode: 'cotrimoxazole_480',  name: 'Cotrimoxazole (TMP-SMX)',  strength: '480mg',     form: 'เม็ด',        category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
 
   // ระบบทางเดินอาหาร
   { drugCode: 'omeprazole_20',      name: 'Omeprazole',               strength: '20mg',      form: 'แคปซูล',      category: 'ยากระเพาะ/กรดไหลย้อน',    isOtc: true,  isActive: true },
@@ -81,6 +82,11 @@ const DRUGS = [
   { drugCode: 'vit_c_1000',         name: 'Vitamin C',                strength: '1000mg',    form: 'เม็ด',        category: 'วิตามิน',                   isOtc: true,  isActive: true },
   { drugCode: 'vit_c_500',          name: 'Vitamin C',                strength: '500mg',     form: 'เม็ด',        category: 'วิตามิน',                   isOtc: true,  isActive: true },
   { drugCode: 'zinc_10',            name: 'Zinc',                     strength: '10mg',      form: 'เม็ด',        category: 'วิตามิน',                   isOtc: true,  isActive: true },
+
+  // ── ยาเพิ่มสำหรับเคสใหม่ 3 กลุ่มโรค (DRAFT — รอทีมตรวจ) ──
+  { drugCode: 'sumatriptan_50',     name: 'Sumatriptan',              strength: '50mg',      form: 'เม็ด',        category: 'ยาแก้ไมเกรน',               isOtc: false, isActive: true },
+  { drugCode: 'cefixime_400',       name: 'Cefixime',                 strength: '400mg',     form: 'แคปซูล',      category: 'ยาปฏิชีวนะ',                isOtc: false, isActive: true },
+  { drugCode: 'fluticasone_nasal',  name: 'Fluticasone nasal spray',  strength: '27.5mcg',   form: 'สเปรย์พ่นจมูก', category: 'ยาพ่นจมูก/สเตียรอยด์',   isOtc: true,  isActive: true },
 ];
 
 // ── Main ──────────────────────────────────────────────────────
