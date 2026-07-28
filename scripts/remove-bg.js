@@ -1,7 +1,12 @@
 const { Jimp } = require('jimp');
 const path = require('path');
 
-const files = ['patient-idle', 'patient-speak'];
+const files = [
+  'patient-female-idle',        'patient-female-speak',
+  'patient-male-idle',          'patient-male-speak',
+  'patient-female-senior-idle', 'patient-female-senior-speak',
+  'patient-male-senior-idle',   'patient-male-senior-speak',
+];
 
 async function removeBg(name) {
   const src = path.join(__dirname, `../img/${name}.jpg`);

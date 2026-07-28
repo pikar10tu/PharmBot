@@ -9,8 +9,7 @@ function renderLogin(container) {
 
         <!-- Logo -->
         <div class="text-center mb-3">
-          <div style="font-size:3rem;margin-bottom:0.5rem;">💊</div>
-          <h1 class="text-accent">PharmBot</h1>
+          <img src="img/logo.jpg" alt="DISPENSA — AI-Supported Virtual Patient Program" class="brand-logo" />
           <p class="text-dim mt-1">ระบบฝึกปฏิบัติงานร้านยาชุมชน</p>
         </div>
 
@@ -36,7 +35,7 @@ function renderLogin(container) {
         </div>
 
         <p class="text-center text-xs text-dim mt-2">
-          PharmBot v2 — สำหรับการศึกษาเท่านั้น
+          DISPENSA — สำหรับการศึกษาเท่านั้น
         </p>
       </div>
     </div>

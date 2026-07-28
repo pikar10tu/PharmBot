@@ -1,5 +1,5 @@
 /* ============================================================
-   main.css — PharmBot v2  (v3 — Dark Premium / Teal)
+   main.css — DISPENSA  (v4 — brand rebrand: navy + cyan default theme)
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Mitr:wght@400;500;600&display=swap');
@@ -32,6 +32,21 @@
 }
 
 /* ── Themes ───────────────────────────────────────────────── */
+
+/* 💠 DISPENSA — deep navy + cyan (brand default)
+   สีอ้างอิงจากโลโก้: กรมท่า #16233f · ฟ้าเทอร์ควอยซ์ #22c1dd · ชมพูบานเย็น #e5188a · เหลืองทอง #f4c11f */
+[data-theme="dispensa"] {
+  --bg1: #0c1730; --bg2: #16233f;
+  --accent: #22c1dd; --accent2: #1499bd; --teal: #22c1dd; --sky: #7fe0ef;
+  --success: #10b981; --warning: #f4c11f; --danger: #ef4444;
+  --text: #e9eefb; --text-dim: #93a3c6;
+  --glass-bg: rgba(255,255,255,0.05); --glass-border: rgba(127,224,239,0.14);
+  --card-shadow: 0 16px 48px rgba(0,0,0,0.45);
+  --teal-glow: rgba(34,193,221,0.16);
+  --orb1: rgba(34,193,221,0.12); --orb2: rgba(229,24,138,0.10);
+  --nav-bg: rgba(12,23,48,0.92); --input-bg: rgba(255,255,255,0.06);
+  --brand-magenta: #e5188a; --brand-gold: #f4c11f;
+}
 
 /* 🌸 Sakura — light pink */
 [data-theme="sakura"] {
@@ -219,13 +234,31 @@ p  { line-height: 1.7; color: var(--text-dim); }
   position: sticky; top: 0; z-index: 100;
 }
 .navbar-brand {
+  display: flex; align-items: center; gap: 0.5rem;
   font-family: 'Mitr', sans-serif;
   font-size: 1.2rem;
   color: var(--teal);
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.06em;
+}
+.navbar-brand-logo {
+  height: 32px; width: auto; display: block;
+  border-radius: 8px;
+  background: #fff;
+  padding: 2px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
 }
 .navbar-right { display: flex; align-items: center; gap: 0.75rem; }
+
+/* ── Brand logo (login hero) ──────────────────────────────── */
+.brand-logo {
+  display: block;
+  width: 220px; max-width: 64%;
+  height: auto; margin: 0 auto 1rem;
+  border-radius: 28px;
+  background: #fff;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.28);
+}
 
 /* ── Stepper ──────────────────────────────────────────────── */
 .stepper {

@@ -23,8 +23,8 @@ let _liveConnecting    = false;  // true while awaiting Live API connect (preven
 let _isRandomCase      = false;  // true = entered via random case — hide case title
 let _caseStarted       = false;  // true after student presses "เริ่มเคส" button
 let _charMode          = localStorage.getItem('pharmbot-char') === 'true'; // character avatar mode
-let _charImgIdle       = 'img/patient-idle.png';  // resolved per session based on gender
-let _charImgSpeak      = 'img/patient-speak.png';
+let _charImgIdle       = 'img/patient-female-idle.png';  // resolved per session based on gender+age
+let _charImgSpeak      = 'img/patient-female-speak.png';
 let _charAnimTimer     = null;   // interval that swaps idle/speak img to animate the mouth
 
 // ── Session countdown timer (OSPE-style time limit) ──────────────
@@ -93,8 +93,11 @@ async function renderChat(container, params = {}) {
     if (!rawCase) { Router.go('groups'); return; }
 
     _caseData = randomizePatientData(rawCase);
-    _charImgIdle  = _caseData.gender === 'male' ? 'img/patient-male-idle.svg'  : 'img/patient-idle.png';
-    _charImgSpeak = _caseData.gender === 'male' ? 'img/patient-male-speak.svg' : 'img/patient-speak.png';
+    // เลือกรูปตัวละครตาม gender + ช่วงอายุ (senior เมื่ออายุ ≥ 60 ให้ตรงกับ getSpeechStyle)
+    const _g      = _caseData.gender === 'male' ? 'male' : 'female';
+    const _senior = (Number(_caseData.age) || 0) >= 60 ? '-senior' : '';
+    _charImgIdle  = `img/patient-${_g}${_senior}-idle.png`;
+    _charImgSpeak = `img/patient-${_g}${_senior}-speak.png`;
     // Preload the speaking frame so the first mouth swap doesn't flicker
     new Image().src = _charImgSpeak;
 

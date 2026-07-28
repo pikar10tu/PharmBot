@@ -4,19 +4,20 @@
 
 // ── Theme helpers (global) ────────────────────────────────────
 function applyTheme(name) {
-  document.documentElement.setAttribute('data-theme', name || 'sakura');
-  localStorage.setItem('pharmbot-theme', name || 'sakura');
+  document.documentElement.setAttribute('data-theme', name || 'dispensa');
+  localStorage.setItem('pharmbot-theme', name || 'dispensa');
   document.querySelectorAll('.theme-dot').forEach(d =>
     d.classList.toggle('active', d.dataset.theme === name)
   );
 }
 
 function initTheme() {
-  const saved = localStorage.getItem('pharmbot-theme') || 'sakura';
+  const saved = localStorage.getItem('pharmbot-theme') || 'dispensa';
   document.documentElement.setAttribute('data-theme', saved);
 }
 
 const THEMES = [
+  { id: 'dispensa', color: '#22c1dd', label: '💠 DISPENSA'  },
   { id: 'sakura',   color: '#ec4899', label: '🌸 Sakura'   },
   { id: 'sky',      color: '#0284c7', label: '🩵 Sky'       },
   { id: 'lavender', color: '#c084fc', label: '💜 Lavender'  },
@@ -122,7 +123,7 @@ async function renderDashboard(container) {
   });
 
   // Mark active theme dot + wire clicks
-  const savedTheme = localStorage.getItem('pharmbot-theme') || 'sakura';
+  const savedTheme = localStorage.getItem('pharmbot-theme') || 'dispensa';
   document.querySelectorAll('.theme-dot').forEach(dot => {
     dot.classList.toggle('active', dot.dataset.theme === savedTheme);
     dot.addEventListener('click', () => applyTheme(dot.dataset.theme));
@@ -137,7 +138,10 @@ async function renderDashboard(container) {
 function renderNavbar(pid) {
   return `
     <nav class="navbar">
-      <span class="navbar-brand">💊 PharmBot</span>
+      <span class="navbar-brand">
+        <img src="img/logo.jpg" alt="DISPENSA" class="navbar-brand-logo" />
+        DISPENSA
+      </span>
       <div class="navbar-right">
         <span class="text-dim text-sm">${pid || ''}</span>
         <button class="btn btn-ghost btn-sm" id="logout-btn">ออกจากระบบ</button>
