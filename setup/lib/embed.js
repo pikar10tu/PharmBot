@@ -19,6 +19,14 @@ const GEN_MODEL   = 'gemini-2.5-flash';
 const API  = 'https://generativelanguage.googleapis.com/v1beta/models';
 const DIMS = 768;
 
+// พิมพ์ทีละบรรทัดพร้อมเวลา — ต้องอ่านได้ทั้งตอนรันหน้าจอและตอน redirect ลงไฟล์
+const _t0 = Date.now();
+function logProgress(label, done, total) {
+  const sec = Math.round((Date.now() - _t0) / 1000);
+  const eta = done ? Math.round(sec / done * (total - done)) : 0;
+  console.log(`   ${label} ${done}/${total}  (${sec}s ผ่านไป, เหลืออีกราว ${eta}s)`);
+}
+
 function chunkHash(c) {
   return crypto.createHash('sha1')
     .update(`${c.docId}|${c.page}|${c.chunkId}|${c.text}`)
@@ -102,9 +110,10 @@ ${listed}`;
       });
     });
 
-    process.stdout.write(`\r   สรุปไทย ${Math.min(i + batchSize, chunks.length)}/${chunks.length}   `);
+    // ขึ้นบรรทัดใหม่เสมอ ไม่ใช้ \r — เวลารันเบื้องหลังแล้ว redirect ลงไฟล์
+    // \r จะถูก buffer ไว้จนจบ ทำให้มองไม่เห็นความคืบหน้าเลย
+    logProgress('สรุปไทย', Math.min(i + batchSize, chunks.length), chunks.length);
   }
-  process.stdout.write('\n');
   return out;
 }
 
@@ -125,9 +134,8 @@ async function embedTexts(texts, apiKey, batchSize = 50) {
       throw new Error(`embed คืนมา ${embs.length} ตัว แต่ส่งไป ${batch.length}`);
     }
     out.push(...embs);
-    process.stdout.write(`\r   embed ${out.length}/${texts.length}   `);
+    logProgress('embed', out.length, texts.length);
   }
-  process.stdout.write('\n');
   return out;
 }
 

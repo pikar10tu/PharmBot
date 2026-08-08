@@ -4,10 +4,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**PharmBot v2** — ระบบจำลองร้านขายยาชุมชนสำหรับนักศึกษาเภสัชศาสตร์ฝึกซักประวัติและจ่ายยา
-**วัตถุประสงค์วิจัย:** ประเมินผลต่อ (1) ทักษะการซักประวัติ (2) ความมั่นใจ (3) ความพึงพอใจ
-**Research design:** Quasi-experimental One-group pretest-posttest
-Deployed on GitHub Pages (static) + Firebase (Auth + Firestore backend).
+**DISPENSA** (ชื่อเดิม PharmBot v2) — ระบบจำลองร้านขายยาชุมชนสำหรับนักศึกษาเภสัชศาสตร์ฝึกซักประวัติและจ่ายยา
+Deployed on GitHub Pages (static) + Firebase (Auth + Firestore backend)
+
+**⚠️ ชื่อภายในยังเป็น pharmbot ทั้งหมด** — localStorage key `pharmbot-theme`/`pharmbot-char`,
+auth domain `@pharmbot.local`, firebase project `pharmbot-8496c` — ตั้งใจไม่แตะ
 
 ---
 
@@ -15,37 +16,54 @@ Deployed on GitHub Pages (static) + Firebase (Auth + Firestore backend).
 
 | ต้องการ | ไปที่ |
 |--------|------|
-| แก้ prompt ผู้ป่วย / prompt ประเมิน | `js/prompts.js` (221 บรรทัด, pure functions) |
-| แก้ flow session 4 ขั้นตอน | `js/screens/chat.js` (1,067 บรรทัด — ⚠️ ใหญ่) |
-| แก้ scoring weights | `prompts.js` บรรทัด 199–203 (hardcoded — ดู Config section ด้านล่าง) |
+| แก้ prompt ผู้ป่วย / prompt ประเมิน | `js/prompts.js` (370 บรรทัด, pure functions) |
+| แก้ flow session 4 ขั้นตอน | `js/screens/chat.js` (1,051 บรรทัด — ⚠️ ใหญ่) |
+| แก้ rubric / น้ำหนักคะแนน | `prompts.js` — `DOMAIN_WEIGHTS` บรรทัด 8, `getDefaultRubric()` บรรทัด 60 |
 | แก้/เพิ่ม Firestore queries | `js/db.js` (164 บรรทัด) |
 | เพิ่ม/แก้ cases | `setup/seed-cases.js` แล้วรัน `node seed-cases.js` |
-| Admin panel | `js/screens/admin.js` (889 บรรทัด) |
+| Admin panel | `js/screens/admin.js` (1,090 บรรทัด — ⚠️ ใหญ่) |
 | เพิ่ม route ใหม่ | `js/router.js` + `index.html` (เพิ่ม `<script>`) |
+| งาน RAG อ้างอิงเวชปฏิบัติ | `docs/specs/2026-08-08-rag-clinical-guidelines.md` + `docs/plans/2026-08-08-rag-phase1-indexing.md` |
 
 ---
 
 ## Research Protocol Mapping
 
-### ตัวแปรและที่เก็บข้อมูล
+### ⚠️ คะแนนจาก AI ในแอปไม่ใช่ตัวแปรตามของงานวิจัย
 
-| ตัวแปรตาม | วิธีวัด | เก็บที่ | สถานะ |
-|----------|--------|--------|------|
-| ทักษะการซักประวัติ | AI eval score (history_score) | Firestore `/results` | ✅ ทำแล้ว |
-| ทักษะการจ่ายยา | drug_score + counseling_score | Firestore `/results` | ✅ ทำแล้ว |
-| ความมั่นใจ (Self-efficacy) | Likert survey ก่อน-หลัง | Firestore `/surveys` | ❌ ยังไม่มี |
-| ความพึงพอใจ (Usability) | SUS 10 ข้อ | Firestore `/surveys` | ❌ ยังไม่มี |
+| ตัวแปรตาม | วิธีวัดจริง | เก็บที่ |
+|----------|-----------|--------|
+| **ทักษะการซักประวัติ/จ่ายยา** | **ผู้เชี่ยวชาญให้คะแนนเอง จากวิดีโอที่นักศึกษาทำกับ standardized patient — นอกแอป** | นอกระบบ (การศึกษานำร่อง n=5) |
+| ความมั่นใจ (Self-efficacy) | Likert 5 ข้อ ก่อน-หลัง (n=38, ผลลัพธ์หลัก) | ❌ ยังไม่มีในแอป |
+| ความพึงพอใจ (SUS) | SUS 10 ข้อ (n=38) | ❌ ยังไม่มีในแอป |
 
-### Pretest-Posttest
+**คะแนน/feedback ที่แอปคำนวณ = สื่อการเรียนรู้เชิงก่อรูป (formative) ไม่ใช่เครื่องมือวัด**
+เก็บลง `/results` ต่อไปเพื่อ **วิเคราะห์เสริม** ว่าสอดคล้องกับคะแนนผู้เชี่ยวชาญแค่ไหน
 
-ปัจจุบัน **ยังไม่มี** กลไกแยก pretest / posttest session
-→ ต้องเพิ่ม `sessionNumber` ใน `/sessions` และ `isPretest` / `isPosttest` flags
+ผลที่ตามมา:
+- ทั้ง eval pipeline (รวม RAG) เป็นส่วนหนึ่งของ **intervention** ไม่ใช่ instrument → ไม่ต้องทำ IOC แยก
+- **แอปไม่ต้องมีโหมด pretest/posttest** เพราะการสอบทักษะเกิดนอกแอป
+- ข้อจำกัดที่เหลือคือ **treatment fidelity** — freeze prompt + corpus + `corpusVersion` ก่อนเก็บข้อมูล ห้ามแก้กลางคัน
 
-### Scoring Weights (eval prompt)
+### ขอบเขตเนื้อหา (ตามเล่ม บท 3 ฉบับทีม 25 ก.ค.)
+
+**3 กลุ่มโรค × 3 = 9 เคสฝึก + 2 เคสสอบ**
+
+| กลุ่ม | เคส |
+|---|---|
+| `RESP` ระบบทางเดินหายใจ | Bacterial pharyngitis · Bacterial sinusitis · Allergic rhinitis |
+| `GU_STI` ทางเดินปัสสาวะ + STI | Vulvovaginal candidiasis · Gonorrhea · Uncomplicated UTI |
+| `NEURO` ระบบประสาท | Migraine without aura · Tension headache · Stroke |
+
+**เคสสอบ (ผู้เรียนไม่รู้ล่วงหน้า):** Trichomoniasis · Bacterial pharyngitis แบบแพ้ Amoxicillin
+
+### Scoring (deterministic — AI ไม่คิดเลขเอง)
 ```
-overall = history_score×0.25 + diagnosis_score×0.15 + drug_score×0.40 + counseling_score×0.20
+domain_score = (Σ weight×earned ในหมวด ÷ Σ weight ในหมวด) × 100
+overall = history×0.25 + diagnosis×0.15 + drug×0.40 + counseling×0.20
 ```
-อยู่ใน `prompts.js` บรรทัด 199–203 — **hardcoded** ควรย้ายไป `config.js` (Phase 2)
+AI ตัดสินแค่ `earned` ต่อข้อ ∈ {0, 0.5, 1} → `scoreRubric()` ใน `prompts.js` คำนวณเอง
+น้ำหนัก domain อยู่ที่ `DOMAIN_WEIGHTS` (`prompts.js:8`) — **hardcoded โดยตั้งใจ เพื่อความเสถียรของงานวิจัย**
 
 ---
 
@@ -65,12 +83,22 @@ Deploy อัตโนมัติผ่าน GitHub Actions เมื่อ pu
 
 ```bash
 cd setup && npm install
+npm test                      # unit tests (node:test) — 43 tests
 
 node create-participants.js   # สร้าง Firebase Auth + Firestore /users
 node seed-drugs.js            # seed /drugs
-node seed-cases.js            # seed /diseaseGroups + /cases (5 cases ปัจจุบัน)
+node seed-cases.js            # seed /diseaseGroups + /cases
 node reset-passwords.js       # reset passwords → participants-reset.csv
 ```
+
+**RAG — คลังแนวทางเวชปฏิบัติ** (ดู `docs/plans/2026-08-08-rag-phase1-indexing.md`)
+```bash
+python extract-pdf.py         # PDF -> guidelines/.extracted/{docId}/p{NNN}.txt
+node index-guidelines.js --dry     # ตรวจก่อน ไม่เรียก API ไม่เขียน Firestore
+node index-guidelines.js           # chunk -> สรุปไทย -> embed -> Firestore
+node eval-retrieval.js             # วัด recall@6 (เกณฑ์ >= 0.8) ก่อนเปิดใช้งาน
+```
+ไฟล์ PDF อยู่ `setup/guidelines/` (**gitignored** — ลิขสิทธิ์) สำรอง manifest ที่ `DOC/guidelines/manifest.json`
 
 **Update Gemini model/key:**
 ```bash
@@ -79,10 +107,11 @@ const admin=require('firebase-admin');
 admin.initializeApp({credential:admin.credential.cert(require('./serviceAccountKey.json'))});
 admin.firestore().collection('config').doc('gemini').set({
   apiKey: 'AIza...',
-  model: 'gemini-2.0-flash'   // แนะนำ: 2.0-flash (patient) หรือ 2.5-flash (eval)
+  model: 'gemini-2.5-flash'
 },{merge:true}).then(()=>{console.log('done');process.exit(0)});
 "
 ```
+⚠️ `gemini-2.0-*` และ `gemini-1.5-*` **ถูกประกาศเลิกใช้แล้ว** ห้ามใช้
 
 ---
 
@@ -96,29 +125,38 @@ gemini-live.js      → WebSocket client for Gemini Live API (voice mode)
 gemini-tts.js       → text-to-speech helper
 auth.js             → uses db, loadGeminiConfig
 db.js               → Firestore CRUD helpers
+rag-core.js         → คณิตค้นคืน (ไม่มี I/O) — ใช้ร่วมกับ Node ใน setup/ ด้วย
 prompts.js          → pure prompt-builder functions (no side effects)
 drug-data.js        → DRUG_SEED array
 screens/*.js        → use all of the above
 router.js           → init() called LAST, after onAuthReady()
 ```
 All JS is **global scope**. Adding a `<script>` out of order causes "X is not defined" at runtime.
+**No build step** — แก้ไฟล์แล้ว commit ตรงๆ อย่าลืม bump `?v=` ใน `index.html` เมื่อแก้ไฟล์ที่ deploy แล้ว
+
+`js/rag-core.js` ต้องรันได้ทั้งเบราว์เซอร์และ Node → **ห้ามใส่ `require()` หรือ ESM `import`**
+มี test บังคับไว้ที่ `setup/test/rag-core-browser.test.js`
 
 ### Routing
-Hash-based SPA (`js/router.js`). Routes: `#login → #dashboard → #groups → #cases → #chat → #summary`.
-Params passed via `Router.go('chat', { caseId })` — **params are lost on page refresh**.
+Hash-based SPA (`js/router.js`, 57 บรรทัด)
+Routes: `#login #dashboard #groups #cases #chat #summary #history #admin`
+Params ส่งผ่าน `Router.go('chat', { caseId })` — **params หายเมื่อ refresh หน้า**
 
 ### Firestore Collections
 
 | Collection | Schema | Purpose |
 |---|---|---|
-| `/config/gemini` | `{ apiKey, model }` | API key loaded after login |
+| `/config/gemini` | `{ apiKey, model, evalModel? }` | API key loaded after login |
+| `/config/rag` | `{ corpusVersion, enabled, topK, minScore, embedModel }` | RAG feature flag + พารามิเตอร์ |
 | `/users/{uid}` | `{ participantId, role }` | role: `'student'` or `'admin'` |
-| `/diseaseGroups/{id}` | `{ label, sortOrder }` | 15 groups defined |
-| `/cases/{id}` | see Case Schema below | 5 cases active |
+| `/diseaseGroups/{id}` | `{ label, sortOrder }` | **3 groups**: RESP, GU_STI, NEURO |
+| `/cases/{id}` | see Case Schema below | เป้าหมาย 9 เคสฝึก |
 | `/drugs/{drugCode}` | `{ name, strength, form, category, isOtc, isActive }` | drug library |
 | `/sessions/{id}` | chatHistory, dispensedDrugs, counselingHistory, status | one per attempt |
 | `/results/{id}` | score fields + feedbackJson | linked to sessionId + userId |
-| `/surveys/{id}` | **ยังไม่มี — ต้องสร้าง Phase 1** | confidence + usability data |
+| `/guidelineIndex/{groupId}_{shard}` | `{ corpusVersion, groupId, entries[] }` | ดัชนีค้นคืน (โหลดครั้งเดียว/session) |
+| `/guidelineChunks/{chunkId}` | `{ docId, page, heading, text, summaryTh, hash }` | เนื้อหาเต็ม (ดึงเฉพาะ top-k) |
+| `/surveys/{id}` | **ยังไม่มี** | confidence + SUS |
 
 Required composite indexes (Firebase Console → Firestore → Indexes):
 - `cases`: `(groupId ASC, isActive ASC)`
@@ -147,23 +185,24 @@ Required composite indexes (Firebase Console → Firestore → Indexes):
 
 | Function | ใช้ใน | Key behavior |
 |----------|------|-------------|
-| `buildSystemPrompt(caseData, voiceMode)` | Step 1 | 9 กฎเหล็ก, persona, secretInfo, voice overlay |
+| `buildSystemPrompt(caseData, voiceMode)` | Step 1 | 12 กฎเหล็ก, persona, secretInfo, voice overlay |
 | `buildCounselingPrompt(caseData, dispensedDrugs, voiceMode)` | Step 3 | patient รับยาแล้ว รอ counseling |
-| `buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory)` | Step 4 | returns strict JSON, 4 score domains |
+| `buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory)` | Step 4 | AI ตัดสิน earned รายข้อ — **ไม่คิดคะแนนรวมเอง** |
+| `buildRubricForCase(caseData)` | eval + admin | ใช้ rubric ของเคส ถ้าไม่มีก็ seed default + migrate ของเดิม |
+| `scoreRubric(caseData, itemResults, gender)` | chat.js | **คำนวณคะแนนใน JS แบบ deterministic** |
 | `randomizePatientData(caseData)` | chat.js | สุ่ม gender/age/name ถ้าเป็น 'random'/0 |
 
-**Eval JSON output schema:**
+**Eval JSON output schema** (AI คืนแค่นี้ — คะแนนคำนวณฝั่ง JS):
 ```json
 {
-  "checklist_results": [{"item":1,"label":"...","done":true,"note":"..."}],
-  "history_score": 0, "history_feedback": "", "history_missed": [],
-  "diagnosis_score": 0, "diagnosis_feedback": "",
-  "drug_score": 0, "drug_feedback": "",
-  "counseling_score": 0, "counseling_feedback": "", "counseling_missed": [],
-  "overall": 0, "summary": ""
+  "reasoning": "วิเคราะห์ทีละหมวด อ้างหลักฐานจาก transcript",
+  "items": [{"id": "h1", "earned": 1, "note": "หลักฐานสั้นๆ"}],
+  "history_feedback": "", "history_missed": [],
+  "diagnosis_feedback": "", "drug_feedback": "",
+  "counseling_feedback": "", "counseling_missed": [],
+  "summary": ""
 }
 ```
-→ **ยังขาด `"reasoning"` field** — ควรเพิ่มเพื่อ validation ของ research
 
 ---
 
