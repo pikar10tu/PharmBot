@@ -44,6 +44,11 @@ test('รับช่องว่างชนิดอื่นที่ PDF แ
   assert.strictEqual(repairThai('ส​าหรับ'), 'สำหรับ');
 });
 
+test('ซ่อม ำ ที่ถูกช่องว่างแยกจากพยัญชนะ (ของจริงจาก RDU/AR)', () => {
+  assert.strictEqual(repairThai('ค ำน ำ'), 'คำนำ');
+  assert.strictEqual(repairThai('ท ำให้'), 'ทำให้');
+});
+
 test('ไม่แตะข้อความที่ถูกต้องอยู่แล้ว', () => {
   const clean = 'การจัดการและดูแลรักษาภาวะ community-acquired urinary tract infection';
   assert.strictEqual(repairThai(clean), clean);

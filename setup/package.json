@@ -5,7 +5,8 @@
   "main": "create-participants.js",
   "scripts": {
     "create": "node create-participants.js",
-    "seed-drugs": "node seed-drugs.js"
+    "seed-drugs": "node seed-drugs.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
     "firebase-admin": "^12.0.0"

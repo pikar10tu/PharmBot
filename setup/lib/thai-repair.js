@@ -22,6 +22,7 @@ const WS = '[ \\t\u00A0\u2000-\u200B\uFEFF]';
 
 const RE_DUP_MARK = new RegExp(`([${MARKS}])\\1+`, 'g');
 const RE_SARA_AM  = new RegExp(`([\u0E01-\u0E2E][${MARKS}]?)${WS}+า(?![${MARKS}])`, 'g');
+const RE_SPLIT_AM = new RegExp(`([ก-ฮ][${MARKS}]?)${WS}+ำ`, 'g');
 const RE_FFFD_AM  = new RegExp(`([\u0E01-\u0E2E][${MARKS}]?)\uFFFD\\s*า(?![${MARKS}])`, 'g');
 
 function repairThai(text) {
@@ -41,10 +42,15 @@ function repairThai(text) {
   //    ทำให้ "ค าแนะนำ" ไม่ถูกซ่อม (เคยพลาดมาแล้ว ครึ่งหนึ่งของเคสจริงหลุด)
   t = t.replace(RE_SARA_AM, '$1ำ');
 
-  // 3) "ำ" ที่ถูกแทนด้วย U+FFFD ("จ\uFFFDาเป็น" -> "จำเป็น")
+  // 3) "ำ" ที่เป็น ำ อยู่แล้ว แต่ถูกช่องว่างแยกจากพยัญชนะ ("ค ำน ำ" -> "คำนำ")
+  //    ปลอดภัยด้วยเหตุผลเดียวกับข้อ 2: ำ ขึ้นต้นคำในภาษาไทยไม่ได้
+  //    พบน้อย (3 ครั้งในคลัง เทียบกับ 648 ของข้อ 2) แต่เป็นกฎเดียวกันจึงเก็บให้ครบ
+  t = t.replace(RE_SPLIT_AM, '$1ำ');
+
+  // 4) "ำ" ที่ถูกแทนด้วย U+FFFD ("จ\uFFFDาเป็น" -> "จำเป็น")
   t = t.replace(RE_FFFD_AM, '$1ำ');
 
-  // 4) U+FFFD ที่เหลือ -> ทิ้ง ดีกว่าปล่อยให้ปนเข้า embedding
+  // 5) U+FFFD ที่เหลือ -> ทิ้ง ดีกว่าปล่อยให้ปนเข้า embedding
   t = t.replace(/\uFFFD/g, '');
 
   return t;
