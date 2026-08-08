@@ -19,7 +19,9 @@
 - **Quantize:** Int8Array scale คงที่ = 127 (ทำได้เพราะ normalize แล้วค่าอยู่ใน [-1,1]) เก็บเป็น base64 ห้ามเก็บ scale ต่อ vector
 - **Generation model:** `gemini-2.5-flash` — ห้ามใช้ `gemini-2.0-*` หรือ `gemini-1.5-*` (deprecated)
 - **API key:** อ่านจาก Firestore `/config/gemini.apiKey` ห้าม hardcode ห้าม commit
-- **Firestore doc limit 1 MB** — shard ดัชนีไม่เกิน 600 entries ต่อ document
+- **Firestore doc limit 1 MB** — shard ดัชนีไม่เกิน **300 entries** ต่อ document
+  (วัดจริง 2026-08-09: 1 entry ≈ 1.3 KB → 300 entries ≈ 390 KB ปลอดภัย.
+  เดิมตั้งไว้ 600 แต่กลุ่ม RESP มี 576 entries = 745 KB ในก้อนเดียว ใกล้ชนเกินไป)
 - **ชื่อกลุ่มโรค:** `RESP` · `GU_STI` · `NEURO` เท่านั้น (ตรงกับ `setup/seed-cases.js:30-32`)
 - **`corpusVersion`** อยู่ในทุก document ที่เขียน — ใช้ค่าจาก `manifest.json` field เดียวกัน
 - ไฟล์ไกด์ไลน์ต้นทางอยู่ที่ `D:/PROJECT/DOC/guidelines/` (นอก repo) — Task 2 คัดลอกเฉพาะที่อยู่ใน manifest เข้า `setup/guidelines/`
@@ -980,15 +982,20 @@ test('chunkHash คงที่สำหรับ input เดิม และ�
 });
 
 test('shardEntries แบ่งไม่เกินขนาดที่กำหนดและไม่ตกหล่น', () => {
-  const entries = Array.from({ length: 1301 }, (_, i) => ({ chunkId: `c${i}` }));
-  const shards = shardEntries(entries, 600);
+  const entries = Array.from({ length: 701 }, (_, i) => ({ chunkId: `c${i}` }));
+  const shards = shardEntries(entries, 300);
   assert.strictEqual(shards.length, 3);
-  assert.deepStrictEqual(shards.map(s => s.length), [600, 600, 101]);
-  assert.strictEqual(shards.flat().length, 1301);
+  assert.deepStrictEqual(shards.map(s => s.length), [300, 300, 101]);
+  assert.strictEqual(shards.flat().length, 701);
+});
+
+test('shardEntries ค่าเริ่มต้น 300 (กัน RESP 576 entries ชน 1 MB)', () => {
+  const entries = Array.from({ length: 576 }, (_, i) => ({ chunkId: `c${i}` }));
+  assert.deepStrictEqual(shardEntries(entries).map(s => s.length), [300, 276]);
 });
 
 test('shardEntries กับ list ว่างคืน array ว่าง', () => {
-  assert.deepStrictEqual(shardEntries([], 600), []);
+  assert.deepStrictEqual(shardEntries([], 300), []);
 });
 
 test('buildEmbedInput เอาสรุปไทยขึ้นก่อน แล้ว keywords แล้วต้นฉบับที่ตัดสั้น', () => {
@@ -1034,7 +1041,7 @@ function chunkHash(c) {
     .digest('hex');
 }
 
-function shardEntries(entries, size = 600) {
+function shardEntries(entries, size = 300) {
   const out = [];
   for (let i = 0; i < entries.length; i += size) out.push(entries.slice(i, i + size));
   return out;
@@ -1308,7 +1315,7 @@ async function main() {
 
   // ── 6. เขียน /guidelineIndex เป็น shard ──
   for (const [groupId, entries] of Object.entries(byGroup)) {
-    const shards = shardEntries(entries, 600);
+    const shards = shardEntries(entries, 300);
     for (let s = 0; s < shards.length; s++) {
       await db.collection('guidelineIndex').doc(`${groupId}_${s}`)
         .set({ corpusVersion, groupId, shard: s, entries: shards[s] });
