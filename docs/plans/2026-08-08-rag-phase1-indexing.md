@@ -58,6 +58,8 @@
 | `495-CPG-migraine-2565.pdf` | `แนวทางเวชปฏิิบััติิการวินิจฉััย` | `แนวทางเวชปฏิบัติการวินิจฉัย` |
 | `AR.pdf` | `แนวทางเวชปฏิบัติส าหรับโรคจมูก` | `แนวทางเวชปฏิบัติสำหรับโรคจมูก` |
 | `CCPE_461_URI_antibiotics.pdf` | `สาเหตุส าคัญ` | `สาเหตุสำคัญ` |
+| `CCPE_739_STD_pharmacist.pdf` | `ให้ค าแนะน าผู้ป่วย` | `ให้คำแนะนำผู้ป่วย` |
+| `RDU_ASU_community_pharmacy.pdf` | `ที่จ�าเป็น` | `ที่จำเป็น` |
 
 - [ ] **Step 1: เขียน test ที่ต้องแดงก่อน**
 
@@ -82,6 +84,24 @@ test('ซ่อม ำ ที่แตกเป็นพยัญชนะ + ช
   );
   assert.strictEqual(repairThai('สาเหตุส าคัญ'), 'สาเหตุสำคัญ');
   assert.strictEqual(repairThai('จ านวนหน่วยกิต'), 'จำนวนหน่วยกิต');
+});
+
+// ⚠️ test นี้จับบั๊กที่เคยเขียนพลาดมาแล้ว — ห้ามลบ
+// negative lookahead ที่กว้างเป็น [ะ-๎] (0E30-0E4E) จะครอบสระนำ เ แ โ ใ ไ
+// ทำให้ "ค าแนะนำ" ไม่ถูกซ่อมเพราะหลัง า เป็น แ  (พลาดไปครึ่งหนึ่งของเคสจริง)
+test('ซ่อมได้แม้ตัวถัดไปเป็นสระนำ เ แ โ ใ ไ', () => {
+  assert.strictEqual(repairThai('ให้ค าแนะน าผู้ป่วย'), 'ให้คำแนะนำผู้ป่วย');
+  assert.strictEqual(repairThai('จ าเป็นต้อง'), 'จำเป็นต้อง');
+  assert.strictEqual(repairThai('พิจารณาท าเป็นรายๆ'), 'พิจารณาทำเป็นรายๆ');
+});
+
+test('ซ่อม ำ ที่กลายเป็น U+FFFD และทิ้ง U+FFFD ที่เหลือ', () => {
+  assert.strictEqual(repairThai('ที่จ�าเป็น'), 'ที่จำเป็น');
+  assert.strictEqual(repairThai('ข้อความ�ปกติ'), 'ข้อความปกติ');
+});
+
+test('รับช่องว่างชนิดอื่นที่ PDF แทรก (non-breaking space)', () => {
+  assert.strictEqual(repairThai('ส าหรับ'), 'สำหรับ');
 });
 
 test('ไม่แตะข้อความที่ถูกต้องอยู่แล้ว', () => {
@@ -115,16 +135,20 @@ Expected: FAIL — `Cannot find module '../lib/thai-repair'`
 //  thai-repair.js
 //  ซ่อมข้อความไทยที่ PDF ถอดออกมาเพี้ยน (pure — ไม่มี I/O)
 //
-//  วัดกับไฟล์จริงใน DOC/guidelines เมื่อ 2026-08-08:
-//    CPG ไมเกรน 2565  สระซ้ำ 14 -> 0
-//    AR.pdf           "ส า"   10 -> 0
-//
-//  ⚠️ ซ่อมได้แค่ 2 อาการนี้ ไฟล์ที่ฟอนต์ไม่ใช่ Unicode
-//  (STI_CPG_DDC_2567 เนื้อความ, f6cdf409) ต้องใช้ extract=gemini
+//  วัดกับหน้าเนื้อหาจริงใน DOC/guidelines เมื่อ 2026-08-09
+//  (สุ่ม 12 หน้า/ไฟล์ ข้ามปกและสารบัญ):
+//    CCPE 739  107 -> 0 จุดบกพร่อง
+//    RDU ASU   155 -> 0
+//    AR.pdf     85 -> 0
+//    CCPE 461   42 -> 0
+//    STI 2567  259 -> 86  (เหลือ 1.00% ต้องตรวจด้วยตา)
+//    CPG ไมเกรน 1331 -> 307 (เหลือ 1.56% ต้องใช้ extract=gemini)
 // ============================================================
 
 // combining marks ไทย: ไม้หันอากาศ, สระบน/ล่าง, วรรณยุกต์, ทัณฑฆาต, ยามักการ
 const MARKS = '\u0E31\u0E34-\u0E3A\u0E47-\u0E4E';
+// ช่องว่างทุกชนิดที่ PDF แทรก — non-breaking space กับ zero-width พบบ่อยในไฟล์ไทย
+const WS = '[ \\t\u00A0\u2000-\u200B\uFEFF]';
 
 function repairThai(text) {
   if (!text) return '';
@@ -135,14 +159,25 @@ function repairThai(text) {
   //    (ต่างตัวติดกันได้ เช่น ตั้ง = ต + ั + ้ จึงต้อง backreference ไม่ใช่ character class)
   t = t.replace(new RegExp(`([${MARKS}])\\1+`, 'g'), '$1');
 
-  // 2) "สำ" ที่แตกเป็น พยัญชนะ + ช่องว่าง + "า"
+  // 2) "ำ" ที่แตกเป็น พยัญชนะ + ช่องว่าง + "า"
   //    ปลอดภัย: า ไม่ขึ้นต้นคำในภาษาไทย ช่องว่างหน้า า จึงเป็นบั๊กเสมอ
-  //    - อนุญาตให้มี mark คั่นได้ 1 ตัว (เช่น "ที่ า")
-  //    - ไม่แตะถ้าหลัง า มีสระ/วรรณยุกต์ต่อ (แปลว่า า นั้นเป็นของจริง)
+  //
+  //    ⚠️ lookahead ต้องเป็น [MARKS] เท่านั้น — ห้ามใช้ [\u0E30-\u0E4E]
+  //    ช่วงนั้นครอบสระนำ เ แ โ ใ ไ (0E40-0E44) ซึ่งขึ้นต้นคำถัดไปเป็นปกติ
+  //    ทำให้ "ค าแนะนำ" ไม่ถูกซ่อม (เคยพลาดมาแล้ว ครึ่งหนึ่งของเคสจริงหลุด)
   t = t.replace(
-    new RegExp(`([\u0E01-\u0E2E][${MARKS}]?)[ \\t]+า(?![\u0E30-\u0E4E])`, 'g'),
+    new RegExp(`([\u0E01-\u0E2E][${MARKS}]?)${WS}+า(?![${MARKS}])`, 'g'),
     '$1ำ'
   );
+
+  // 3) "ำ" ที่ถูกแทนด้วย U+FFFD ("จ\uFFFDาเป็น" -> "จำเป็น")
+  t = t.replace(
+    new RegExp(`([\u0E01-\u0E2E][${MARKS}]?)\uFFFD\\s*า(?![${MARKS}])`, 'g'),
+    '$1ำ'
+  );
+
+  // 4) U+FFFD ที่เหลือ -> ทิ้ง ดีกว่าปล่อยให้ปนเข้า embedding
+  t = t.replace(/\uFFFD/g, '');
 
   return t;
 }
@@ -211,13 +246,16 @@ Expected: `git status` ไม่แสดง `setup/guidelines/probe.pdf`
 ```bash
 cd "D:/PROJECT/pharmbot-v2/setup/guidelines"
 for f in CCPE_739_STD_pharmacist.pdf CCPE_953_community_UTI.pdf \
-         CCPE_461_URI_antibiotics.pdf AR.pdf \
-         495-CPG-migraine-2565-20230104074752.pdf STI_CPG_DDC_2567.pdf; do
+         CCPE_461_URI_antibiotics.pdf CCPE_978_drug_law_categories.pdf \
+         RDU_ASU_community_pharmacy.pdf AR.pdf STI_CPG_DDC_2567.pdf \
+         f6cdf4093bd243c29d7036bb107ee501.pdf; do
   cp "D:/PROJECT/DOC/guidelines/$f" . && echo "copied $f"
 done
 ls -la
 ```
-Expected: 6 ไฟล์ (ไม่เอา `Thai DM CPG`, `Neuropathic Pain`, `ปลายประสาทอักเสบ`, `hemorrhagic-2008`, `Adult_Sinusitis` — นอกขอบเขตหรือรอตรวจ)
+Expected: 8 ไฟล์
+
+ไม่เอา: `Thai DM CPG`, `Neuropathic Pain`, `ปลายประสาทอักเสบ` (นอกขอบเขต 9 เคส) · `hemorrhagic-2008` (ผิดชนิด+เก่า 17 ปี) · `Adult_Sinusitis` (สรุปย่อ ซ้ำกับ CCPE 461) · `495-CPG-migraine` (รอ `extract: "gemini"`)
 
 - [ ] **Step 4: เขียน manifest.json**
 
@@ -280,19 +318,6 @@ Expected: 6 ไฟล์ (ไม่เอา `Thai DM CPG`, `Neuropathic Pain`, 
       "extract": "pypdf"
     },
     {
-      "id": "migraine_cpg_2565",
-      "file": "495-CPG-migraine-2565-20230104074752.pdf",
-      "title": "แนวทางเวชปฏิบัติการวินิจฉัยและการรักษาปวดศีรษะไมเกรน (ฉบับสมบูรณ์ 2565)",
-      "publisher": "ชมรมศึกษาโรคปวดศีรษะ ภายใต้สมาคมประสาทวิทยาแห่งประเทศไทย",
-      "author": null,
-      "year": 2565,
-      "url": null,
-      "lang": "th",
-      "groups": ["NEURO"],
-      "pages": "1-94",
-      "extract": "pypdf"
-    },
-    {
       "id": "sti_ddc_2567",
       "file": "STI_CPG_DDC_2567.pdf",
       "title": "แนวทางการดูแลรักษาโรคติดต่อทางเพศสัมพันธ์ พ.ศ. 2567",
@@ -303,11 +328,73 @@ Expected: 6 ไฟล์ (ไม่เอา `Thai DM CPG`, `Neuropathic Pain`, 
       "lang": "th",
       "groups": ["GU_STI"],
       "pages": "10-37,52-60,68-70,81,91-96",
-      "extract": "gemini"
+      "extract": "pypdf"
+    },
+    {
+      "id": "headache_drugs_review",
+      "file": "f6cdf4093bd243c29d7036bb107ee501.pdf",
+      "title": "การใช้ยาอาการปวดศีรษะ (Topic Review)",
+      "publisher": "คณะแพทยศาสตร์ มหาวิทยาลัยขอนแก่น",
+      "author": "รศ.นพ.สมศักดิ์ เทียมเก่า",
+      "year": null,
+      "url": null,
+      "lang": "th",
+      "groups": ["NEURO"],
+      "pages": "1-25",
+      "extract": "pypdf"
+    },
+    {
+      "id": "rdu_asu_pharmacy",
+      "file": "RDU_ASU_community_pharmacy.pdf",
+      "title": "Antibiotics Smart Use — Complementary guidance for community pharmacist (RDU PHARMACY EAGLE)",
+      "publisher": "คณะเภสัชศาสตร์ ม.สงขลานครินทร์ / สสจ.สงขลา / อย. กระทรวงสาธารณสุข",
+      "author": null,
+      "year": 2561,
+      "url": "https://www.pharmacy.psu.ac.th/images/rdu-eagle2018.pdf",
+      "lang": "th",
+      "groups": ["RESP", "GU_STI", "NEURO"],
+      "pages": "1-32",
+      "extract": "pypdf"
+    },
+    {
+      "id": "ccpe978_drug_law",
+      "file": "CCPE_978_drug_law_categories.pdf",
+      "title": "ประเภทยาและข้อกำหนดของกฎหมายยาและวิชาชีพเภสัชกรรมที่เกี่ยวข้อง",
+      "publisher": "ศูนย์การศึกษาต่อเนื่องทางเภสัชศาสตร์ สภาเภสัชกรรม",
+      "author": "รศ.ภญ.ดร.วรรณา ศรีวิริยานุภาพ",
+      "year": null,
+      "url": "https://ccpe.pharmacycouncil.org/showfile.php?file=978",
+      "lang": "th",
+      "groups": ["RESP", "GU_STI", "NEURO"],
+      "pages": "1-12",
+      "extract": "pypdf"
     }
   ]
 }
 ```
+
+**`extract` ของทุกฉบับเป็น `pypdf` ยกเว้น CPG ไมเกรน** — ผลวัด 2026-08-09 (ดู spec) ระบุว่ามีฉบับเดียวที่ตัวซ่อมเอาไม่อยู่ ให้ **ตัด `migraine_cpg_2565` ออกจาก manifest ไปก่อน** แล้วเติมทีหลังเมื่อทำ `extract: "gemini"` — N1 Migraine ยังมี `headache_drugs_review` กับบทความ CCPE ไมเกรนรองรับ
+
+เอกสาร 2 ฉบับหลัง (`rdu_asu_pharmacy`, `ccpe978_drug_law`) เป็น **หมวดข้ามเคส** แท็กทั้ง 3 กลุ่ม — กันไม่ให้ระบบสอนว่า "ไกด์ไลน์บอกให้ใช้ยาตัวนี้" ทั้งที่ร้านยาไทยจ่ายไม่ได้ตามกฎหมาย
+```
+
+- [ ] **Step 4a: ตรวจ STI 2567 ด้วยตา แล้วตัดสินว่าใช้ pypdf ได้ไหม**
+
+ผลวัดบอกว่าเหลือจุดบกพร่อง 1.00% หลังซ่อม — ก้ำกึ่ง ต้องตาดูก่อนตัดสิน
+
+```bash
+cd "D:/PROJECT/pharmbot-v2/setup" && python -c "
+import sys,re; sys.stdout.reconfigure(encoding='utf-8')
+from pypdf import PdfReader
+r=PdfReader('guidelines/STI_CPG_DDC_2567.pdf')
+for p in [10,52,68,91]:
+    print('='*80); print('หน้า',p+1)
+    print(re.sub(r'\s+',' ',(r.pages[p].extract_text() or ''))[:400])
+"
+```
+อ่านดูว่าชื่อยาและ **ตัวเลขขนาดยา** ถูกต้องหรือไม่ (ตัวเลขเพี้ยนอันตรายที่สุด)
+- อ่านรู้เรื่อง ตัวเลขถูก → คง `extract: "pypdf"`
+- ตัวเลข/ชื่อยาเพี้ยน → เปลี่ยนเป็น `"gemini"` แล้วเอาออกจากรอบนี้เหมือน CPG ไมเกรน
 
 - [ ] **Step 4b: ยืนยันช่วงหน้าของ AR.pdf และปีของทุกเอกสาร ก่อนไปต่อ**
 
@@ -428,7 +515,7 @@ if __name__ == '__main__':
 - [ ] **Step 6: รันจริงกับทั้งคลัง**
 
 Run: `cd setup && python extract-pdf.py`
-Expected: 5 doc ถูกแตก (`sti_ddc_2567` ถูก skip เพราะ `extract=gemini`) ไม่มีบรรทัดไหนขึ้น "ตรวจด่วน"
+Expected: ทุก doc ใน manifest ถูกแตก (ทั้งหมดเป็น `extract=pypdf`) ไม่มีบรรทัดไหนขึ้น "ตรวจด่วน"
 ถ้าขึ้น "ตรวจด่วน" ให้หยุดและรายงาน — แปลว่าไฟล์นั้นเป็นภาพสแกน ต้องเปลี่ยนเป็น `extract: "gemini"`
 
 - [ ] **Step 7: ตาดู cache ที่ได้**
@@ -1262,7 +1349,7 @@ Expected: แต่ละบรรทัดเป็นภาษาไทยท�
 - [ ] **Step 8: รันทั้งคลัง**
 
 Run: `cd setup && node index-guidelines.js`
-Expected: ทุก doc ที่มี cache ถูก index (`sti_ddc_2567` จะเตือนว่าไม่มี cache — ถูกต้อง รอ `extract=gemini` ซึ่งไม่อยู่ใน plan นี้)
+Expected: ทุก doc ใน manifest ถูก index ครบ ไม่มีคำเตือน "ไม่มี cache"
 
 - [ ] **Step 9: Commit**
 
@@ -1317,15 +1404,18 @@ embed สรุปภาษาไทยแทนข้อความดิบ �
     { "q": "ยาปฏิชีวนะ first line สำหรับกระเพาะปัสสาวะอักเสบ", "group": "GU_STI", "expectDocs": ["ccpe953_uti"] },
     { "q": "UTI ในหญิงตั้งครรภ์ต้องระวังยาอะไร", "group": "GU_STI", "expectDocs": ["ccpe953_uti"] },
     { "q": "อาการเตือนว่าติดเชื้อทางเดินปัสสาวะส่วนบนต้องส่งต่อ", "group": "GU_STI", "expectDocs": ["ccpe953_uti"] },
-    { "q": "เกณฑ์วินิจฉัยไมเกรนที่ไม่มีอาการนำ", "group": "NEURO", "expectDocs": ["migraine_cpg_2565"] },
-    { "q": "ยารักษาไมเกรนเฉียบพลันขั้นแรก", "group": "NEURO", "expectDocs": ["migraine_cpg_2565"] },
-    { "q": "triptan ใช้เมื่อไรในไมเกรน", "group": "NEURO", "expectDocs": ["migraine_cpg_2565"] },
-    { "q": "ยาแก้อาเจียนร่วมกับยาแก้ไมเกรน", "group": "NEURO", "expectDocs": ["migraine_cpg_2565"] },
-    { "q": "medication overuse headache เกิดจากอะไร", "group": "NEURO", "expectDocs": ["migraine_cpg_2565"] },
-    { "q": "อาการปวดศีรษะที่เป็นสัญญาณเตือนต้องส่งต่อแพทย์", "group": "NEURO", "expectDocs": ["migraine_cpg_2565"] },
-    { "q": "ปวดศีรษะจากความเครียดต่างจากไมเกรนอย่างไร", "group": "NEURO", "expectDocs": ["migraine_cpg_2565"] },
-    { "q": "ไมเกรนในหญิงตั้งครรภ์ใช้ยาอะไรได้", "group": "NEURO", "expectDocs": ["migraine_cpg_2565"] },
-    { "q": "การป้องกันไมเกรนใช้ยาอะไร", "group": "NEURO", "expectDocs": ["migraine_cpg_2565"] }
+    { "q": "เกณฑ์วินิจฉัยไมเกรนที่ไม่มีอาการนำ", "group": "NEURO", "expectDocs": ["headache_drugs_review"] },
+    { "q": "ยารักษาไมเกรนเฉียบพลันขั้นแรก", "group": "NEURO", "expectDocs": ["headache_drugs_review"] },
+    { "q": "triptan ใช้เมื่อไรในไมเกรน", "group": "NEURO", "expectDocs": ["headache_drugs_review"] },
+    { "q": "medication overuse headache เกิดจากอะไร", "group": "NEURO", "expectDocs": ["headache_drugs_review"] },
+    { "q": "อาการปวดศีรษะที่เป็นสัญญาณเตือนต้องส่งต่อแพทย์", "group": "NEURO", "expectDocs": ["headache_drugs_review"] },
+    { "q": "ปวดศีรษะจากความเครียดต่างจากไมเกรนอย่างไร", "group": "NEURO", "expectDocs": ["headache_drugs_review"] },
+    { "q": "ปวดศีรษะแบบ tension headache รักษาด้วยยาอะไร", "group": "NEURO", "expectDocs": ["headache_drugs_review"] },
+    { "q": "ปวดศีรษะเฉียบพลันรุนแรงมากทันทีทันใดคิดถึงโรคอะไร", "group": "NEURO", "expectDocs": ["headache_drugs_review"] },
+    { "q": "ยาที่เภสัชกรจ่ายได้ในร้านยาต้องเป็นยาประเภทใด", "group": "NEURO", "expectDocs": ["ccpe978_drug_law"] },
+    { "q": "ยาอันตรายกับยาสามัญประจำบ้านต่างกันอย่างไร", "group": "RESP", "expectDocs": ["ccpe978_drug_law"] },
+    { "q": "เจ็บคอแบบไหนไม่ต้องใช้ยาปฏิชีวนะ", "group": "RESP", "expectDocs": ["rdu_asu_pharmacy", "ccpe461_uri"] },
+    { "q": "การใช้ยาปฏิชีวนะอย่างสมเหตุผลในร้านยา", "group": "RESP", "expectDocs": ["rdu_asu_pharmacy"] }
   ]
 }
 ```
