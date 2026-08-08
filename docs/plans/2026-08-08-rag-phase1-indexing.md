@@ -1204,17 +1204,21 @@ async function main() {
   }
 
   // ── 1. chunk ทุก doc ──
+  //
+  // ⚠️ ต้อง chunk "ทุก" doc เสมอ แม้จะสั่ง --doc
+  //    เพราะขั้นที่ 6 เขียนดัชนีด้วย .set() ซึ่งทับทั้ง shard
+  //    ถ้ากรองตรงนี้ ดัชนีของเอกสารอื่นในกลุ่มเดียวกันจะหายทันที
+  //    --doc มีผลแค่ "เอกสารไหนถูก embed ใหม่" (ขั้นที่ 2) ไม่ใช่ "เอกสารไหนอยู่ในดัชนี"
   const byGroup = {};   // groupId -> entries[]
   const allChunks = []; // { chunk, doc }
   for (const doc of manifest.docs) {
-    if (ONLY && doc.id !== ONLY) continue;
     const pages = loadCachedPages(doc.id);
     if (!pages.length) {
-      console.warn(`⚠️  ${doc.id}: ไม่มี cache — รัน extract-pdf.py ก่อน (หรือยังไม่ได้ทำ extract=gemini)`);
+      console.warn(`⚠️  ${doc.id}: ไม่มี cache — รัน extract-pdf.py ก่อน`);
       continue;
     }
     const chunks = chunkPages(doc.id, pages);
-    console.log(`${doc.id.padEnd(20)} ${pages.length} หน้า -> ${chunks.length} chunk`);
+    console.log(`${doc.id.padEnd(22)} ${pages.length} หน้า -> ${chunks.length} chunk`);
     chunks.forEach(c => allChunks.push({ chunk: c, doc }));
   }
 
@@ -1251,10 +1255,23 @@ async function main() {
     }
   });
 
-  const todo = allChunks.filter(({ chunk }) =>
-    existing.get(chunk.chunkId) !== chunkHash(chunk) || !prevEntries.has(chunk.chunkId)
-  );
+  // --doc จำกัดแค่ "อะไรถูก embed ใหม่" — ดัชนียังประกอบจากทุก doc
+  const stale = ({ chunk }) =>
+    existing.get(chunk.chunkId) !== chunkHash(chunk) || !prevEntries.has(chunk.chunkId);
+  const todo = allChunks.filter(c => (!ONLY || c.doc.id === ONLY) && stale(c));
+
   console.log(`ต้องประมวลผลใหม่ ${todo.length} chunk (ใช้ของเดิม ${allChunks.length - todo.length})`);
+
+  // เตือนถ้ามี doc อื่นที่ยังไม่เคย index แล้วถูก --doc กันไว้ — ไม่งั้นมันจะหายจากดัชนีเงียบๆ
+  if (ONLY) {
+    const orphan = [...new Set(
+      allChunks.filter(c => c.doc.id !== ONLY && stale(c)).map(c => c.doc.id)
+    )];
+    if (orphan.length) {
+      console.warn(`⚠️  ${orphan.join(', ')} ยังไม่มี embedding และถูก --doc กันไว้`);
+      console.warn('   เอกสารเหล่านี้จะไม่อยู่ในดัชนีรอบนี้ — รันโดยไม่ใส่ --doc เพื่อให้ครบ');
+    }
+  }
 
   // ── 3. สรุปไทย + embed ──
   let meta = [], embs = [];
@@ -1551,6 +1568,44 @@ git commit -m "feat(rag): retrieval quality harness with recall@6 gate
 30 query ไทยครอบ 3 กลุ่มโรค — เกณฑ์ผ่าน recall@6 >= 0.8
 บันทึกค่า minScore ที่วัดได้กลับเข้า spec"
 ```
+
+---
+
+## การเพิ่มเอกสารเข้าคลังภายหลัง
+
+ออกแบบมาให้ทำได้โดยไม่ต้องแก้โค้ด — `index-guidelines.js` เป็น idempotent
+chunk ที่ hash ไม่เปลี่ยนจะใช้ embedding เดิม ไม่เสียเงิน embed ซ้ำ
+
+```bash
+# 1. วางไฟล์
+cp ใหม่.pdf setup/guidelines/
+
+# 2. เพิ่ม entry ใน manifest.json (คง corpusVersion เดิมไว้ ถ้ายังไม่ freeze)
+
+# 3. แตกข้อความ (ไฟล์เดิมถูกข้ามอัตโนมัติ เพราะ cache อยู่แล้ว)
+cd setup && python extract-pdf.py
+
+# 4. index — ห้ามใส่ --doc
+node index-guidelines.js
+
+# 5. วัดคุณภาพซ้ำเสมอ — เอกสารใหม่อาจแย่งอันดับของเดิม
+node eval-retrieval.js
+```
+
+**⚠️ ห้ามใช้ `--doc` ตอนเพิ่มเอกสารใหม่** — มันจำกัดแค่ว่าอะไรถูก embed ใหม่ แต่ถ้าเอกสารอื่นในกลุ่มยังไม่เคยมี embedding มันจะหลุดจากดัชนี (สคริปต์จะเตือนให้) `--doc` มีไว้สำหรับตอนแก้เอกสารเดิมที่ index ไปแล้วเท่านั้น
+
+**ขั้นที่ 5 ห้ามข้าม** — การเพิ่มเอกสารเปลี่ยนผลค้นคืนของ query เดิมได้ ถ้า recall ตกต่ำกว่า 0.8 แปลว่าเอกสารใหม่สร้าง noise ต้องพิจารณาจำกัด `pages` ให้แคบลงหรือถอดออก
+
+**ข้อจำกัดเดียวที่ต้องระวัง — `corpusVersion` กับ treatment fidelity**
+
+| ช่วงเวลา | เพิ่มไฟล์ได้ไหม |
+|---|---|
+| ก่อนเก็บข้อมูล | ✅ ได้อิสระ — เพิ่มแล้ว bump `corpusVersion` ตามเหมาะสม |
+| **ระหว่างเก็บข้อมูล** | ❌ **ห้าม** — นักศึกษาต้องเจอระบบเวอร์ชันเดียวกันทุกคน ไม่งั้นแต่ละคนได้ intervention ไม่เหมือนกัน |
+| หลังเก็บข้อมูลเสร็จ | ✅ ได้ — แต่ต้องบันทึกว่าเปลี่ยนหลังเก็บข้อมูล เพื่อไม่ให้ปนกับเวอร์ชันที่ใช้จริง |
+
+ถ้า bump `corpusVersion` = **ทุก chunk ถูก embed ใหม่หมด** (เพราะ query หา hash เดิมด้วย `corpusVersion`)
+จงใจให้เป็นแบบนี้ เพื่อให้แต่ละเวอร์ชันของคลังแยกกันสะอาด ตรวจย้อนได้ว่านักศึกษาคนไหนเจอคลังชุดใด
 
 ---
 
