@@ -258,9 +258,34 @@ function buildCounselingPrompt(caseData, dispensedDrugs, voiceMode = false) {
 - ห้ามออกนอกบทบาท และห้ามแต่งข้อมูลใหม่ที่ไม่มีในบทบาท — ถ้าถูกถามเรื่องที่ไม่รู้/ไม่มีในข้อมูล ตอบว่าไม่แน่ใจหรือจำไม่ได้${voiceOverlay}`;
 }
 
+// ── Guideline evidence block (RAG) ────────────────────────────
+// chunks ว่าง -> คืน '' -> eval prompt ทำงานเหมือนไม่มี RAG ทุกประการ
+function buildGuidelineBlock(chunks) {
+  if (!Array.isArray(chunks) || !chunks.length) return '';
+
+  const items = chunks.map((c, i) => {
+    const src = [c.title || c.docId, c.page ? `หน้า ${c.page}` : ''].filter(Boolean).join(' ');
+    return `[G${i + 1}] แหล่ง: ${src}\nสรุป: ${c.summaryTh || '-'}\nเนื้อหา: ${(c.text || '').slice(0, 900)}`;
+  }).join('\n\n');
+
+  return `
+
+<Guideline_Evidence>
+${items}
+</Guideline_Evidence>
+
+การใช้หลักฐานข้างต้น:
+- อ้างอิงได้เฉพาะข้อความใน <Guideline_Evidence> เท่านั้น **ห้ามแต่งเพิ่มจากความรู้ของคุณเอง**
+- เมื่ออ้างในข้อความ feedback ให้ติด tag เช่น [G1] ต่อท้ายประโยคนั้น
+- **ถ้าหลักฐานขัดกับเฉลยของเคสใน <Case_Info> ให้ยึดเฉลยของเคสเสมอ และห้ามอ้าง chunk นั้น**
+  (เฉลยผ่านการตรวจของผู้เชี่ยวชาญแล้ว ส่วนหลักฐานอาจมาจากบริบทอื่น เช่น โรงพยาบาล ไม่ใช่ร้านขายยา)
+- หลักฐานนี้ใช้เพื่อ "อธิบายให้ลึกขึ้น" เท่านั้น **ห้ามใช้เปลี่ยนการตัดสิน earned รายข้อ**`;
+}
+
 // ── Evaluation prompt (Step 4) ────────────────────────────────
 // AI ตัดสินแค่ earned ต่อข้อ (0|0.5|1) — JS คำนวณคะแนนเองผ่าน scoreRubric()
-function buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory) {
+// guidelineChunks = หลักฐานจาก RAG (ว่างได้ — prompt จะเหมือนเดิมทุกประการ)
+function buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory, guidelineChunks = []) {
   const isFemale = caseData.gender === 'female';
 
   // rubric เฉพาะเคสนี้ (กรองข้อ active + femaleOnly ตามเพศจริง)
@@ -342,6 +367,7 @@ ${chatText}
 <Counseling_Transcript>
 ${counselingText}
 </Counseling_Transcript>
+${buildGuidelineBlock(guidelineChunks)}
 
 วิธีประเมิน (สำคัญมาก):
 - หน้าที่ของคุณคือ "ตัดสินรายข้อ" เท่านั้น — **ห้ามคิดคะแนนรวมเอง** ระบบจะคำนวณคะแนนจากน้ำหนักให้เอง
@@ -363,8 +389,12 @@ ${counselingText}
   "drug_feedback": "เลือกยาถูกไหม regimen ถูกต้องไหม",
   "counseling_feedback": "ให้คำแนะนำครบไหม",
   "counseling_missed": ["counseling point ที่ขาดไป"],
-  "summary": "สรุปภาพรวม 2-3 ประโยค จุดเด่นและจุดที่ต้องพัฒนา"
+  "summary": "สรุปภาพรวม 2-3 ประโยค จุดเด่นและจุดที่ต้องพัฒนา",
+  "citations": ["G1"]
 }
 
-หมายเหตุ: ต้องมี "items" ครบทุก id ที่อยู่ใน <Checklist> ห้ามข้าม`;
+หมายเหตุ:
+- ต้องมี "items" ครบทุก id ที่อยู่ใน <Checklist> ห้ามข้าม
+- "citations" = รายการ tag ที่คุณอ้างจริงในข้อความ feedback (ไม่ได้อ้างเลยให้ใส่ [])
+  ถ้าไม่มี <Guideline_Evidence> ให้ใส่ [] เสมอ`;
 }
