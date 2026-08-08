@@ -29,8 +29,11 @@ class GeminiLiveClient {
     this._playbackInitPromise = null;   // singleton — prevents concurrent setup racing
     this._msgChain            = Promise.resolve();  // serial message processing — preserves arrival order
 
+    this._pendingUserText     = '';      // accumulates inputTranscription chunks (see _flushUserTranscript)
+
     // ── Public callbacks ──────────────────────────────────────
-    this.onUserTranscript         = null;  // (text: string) => void
+    this.onUserSpeechStart        = null;  // () => void — fired on the FIRST chunk of a user utterance
+    this.onUserTranscript         = null;  // (text: string) => void — fired with the COMPLETE utterance
     this.onModelTranscript        = null;  // (text: string) => void — fired at turn end
     this.onPartialModelTranscript = null;  // (chunk: string) => void — streaming chunks
     // state: 'connecting' | 'ready' | 'ai-speaking' | 'listening' | 'disconnected'
@@ -196,8 +199,16 @@ class GeminiLiveClient {
     try { this._playNode?.port.postMessage('clear'); } catch (_) {}
   }
 
+  // ── Internal: emit the accumulated user utterance as one history entry ──
+  _flushUserTranscript() {
+    const t = this._pendingUserText.trim();
+    this._pendingUserText = '';
+    if (t) this.onUserTranscript?.(t);
+  }
+
   // ── Disconnect ────────────────────────────────────────────────
   disconnect() {
+    this._flushUserTranscript();  // don't lose a trailing utterance on hang-up / timeout
     this.stopMic();
     this._stopPlayback();
     if (this._ws) {
@@ -313,20 +324,26 @@ class GeminiLiveClient {
     }
 
     // ── User speech transcript ──
+    // inputTranscription arrives in chunks as the user speaks — accumulate and emit
+    // ONE entry per utterance, mirroring how _pendingModelText works. Emitting each
+    // chunk would fragment one spoken sentence into several history turns.
     const inputTx = sc.inputTranscription || sc.input_transcription;
     if (inputTx?.text) {
-      this.onUserTranscript?.(inputTx.text.trim());
+      if (!this._pendingUserText) this.onUserSpeechStart?.();
+      this._pendingUserText += inputTx.text;
     }
 
     // ── Model speech transcript (streaming + final) ──
     const outputTx = sc.outputTranscription || sc.output_transcription;
     if (outputTx?.text) {
+      this._flushUserTranscript();  // model started replying → user's utterance is over
       this._pendingModelText += outputTx.text;
       this.onPartialModelTranscript?.(outputTx.text);
     }
 
     // ── Turn complete ──
     if (sc.turnComplete || sc.turn_complete) {
+      this._flushUserTranscript();  // covers turns where the model stayed silent
       if (this._pendingModelText.trim()) {
         this.onModelTranscript?.(this._pendingModelText.trim());
         this._pendingModelText = '';

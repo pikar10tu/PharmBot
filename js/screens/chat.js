@@ -21,6 +21,18 @@ let _liveClient        = null;   // GeminiLiveClient instance (Live API voice mo
 let _liveMode          = false;  // true = Live API active, false = Web Speech fallback
 let _liveConnecting    = false;  // true while awaiting Live API connect (prevents double-connect)
 let _isRandomCase      = false;  // true = entered via random case — hide case title
+
+// Capture channel of the current turn, stored as `via` on every history entry.
+// Research-relevant: only user turns are transcribed, and Live API transcription is
+// markedly more accurate on Thai medical vocabulary than Web Speech. Without this
+// field a session's transcript quality is unknowable after the fact.
+//   'live'      — Gemini Live inputTranscription (voice tab, Live API connected)
+//   'webspeech' — browser SpeechRecognition (voice tab, Live API unavailable)
+//   'text'      — typed by the student, no transcription involved
+function _turnVia() {
+  if (!_voiceMode) return 'text';
+  return _liveMode ? 'live' : 'webspeech';
+}
 let _caseStarted       = false;  // true after student presses "เริ่มเคส" button
 let _charMode          = localStorage.getItem('pharmbot-char') === 'true'; // character avatar mode
 let _charImgIdle       = 'img/patient-female-idle.png';  // resolved per session based on gender+age
@@ -448,11 +460,16 @@ async function _startVoice(panelStep) {
       }
     };
 
-    client.onUserTranscript = (text) => {
+    // Unmute the patient as soon as the pharmacist starts speaking — must not wait
+    // for the full utterance, or the patient's first reply would be swallowed.
+    client.onUserSpeechStart = () => {
       if (!_pharmacistSpoke) {
         _pharmacistSpoke = true;
         client.audioEnabled = true;
       }
+    };
+
+    client.onUserTranscript = (text) => {
       if (!_voiceMode) return;
       // Gemini Live's inputTranscription is the single source of truth for the
       // pharmacist's speech (accurate for Thai medical vocabulary) — used for
@@ -460,8 +477,12 @@ async function _startVoice(panelStep) {
       const displayText = (text || '').trim();
       if (!displayText) return;
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
-      hist.push({ role: 'user', text: displayText });
+      hist.push({ role: 'user', text: displayText, via: 'live' });
       _addMsg(msgId, 'user', displayText);
+      // Persist here too — the patient may never reply after this (timer expiry,
+      // quit, dropped connection), and /sessions is the permanent research record.
+      if (panelStep === 1) updateSessionChat(_session.id, _chatHistory).catch(() => {});
+      else                 updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
     };
 
     client.onPartialModelTranscript = (chunk) => {
@@ -475,7 +496,7 @@ async function _startVoice(panelStep) {
       const sub = document.getElementById(`voice-subtitle-${panelStep}`);
       if (sub) sub.textContent = '';
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
-      hist.push({ role: 'model', text });
+      hist.push({ role: 'model', text, via: 'live' });
       _addMsg(msgId, 'model', text);
       if (panelStep === 1) updateSessionChat(_session.id, _chatHistory).catch(() => {});
       else                 updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
@@ -704,7 +725,7 @@ async function _sendChat() {
   if (!text) return;
 
   input.value = '';
-  _chatHistory.push({ role: 'user', text });
+  _chatHistory.push({ role: 'user', text, via: _turnVia() });
   _addMsg('chat-messages', 'user', text);
   _lockInput(true, 'chat-input', 'send-btn');
   _showTyping('chat-messages'); // also sets _aiTyping = true
@@ -720,7 +741,7 @@ async function _sendChat() {
     const chatOpts = _voiceMode ? { maxOutputTokens: 150, historyTurns: 8 } : {};
     const reply    = await geminiChat(buildSystemPrompt(_caseData), hist, text, chatOpts);
     _hideTyping('chat-messages');
-    _chatHistory.push({ role: 'model', text: reply });
+    _chatHistory.push({ role: 'model', text: reply, via: _turnVia() });
     _addMsg('chat-messages', 'model', reply);
 
     if (_voiceMode && !_liveMode) {
@@ -816,7 +837,7 @@ async function _sendCounseling() {
   if (!text) return;
 
   input.value = '';
-  _counselingHistory.push({ role: 'user', text });
+  _counselingHistory.push({ role: 'user', text, via: _turnVia() });
   _addMsg('counsel-messages', 'user', text);
   _lockInput(true, 'counsel-input', 'send-counsel-btn');
   _showTyping('counsel-messages'); // also sets _aiTyping = true
@@ -833,7 +854,7 @@ async function _sendCounseling() {
     const counselOpts = _voiceMode ? { maxOutputTokens: 150, historyTurns: 8 } : {};
     const reply       = await geminiChat(sysPrompt, hist, text, counselOpts);
     _hideTyping('counsel-messages');
-    _counselingHistory.push({ role: 'model', text: reply });
+    _counselingHistory.push({ role: 'model', text: reply, via: _turnVia() });
     _addMsg('counsel-messages', 'model', reply);
 
     if (_voiceMode && !_liveMode) {
