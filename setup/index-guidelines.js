@@ -187,20 +187,8 @@ async function main() {
     }
   }
 
-  // ── 7. /config/rag — enabled: false จนกว่าจะวัด recall ผ่านเกณฑ์ ──
-  const cfgRef = db.collection('config').doc('rag');
-  const cfg = (await cfgRef.get()).data() || {};
-  await cfgRef.set({
-    corpusVersion,
-    enabled: cfg.enabled === true,   // ไม่เปิดเอง แต่ถ้าเคยเปิดไว้แล้วไม่ปิด
-    topK: cfg.topK || 6,
-    minScore: cfg.minScore ?? null,
-    embedModel: EMBED_MODEL,
-  }, { merge: true });
-  console.log(`\n/config/rag เขียนแล้ว (enabled: ${cfg.enabled === true})`);
-  if (cfg.enabled !== true) {
-    console.log('→ ยังไม่เปิดใช้งาน รัน eval-retrieval.js ให้ผ่านเกณฑ์ recall@6 >= 0.8 ก่อน');
-  }
+  console.log(`\nดัชนีอัปเดตแล้ว — corpusVersion บันทึกอยู่ที่ manifest.json (${corpusVersion}) เท่านั้น`);
+  console.log('→ รัน eval-retrieval.js เพื่อวัด recall@6 ก่อนใช้คลังนี้ร่าง annotation');
 }
 
 main().then(() => process.exit(0)).catch(e => { console.error('\n❌', e); process.exit(1); });

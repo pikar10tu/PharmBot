@@ -3,7 +3,7 @@
 //  วัด recall@k ของการค้นคืน — ด่านตัดสินก่อนเปิดใช้งาน RAG
 //
 //  วิธีใช้:
-//    node eval-retrieval.js            k = /config/rag.topK (ค่าเริ่มต้น 6)
+//    node eval-retrieval.js            k = 6 (ค่าเริ่มต้น)
 //    node eval-retrieval.js --k 10
 //    node eval-retrieval.js --verbose  แสดงผลทุก query ไม่ใช่เฉพาะที่พลาด
 //
@@ -20,6 +20,7 @@ const { embedTexts, EMBED_MODEL } = require('./lib/embed');
 const args    = process.argv.slice(2);
 const ARG_K   = args.includes('--k') ? parseInt(args[args.indexOf('--k') + 1], 10) : null;
 const VERBOSE = args.includes('--verbose');
+const DEFAULT_K = 6;
 const MAX_PER_DOC = 2;
 const PASS = 0.8;
 
@@ -39,9 +40,10 @@ async function main() {
   const apiKey = (await db.collection('config').doc('gemini').get()).data()?.apiKey;
   if (!apiKey) throw new Error('/config/gemini.apiKey ว่าง');
 
-  const cfg = (await db.collection('config').doc('rag').get()).data() || {};
-  const K = ARG_K || cfg.topK || 6;
-  console.log(`corpusVersion: ${cfg.corpusVersion} | embed: ${EMBED_MODEL} | k=${K}\n`);
+  const manifest = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'guidelines', 'manifest.json'), 'utf8'));
+  const K = ARG_K || DEFAULT_K;
+  console.log(`corpusVersion: ${manifest.corpusVersion} | embed: ${EMBED_MODEL} | k=${K}\n`);
 
   const { queries } = JSON.parse(fs.readFileSync(path.join(__dirname, 'eval-queries.json'), 'utf8'));
 
@@ -92,7 +94,6 @@ async function main() {
   const sorted = [...topScores].sort((a, b) => a - b);
   const pct = p => sorted[Math.floor(sorted.length * p)]?.toFixed(3);
   console.log(`\ncosine ของอันดับ 1: min ${pct(0)} | p10 ${pct(0.1)} | กลาง ${pct(0.5)} | max ${sorted.at(-1)?.toFixed(3)}`);
-  console.log(`→ ใช้ p10 (${pct(0.1)}) เป็นจุดเริ่มพิจารณา minScore แล้วบันทึกลง /config/rag และลงใน spec`);
 
   if (fails.length) {
     console.log(`\nquery ที่พลาด ${fails.length} ข้อ:`);
