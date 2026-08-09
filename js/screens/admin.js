@@ -798,6 +798,9 @@ async function _saveCaseForm() {
       active:   it.active !== false,
       ...(it.femaleOnly ? { femaleOnly: true } : {}),
       ...(it.custom ? { custom: true } : {}),
+      // annotation ยังไม่มี UI แก้ไข — ต้อง pass-through ไม่งั้นหายเงียบตอนกดบันทึก
+      ...(String(it.rationale || '').trim() ? { rationale: it.rationale.trim() } : {}),
+      ...(Array.isArray(it.sources) && it.sources.length ? { sources: it.sources } : {}),
     }));
 
   const caseData = {
