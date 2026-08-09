@@ -18,12 +18,12 @@ auth domain `@pharmbot.local`, firebase project `pharmbot-8496c` — ตั้�
 |--------|------|
 | แก้ prompt ผู้ป่วย / prompt ประเมิน | `js/prompts.js` (370 บรรทัด, pure functions) |
 | แก้ flow session 4 ขั้นตอน | `js/screens/chat.js` (1,051 บรรทัด — ⚠️ ใหญ่) |
-| แก้ rubric / น้ำหนักคะแนน | `prompts.js` — `DOMAIN_WEIGHTS` บรรทัด 8, `getDefaultRubric()` บรรทัด 60 |
+| แก้ rubric / น้ำหนักคะแนน | `prompts.js` — `DOMAIN_WEIGHTS` บรรทัด 8, `getDefaultRubric()` บรรทัด 65 |
 | แก้/เพิ่ม Firestore queries | `js/db.js` (164 บรรทัด) |
 | เพิ่ม/แก้ cases | `setup/seed-cases.js` แล้วรัน `node seed-cases.js` |
 | Admin panel | `js/screens/admin.js` (1,090 บรรทัด — ⚠️ ใหญ่) |
 | เพิ่ม route ใหม่ | `js/router.js` + `index.html` (เพิ่ม `<script>`) |
-| งาน RAG อ้างอิงเวชปฏิบัติ | `docs/specs/2026-08-08-rag-clinical-guidelines.md` + `docs/plans/2026-08-08-rag-phase1-indexing.md` |
+| แก้หลักฐานอ้างอิงในเฉลย (annotation) | `docs/specs/2026-08-09-static-guideline-grounding.md` |
 
 ---
 
@@ -83,7 +83,7 @@ Deploy อัตโนมัติผ่าน GitHub Actions เมื่อ pu
 
 ```bash
 cd setup && npm install
-npm test                      # unit tests (node:test) — 43 tests
+npm test                      # unit tests (node:test) — 79 tests
 
 node create-participants.js   # สร้าง Firebase Auth + Firestore /users
 node seed-drugs.js            # seed /drugs
@@ -91,7 +91,7 @@ node seed-cases.js            # seed /diseaseGroups + /cases
 node reset-passwords.js       # reset passwords → participants-reset.csv
 ```
 
-**RAG — คลังแนวทางเวชปฏิบัติ** (ดู `docs/plans/2026-08-08-rag-phase1-indexing.md`)
+**คลังแนวทางเวชปฏิบัติ (offline — วัตถุดิบเขียน annotation)** (ดู `docs/plans/2026-08-08-rag-phase1-indexing.md`)
 ```bash
 python extract-pdf.py         # PDF -> guidelines/.extracted/{docId}/p{NNN}.txt
 node index-guidelines.js --dry     # ตรวจก่อน ไม่เรียก API ไม่เขียน Firestore
@@ -125,7 +125,6 @@ gemini-live.js      → WebSocket client for Gemini Live API (voice mode)
 gemini-tts.js       → text-to-speech helper
 auth.js             → uses db, loadGeminiConfig
 db.js               → Firestore CRUD helpers
-rag-core.js         → คณิตค้นคืน (ไม่มี I/O) — ใช้ร่วมกับ Node ใน setup/ ด้วย
 prompts.js          → pure prompt-builder functions (no side effects)
 drug-data.js        → DRUG_SEED array
 screens/*.js        → use all of the above
@@ -133,9 +132,6 @@ router.js           → init() called LAST, after onAuthReady()
 ```
 All JS is **global scope**. Adding a `<script>` out of order causes "X is not defined" at runtime.
 **No build step** — แก้ไฟล์แล้ว commit ตรงๆ อย่าลืม bump `?v=` ใน `index.html` เมื่อแก้ไฟล์ที่ deploy แล้ว
-
-`js/rag-core.js` ต้องรันได้ทั้งเบราว์เซอร์และ Node → **ห้ามใส่ `require()` หรือ ESM `import`**
-มี test บังคับไว้ที่ `setup/test/rag-core-browser.test.js`
 
 ### Routing
 Hash-based SPA (`js/router.js`, 57 บรรทัด)
@@ -147,15 +143,14 @@ Params ส่งผ่าน `Router.go('chat', { caseId })` — **params หา
 | Collection | Schema | Purpose |
 |---|---|---|
 | `/config/gemini` | `{ apiKey, model, evalModel? }` | API key loaded after login |
-| `/config/rag` | `{ corpusVersion, enabled, topK, minScore, embedModel }` | RAG feature flag + พารามิเตอร์ |
 | `/users/{uid}` | `{ participantId, role }` | role: `'student'` or `'admin'` |
 | `/diseaseGroups/{id}` | `{ label, sortOrder }` | **3 groups**: RESP, GU_STI, NEURO |
 | `/cases/{id}` | see Case Schema below | เป้าหมาย 9 เคสฝึก |
 | `/drugs/{drugCode}` | `{ name, strength, form, category, isOtc, isActive }` | drug library |
 | `/sessions/{id}` | chatHistory, dispensedDrugs, counselingHistory, status | one per attempt |
-| `/results/{id}` | score fields + feedbackJson | linked to sessionId + userId |
-| `/guidelineIndex/{groupId}_{shard}` | `{ corpusVersion, groupId, entries[] }` | ดัชนีค้นคืน (โหลดครั้งเดียว/session) |
-| `/guidelineChunks/{chunkId}` | `{ docId, page, heading, text, summaryTh, hash }` | เนื้อหาเต็ม (ดึงเฉพาะ top-k) |
+| `/results/{id}` | score fields + feedbackJson + `guidelineRefs[]` + `groundingVersion` | linked to sessionId + userId |
+| `/guidelineIndex/{groupId}_{shard}` | `{ corpusVersion, groupId, entries[] }` | **offline เท่านั้น** — วัตถุดิบเขียน annotation ไม่มีโค้ดฝั่งเบราว์เซอร์อ่าน |
+| `/guidelineChunks/{chunkId}` | `{ docId, page, heading, text, summaryTh, hash }` | **offline เท่านั้น** — เนื้อหาเต็มสำหรับร่างเฉลย |
 | `/surveys/{id}` | **ยังไม่มี** | confidence + SUS |
 
 Required composite indexes (Firebase Console → Firestore → Indexes):
@@ -189,6 +184,7 @@ Required composite indexes (Firebase Console → Firestore → Indexes):
 | `buildCounselingPrompt(caseData, dispensedDrugs, voiceMode)` | Step 3 | patient รับยาแล้ว รอ counseling |
 | `buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory)` | Step 4 | AI ตัดสิน earned รายข้อ — **ไม่คิดคะแนนรวมเอง** |
 | `buildRubricForCase(caseData)` | eval + admin | ใช้ rubric ของเคส ถ้าไม่มีก็ seed default + migrate ของเดิม |
+| `collectGuidelineSources(caseData)` | Step 4 → summary | รวมแหล่งอ้างอิงจาก annotation ของ rubric ทั้งเคส (dedup, เรียงตาม `DOMAIN_ORDER`) |
 | `scoreRubric(caseData, itemResults, gender)` | chat.js | **คำนวณคะแนนใน JS แบบ deterministic** |
 | `randomizePatientData(caseData)` | chat.js | สุ่ม gender/age/name ถ้าเป็น 'random'/0 |
 
@@ -232,6 +228,15 @@ Required composite indexes (Firebase Console → Firestore → Indexes):
 }
 ```
 `drugAnswer.firstLine` รองรับ rich format (array of objects) ด้วย — `buildEvalPrompt()` handle ทั้งสองแบบ
+
+**rubric item รองรับ annotation (static guideline grounding):**
+```js
+{ id: 'r1', domain: 'drug', label: '...', weight: 7, critical: true, active: true,
+  rationale: 'เกณฑ์ตัดสินข้อนี้ตามหลักฐาน — ว่างได้',
+  sources: [{ docId, title, page, url }] }
+```
+ทั้งสองฟิลด์ optional · ข้อที่ไม่มี `rationale` ได้ prompt เหมือนก่อนมีฟีเจอร์นี้ทุกประการ
+· **ยังไม่มี UI แก้ไขใน admin** (pass-through อย่างเดียว) รอเคสที่ผ่าน IOC
 
 **Cases ปัจจุบัน (5 cases):**
 - `case001_uri_pharyngitis` — เจ็บคอ (easy, female)
@@ -315,7 +320,9 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 ## Known Issues
 
 - `chat.js` 1,067 บรรทัด — ยากต่อการ audit; ควรแยกก่อนแก้ไขใหญ่
-- Scoring weights hardcoded ใน `prompts.js:199`
+- Scoring weights hardcoded ใน `prompts.js:8`
 - No `evalModel` separation — patient + evaluator ใช้ model เดียวกัน
 - No survey/questionnaire system
 - Playwright tests: `02-student-flow` (chat UI) และ `04-voice-ui` fail
+- ยังไม่มี UI แก้ annotation (rationale/sources) ใน admin rubric editor
+- ปุ่ม "↺ ค่าเริ่มต้น" ต่อหมวดใน rubric editor ลบ annotation ของหมวดนั้นทิ้ง (มี confirm dialog)

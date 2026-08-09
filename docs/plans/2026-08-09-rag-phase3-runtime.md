@@ -1,5 +1,8 @@
 # RAG Phase 3 — Runtime Integration Implementation Plan
 
+> **⚠️ ยกเลิก (2026-08-09)** — งานทั้งแผนนี้ถูกถอดออกใน
+> `docs/plans/2026-08-09-static-guideline-grounding.md`
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** ให้ Step 4 ดึงหลักฐานจากคลังไกด์ไลน์มาประกอบการประเมิน แล้วแสดงแหล่งอ้างอิงในหน้าสรุป พร้อมบันทึกร่องรอยการค้นคืนลง `/results` เพื่องานวิจัย

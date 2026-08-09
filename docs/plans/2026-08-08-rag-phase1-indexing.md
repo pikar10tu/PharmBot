@@ -1,5 +1,9 @@
 # RAG Phase 1 — Guideline Indexing & Retrieval Core Implementation Plan
 
+> **หมายเหตุ (2026-08-09)** — แผนนี้ยังใช้ได้ offline pipeline ไม่เปลี่ยน
+> แต่ `js/rag-core.js` ย้ายไป `setup/lib/rag-core.js` แล้ว
+> คลัง 719 chunk ยังอยู่ใน Firestore เป็นวัตถุดิบสำหรับเขียน annotation
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** สร้างคลังแนวทางเวชปฏิบัติที่ค้นคืนด้วย semantic search ได้ พร้อมตัวเลขวัดคุณภาพการค้นคืน (recall@6) เพื่อตัดสินว่าดีไซน์ใช้ได้ก่อนลงทุนต่อกับ runtime
