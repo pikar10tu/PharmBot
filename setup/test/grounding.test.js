@@ -22,7 +22,8 @@ function loadPrompts() {
   vm.runInContext(src, sandbox);
   // const/function ระดับบนสุดเป็น lexical binding ไม่ผูกกับ globalThis ของ sandbox
   ['GROUNDING_VERSION', 'renderRubricLine', 'rubricHasAnnotations',
-   'buildEvalPrompt', 'buildRubricForCase', 'scoreRubric'].forEach(n => {
+   'collectGuidelineSources', 'buildEvalPrompt', 'buildRubricForCase',
+   'scoreRubric'].forEach(n => {
     sandbox[n] = vm.runInContext(n, sandbox);
   });
   return sandbox;
@@ -183,4 +184,79 @@ test('js/prompts.js ต้องไม่มี require/import (classic script)'
     path.join(__dirname, '..', '..', 'js', 'prompts.js'), 'utf8');
   assert.strictEqual(/\brequire\s*\(/.test(src), false, 'พบ require() — เบราว์เซอร์จะพัง');
   assert.strictEqual(/^\s*import\s/m.test(src), false, 'พบ ESM import');
+});
+
+// ── collectGuidelineSources ──────────────────────────────
+
+const SRC_A = { docId: 'ccpe_461', title: 'เอกสาร ก', page: 12, url: 'https://x/461' };
+const SRC_B = { docId: 'cpg_2565', title: 'เอกสาร ข', page: 3 };
+
+test('เคสไม่มี annotation -> คืน array ว่าง', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  assert.strictEqual(collectGuidelineSources(makeCase(BARE_RUBRIC)).length, 0);
+});
+
+test('รวม sources จากทุกข้อ เรียงตาม DOMAIN_ORDER', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  rubric[2].sources = [SRC_A];   // drug   (หมวดที่ 3)
+  rubric[0].sources = [SRC_B];   // history (หมวดที่ 1)
+  const out = collectGuidelineSources(makeCase(rubric));
+  // array ข้าม realm เทียบด้วย deepStrictEqual ไม่ได้ — เทียบเป็น string
+  assert.strictEqual(Array.from(out, s => s.docId).join(','), 'cpg_2565,ccpe_461');
+});
+
+test('dedup ด้วย docId|page — เอกสารหน้าเดียวกันไม่ซ้ำ', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  rubric[0].sources = [SRC_A];
+  rubric[2].sources = [SRC_A];
+  assert.strictEqual(collectGuidelineSources(makeCase(rubric)).length, 1);
+});
+
+test('เอกสารเดียวกันคนละหน้า ถือเป็นคนละรายการ', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  rubric[0].sources = [SRC_A, { ...SRC_A, page: 13 }];
+  const out = collectGuidelineSources(makeCase(rubric));
+  assert.strictEqual(Array.from(out, s => s.page).join(','), '12,13');
+});
+
+test('ข้อ active:false ไม่ถูกนับ', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  rubric[0].sources = [SRC_A];
+  rubric[0].active = false;
+  assert.strictEqual(collectGuidelineSources(makeCase(rubric)).length, 0);
+});
+
+test('source ที่ไม่มี docId ถูกข้าม', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  rubric[0].sources = [{ title: 'ไม่มี docId' }, SRC_A];
+  const out = collectGuidelineSources(makeCase(rubric));
+  assert.strictEqual(out.length, 1);
+  assert.strictEqual(out[0].docId, 'ccpe_461');
+});
+
+test('เติมค่า default ให้ครบทุก field ที่หน้าสรุปต้องใช้', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  rubric[0].sources = [{ docId: 'only_id' }];
+  const s = collectGuidelineSources(makeCase(rubric))[0];
+  assert.strictEqual(s.title, 'only_id');   // ไม่มี title -> ใช้ docId
+  assert.strictEqual(s.page, null);
+  assert.strictEqual(s.url, null);
+});
+
+test('ลำดับคงที่เมื่อเรียกซ้ำ (ต้องนิ่งเพื่อ treatment fidelity)', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  rubric[3].sources = [SRC_B];
+  rubric[1].sources = [SRC_A];
+  const c = makeCase(rubric);
+  const first  = Array.from(collectGuidelineSources(c), s => s.docId).join(',');
+  const second = Array.from(collectGuidelineSources(c), s => s.docId).join(',');
+  assert.strictEqual(first, second);
+  assert.strictEqual(first, 'ccpe_461,cpg_2565');  // diagnosis มาก่อน counseling
 });

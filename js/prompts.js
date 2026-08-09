@@ -288,6 +288,34 @@ function rubricHasAnnotations(rubric) {
   return (rubric || []).some(it => String(it.rationale || '').trim());
 }
 
+// รวมรายการอ้างอิงของทั้งเคส สำหรับแสดงในหน้าสรุป
+// เรียกตอน Step 4 (ไม่ใช่ตอนแสดงผล) เพราะ /results เก็บแค่ caseSnapshot ที่ไม่มี rubric
+// และเพื่อให้ผลเก่าไม่เปลี่ยนตามการแก้ annotation ภายหลัง
+// ลำดับต้องคงที่ -> ไล่ตาม DOMAIN_ORDER แล้วตามลำดับข้อในหมวด
+function collectGuidelineSources(caseData) {
+  const rubric = buildRubricForCase(caseData).filter(it => it.active !== false);
+  const seen = new Set();
+  const out  = [];
+
+  DOMAIN_ORDER.forEach(dom => {
+    rubric.filter(it => it.domain === dom).forEach(it => {
+      (it.sources || []).forEach(s => {
+        if (!s || !s.docId) return;
+        const key = `${s.docId}|${s.page || ''}`;
+        if (seen.has(key)) return;
+        seen.add(key);
+        out.push({
+          docId: s.docId,
+          title: s.title || s.docId,
+          page:  s.page || null,
+          url:   s.url  || null,
+        });
+      });
+    });
+  });
+  return out;
+}
+
 // ── Evaluation prompt (Step 4) ────────────────────────────────
 // AI ตัดสินแค่ earned ต่อข้อ (0|0.5|1) — JS คำนวณคะแนนเองผ่าน scoreRubric()
 // หลักฐานอ้างอิงมาจาก annotation ในข้อ rubric (ถ้าเคสนั้นมี) ไม่มีการค้นคืนตอน runtime
