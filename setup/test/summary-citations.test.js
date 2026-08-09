@@ -5,6 +5,10 @@
 //
 //  สำคัญเพราะข้อจำกัดลิขสิทธิ์: ห้ามแสดงข้อความต้นฉบับจากไกด์ไลน์
 //  แสดงได้แค่ชื่อเอกสาร + หน้า + ลิงก์
+//
+//  ⚠️ _escS ไม่ได้ก็อปมาจำลอง — ดึงตัวจริงจาก summary.js มารันตรงๆ
+//     (เคยพลาดมาแล้วรอบก่อน: มือก็อปหนีอักขระเพี้ยนจากของจริง แต่ test
+//     ยังผ่านเพราะวัด mock ไม่ใช่ของจริง — ห้ามเกิดซ้ำ)
 // ============================================================
 
 const test = require('node:test');
@@ -15,10 +19,14 @@ const path = require('node:path');
 const SRC = fs.readFileSync(
   path.join(__dirname, '..', '..', 'js', 'screens', 'summary.js'), 'utf8');
 
-// จำลองบล็อกอ้างอิงให้ตรงกับซอร์สจริง (ทดสอบพฤติกรรม)
+// ดึงฟังก์ชัน _escS ตัวจริงออกจากซอร์ส แล้วสร้างเป็นฟังก์ชันใช้งานได้จริง
+// เพื่อให้ test วัดพฤติกรรมของโค้ดจริง ไม่ใช่ stand-in ที่อาจ drift จากของจริง
+const escSMatch = SRC.match(/function _escS\(str\) \{[\s\S]*?\n\}/);
+assert.ok(escSMatch, 'หาไฟล์นิยาม _escS ในซอร์ส summary.js ไม่เจอ — โครงสร้างไฟล์เปลี่ยนไปหรือไม่?');
+const _escS = new Function('str', escSMatch[0].slice(escSMatch[0].indexOf('{') + 1, -1));
+
+// จำลองบล็อกอ้างอิงให้ตรงกับซอร์สจริง (ทดสอบพฤติกรรม) — ใช้ _escS ตัวจริงด้านบน
 function renderRefs(result) {
-  const _escS = (s) => String(s ?? '').replace(/[&<>"']/g,
-    c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   return (result.guidelineRefs || []).length ? `
         <div class="card mb-3">
           <h3 class="mb-1">📚 อ้างอิงแนวทางเวชปฏิบัติ</h3>
@@ -68,6 +76,16 @@ test('escape HTML กัน XSS จากชื่อเอกสาร', () => 
   const html = renderRefs({ guidelineRefs: [{ ...REF, title: '<script>alert(1)</script>' }] });
   assert.strictEqual(html.includes('<script>alert'), false);
   assert.ok(html.includes('&lt;script&gt;'));
+});
+
+test('url มี " -> ต้อง escape ไม่ให้หลุดออกจาก attribute href (attribute injection)', () => {
+  // ถ้า " ใน url ไม่ถูก escape จะปิด attribute href ก่อนเวลา แล้วเปิด
+  // attribute onmouseover ใหม่บน <a> ได้ — เป็นช่องโหว่ XSS ผ่าน attribute
+  const evilUrl = 'https://evil.example/x" onmouseover="alert(1)';
+  const html = renderRefs({ guidelineRefs: [{ ...REF, url: evilUrl }] });
+  assert.strictEqual(html.includes('" onmouseover="'), false,
+    'เครื่องหมาย " ใน url ไม่ถูก escape — attribute หลุดออกจาก href ได้');
+  assert.ok(html.includes('&quot;'), 'ต้อง escape เครื่องหมาย " เป็น &quot;');
 });
 
 test('ซอร์สจริงอ่านจาก result.guidelineRefs ไม่ใช่ fb.guidelineRefs', () => {

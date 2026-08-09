@@ -143,5 +143,6 @@ function _feedbackBlock(title, feedback, missed) {
 function _escS(str) {
   return String(str || '')
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
     .replace(/\n/g, '<br>');
 }
