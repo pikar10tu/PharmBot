@@ -1,0 +1,81 @@
+// ============================================================
+// eval-prompt-bare-rubric.txt — golden fixture ของ buildEvalPrompt()
+//
+// เนื้อหาด้านล่างเส้นคั่นคือ output จริงของ buildEvalPrompt() สำหรับเคสที่ยังไม่มี
+// annotation (rubric ตรงกับ BARE_RUBRIC ใน grounding.test.js) — สร้างโดยสคริปต์
+// setup/test/fixtures/regenerate-eval-prompt-bare-rubric.js ไม่ได้พิมพ์มือ
+//
+// ทดสอบว่า prompt ไม่เปลี่ยนไปโดยไม่ได้ตั้งใจ ก่อนหน้านี้ grounding.test.js ตรวจแค่
+// "ไม่มีคำบางคำ" (absence-of-substring) ซึ่งพิสูจน์ว่ากลไก RAG หายไป แต่ไม่พิสูจน์ว่า
+// ส่วนที่เหลือของ prompt เหมือนเดิมทุกตัวอักษร — golden fixture นี้เทียบทั้งก้อนตรงๆ
+//
+// ⚠️ ถ้าตั้งใจแก้ prompt ของ Step 4: รัน
+//      node setup/test/fixtures/regenerate-eval-prompt-bare-rubric.js
+//    แล้วตัดสินใจว่าต้อง bump GROUNDING_VERSION (js/prompts.js) ด้วยหรือไม่ ก่อน commit
+//
+// ห้ามแก้ไฟล์นี้ด้วยมือ — แก้แล้ว golden test จะเทียบกับข้อความที่ไม่ได้มาจากโค้ดจริง
+// ============================================================
+=== เนื้อหาด้านล่างบรรทัดนี้คือ output ตรงจาก buildEvalPrompt() ห้ามมีอะไรอยู่หลังบรรทัดนี้ก่อนเนื้อหา ===
+คุณคือ "อาจารย์เภสัชกรผู้ประเมิน OSPE" ประเมินนักศึกษาเภสัชศาสตร์จาก transcript การให้บริการที่ร้านขายยาชุมชน
+
+<Case_Info>
+ผู้ป่วย: สมหญิง อายุ 30 ปี เพศหญิง
+อาการหลัก: เจ็บคอค่ะ
+การวินิจฉัยที่ถูกต้อง: Bacterial pharyngitis
+First-line: amoxicillin_500 (100%)
+Alternatives (ลดคะแนน): ไม่มี
+Unacceptable: ไม่มี
+Counseling points ที่ต้องบอก: 
+</Case_Info>
+
+<Checklist>
+[ซักประวัติ (WWHAM) | น้ำหนัก domain 25%]
+- (h1) ถามอาการสำคัญ [น้ำหนักข้อ 4]
+
+[การประเมิน / Red Flag | น้ำหนัก domain 15%]
+- (d1) สรุปการวินิจฉัย [น้ำหนักข้อ 5]
+
+[การเลือกและจ่ายยา | น้ำหนัก domain 40%]
+- (r1) เลือกยา first-line [น้ำหนักข้อ 7, CRITICAL]
+
+[การให้คำแนะนำ (Counseling) | น้ำหนัก domain 20%]
+- (c1) แจ้งผลข้างเคียง [น้ำหนักข้อ 3]
+</Checklist>
+
+<Dispensed_Drugs>
+ไม่ได้จ่ายยา
+</Dispensed_Drugs>
+
+<History_Transcript>
+[เภสัชกร]: สวัสดีครับ
+</History_Transcript>
+
+<Counseling_Transcript>
+(ไม่มีการให้คำแนะนำ)
+</Counseling_Transcript>
+
+วิธีประเมิน (สำคัญมาก):
+- หน้าที่ของคุณคือ "ตัดสินรายข้อ" เท่านั้น — **ห้ามคิดคะแนนรวมเอง** ระบบจะคำนวณคะแนนจากน้ำหนักให้เอง
+- แต่ละข้อใน <Checklist> ให้ค่า "earned":
+    1   = นักศึกษาทำครบถ้วน/ถูกต้อง
+    0.5 = ทำได้บางส่วน หรือถามแต่ไม่ครบ/ไม่ชัด
+    0   = ไม่ได้ทำ หรือทำผิด
+- ข้อ CRITICAL ที่เกี่ยวกับความปลอดภัย (แพ้ยา/ตั้งครรภ์) ถ้าไม่ถาม → earned = 0 เสมอ
+- ข้อเลือกยา: จ่าย first-line ถูก+regimen ครบ = 1, จ่าย alternative หรือ regimen ไม่ครบ = 0.5, จ่าย unacceptable หรือไม่จ่าย = 0
+- อ้างอิงหลักฐานจาก transcript เสมอ ก่อนสรุป earned ให้เขียนวิเคราะห์ทีละหมวดใน "reasoning"
+
+ตอบเป็น JSON เท่านั้น ห้ามใส่ backtick หรือ markdown ใช้ "id" ตรงตามวงเล็บใน <Checklist>:
+{
+  "reasoning": "วิเคราะห์ทีละหมวด อ้างหลักฐานจาก transcript: ซักประวัติ ... | ประเมิน/red flag ... | เลือกยา ... | counseling ...",
+  "items": [{"id": "h1", "earned": 1, "note": "หมายเหตุ/หลักฐานสั้นๆ"}],
+  "history_feedback": "feedback การซักประวัติ",
+  "history_missed": ["ประเด็นที่ยังไม่ได้ถาม"],
+  "diagnosis_feedback": "ระบุโรคและอธิบายได้ถูกต้องไหม",
+  "drug_feedback": "เลือกยาถูกไหม regimen ถูกต้องไหม",
+  "counseling_feedback": "ให้คำแนะนำครบไหม",
+  "counseling_missed": ["counseling point ที่ขาดไป"],
+  "summary": "สรุปภาพรวม 2-3 ประโยค จุดเด่นและจุดที่ต้องพัฒนา"
+}
+
+หมายเหตุ:
+- ต้องมี "items" ครบทุก id ที่อยู่ใน <Checklist> ห้ามข้าม

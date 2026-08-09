@@ -268,10 +268,12 @@ function buildCounselingPrompt(caseData, dispensedDrugs, voiceMode = false) {
 // เขียนไว้ล่วงหน้าในเฉลยเคสและผ่านการตรวจของผู้เชี่ยวชาญ — ไม่ได้ค้นคืนตอน runtime
 // ข้อที่ไม่มี rationale ต้องได้บรรทัดเดียวเหมือนก่อนมีฟีเจอร์นี้ทุกประการ
 
+// ต้องมี docId เสมอ — ไม่งั้น validate กับ manifest.json ไม่ได้ และ collectGuidelineSources()
+// ก็ทิ้งเช่นกัน ต้องให้สองฟังก์ชันนี้ตกลงกันว่าอะไรคือ source ที่ใช้ได้ (ไม่งั้น AI เห็นแหล่งที่นักศึกษาไม่เห็น)
 function formatSourceRef(s) {
-  if (!s) return '';
-  const name = s.title || s.docId || '';
-  return name ? `${name}${s.page ? ` หน้า ${s.page}` : ''}` : '';
+  if (!s || !s.docId) return '';
+  const name = s.title || s.docId;
+  return `${name}${s.page ? ` หน้า ${s.page}` : ''}`;
 }
 
 function renderRubricLine(item) {
@@ -305,11 +307,14 @@ function collectGuidelineSources(caseData) {
         const key = `${s.docId}|${s.page || ''}`;
         if (seen.has(key)) return;
         seen.add(key);
+        // เฉพาะ http(s) เท่านั้น — กัน javascript: หรือ scheme อื่นหลุดไปเป็น href ที่หน้าสรุป
+        // (defense-in-depth: /cases เขียนได้แค่ admin อยู่แล้ว ตาม firestore.rules)
+        const url = /^https?:\/\//i.test(s.url || '') ? s.url : null;
         out.push({
           docId: s.docId,
           title: s.title || s.docId,
           page:  s.page || null,
-          url:   s.url  || null,
+          url,
         });
       });
     });

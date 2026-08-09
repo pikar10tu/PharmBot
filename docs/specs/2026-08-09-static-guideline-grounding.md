@@ -63,7 +63,7 @@ rubric item เพิ่ม 2 ฟิลด์ **optional** เก็บใน `c
   // ── ใหม่ ทั้งคู่ optional ──
   rationale: 'amoxicillin 500 mg วันละ 3 ครั้ง นาน 10 วัน — ต้องครบ 10 วันเพื่อป้องกันไข้รูมาติก',
   sources: [
-    { docId: 'ccpe_461', title: 'การใช้ยาปฏิชีวนะอย่างสมเหตุผลในร้านยา', page: 12,
+    { docId: 'ccpe461_uri', title: 'แนวทางการเลือกใช้ยาปฏิชีวนะในผู้ที่มีการติดเชื้อในทางเดินหายใจส่วนต้น', page: 12,
       url: 'https://ccpe.pharmacycouncil.org/showfile.php?file=461' }
   ]
 }

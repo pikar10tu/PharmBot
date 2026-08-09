@@ -88,7 +88,7 @@ test('มี sources -> บรรทัดที่มา แสดงชื่�
   const line = renderRubricLine({
     ...BARE_RUBRIC[2],
     rationale: 'เกณฑ์ก',
-    sources: [{ docId: 'ccpe_461', title: 'การใช้ยาปฏิชีวนะอย่างสมเหตุผล', page: 12 }],
+    sources: [{ docId: 'ccpe461_uri', title: 'การใช้ยาปฏิชีวนะอย่างสมเหตุผล', page: 12 }],
   });
   assert.ok(line.includes('(ที่มา: การใช้ยาปฏิชีวนะอย่างสมเหตุผล หน้า 12)'));
 });
@@ -99,7 +99,7 @@ test('หลาย sources -> คั่นด้วย " · " ในบรรท
     ...BARE_RUBRIC[2],
     rationale: 'เกณฑ์ก',
     sources: [
-      { docId: 'ccpe_461', title: 'เอกสาร ก', page: 12 },
+      { docId: 'ccpe461_uri', title: 'เอกสาร ก', page: 12 },
       { docId: 'cpg_2565', title: 'เอกสาร ข', page: 3 },
     ],
   });
@@ -111,9 +111,19 @@ test('source ไม่มี page -> แสดงแค่ชื่อเอก�
   const { renderRubricLine } = loadPrompts();
   const line = renderRubricLine({
     ...BARE_RUBRIC[2], rationale: 'เกณฑ์ก',
-    sources: [{ docId: 'ccpe_461', title: 'เอกสาร ก' }],
+    sources: [{ docId: 'ccpe461_uri', title: 'เอกสาร ก' }],
   });
   assert.ok(line.includes('(ที่มา: เอกสาร ก)'));
+});
+
+test('source ที่มี title แต่ไม่มี docId ถูกตัดออกจาก prompt ด้วย (ต้องตรงกับ collectGuidelineSources)', () => {
+  const { renderRubricLine } = loadPrompts();
+  const line = renderRubricLine({
+    ...BARE_RUBRIC[2], rationale: 'เกณฑ์ก',
+    sources: [{ title: 'เอกสารไม่มี docId — พิมพ์ผิดตอน annotate' }],
+  });
+  // ไม่มี docId ที่ตรวจกับ manifest.json ได้ -> ต้องไม่โผล่ใน prompt เหมือนที่ไม่โผล่ในหน้าสรุป
+  assert.strictEqual(line.includes('(ที่มา:'), false);
 });
 
 test('rationale ที่มีแต่ช่องว่าง ถือว่าไม่มี annotation', () => {
@@ -168,7 +178,7 @@ test('annotation ไม่แตะสูตรคะแนน — scoreRubric �
   const { scoreRubric } = loadPrompts();
   const withAnn = JSON.parse(JSON.stringify(BARE_RUBRIC));
   withAnn[2].rationale = 'เกณฑ์ยา';
-  withAnn[2].sources = [{ docId: 'ccpe_461', title: 'เอกสาร ก', page: 1 }];
+  withAnn[2].sources = [{ docId: 'ccpe461_uri', title: 'เอกสาร ก', page: 1 }];
   const items = [
     { id: 'h1', earned: 1 }, { id: 'd1', earned: 0.5 },
     { id: 'r1', earned: 1 }, { id: 'c1', earned: 0 },
@@ -177,6 +187,27 @@ test('annotation ไม่แตะสูตรคะแนน — scoreRubric �
   const b = scoreRubric(makeCase(withAnn),     items, 'female');
   assert.strictEqual(a.overall, b.overall);
   assert.strictEqual(a.drug_score, b.drug_score);
+});
+
+// ── golden fixture: prompt ของเคสที่ยังไม่มี annotation ต้องเหมือนเดิมทุกตัวอักษร ──
+// การทดสอบด้านบน (baseline, ไม่มีร่องรอย RAG) เป็น absence-of-substring — พิสูจน์แค่ว่า
+// ข้อความบางคำหายไป ไม่พิสูจน์ว่าส่วนที่เหลือของ prompt ไม่เปลี่ยน เทียบทั้งก้อนตรงๆ กับ
+// fixture ที่สร้างจาก output จริง (setup/test/fixtures/regenerate-eval-prompt-bare-rubric.js)
+// จึงปิดช่องนั้น — แก้ prompt โดยตั้งใจ ให้รันสคริปต์ regenerate แล้วพิจารณา bump GROUNDING_VERSION
+test('golden: prompt ของเคสไม่มี annotation ต้องตรงกับ fixture เป๊ะทุกตัวอักษร', () => {
+  const { buildEvalPrompt } = loadPrompts();
+  const actual = buildEvalPrompt(makeCase(BARE_RUBRIC), ...EVAL_ARGS);
+
+  const fixturePath = path.join(__dirname, 'fixtures', 'eval-prompt-bare-rubric.txt');
+  const raw = fs.readFileSync(fixturePath, 'utf8');
+  const marker = '=== เนื้อหาด้านล่างบรรทัดนี้คือ output ตรงจาก buildEvalPrompt() ห้ามมีอะไรอยู่หลังบรรทัดนี้ก่อนเนื้อหา ===\n';
+  const markerIdx = raw.indexOf(marker);
+  assert.ok(markerIdx >= 0, 'fixture ไม่มีเส้นคั่น — โครงไฟล์เปลี่ยนไปหรือไฟล์ถูกแก้มือ');
+  const expected = raw.slice(markerIdx + marker.length);
+
+  assert.strictEqual(actual, expected,
+    'prompt ของเคสที่ไม่มี annotation เปลี่ยนไปจาก fixture — ถ้าตั้งใจแก้ ให้รัน ' +
+    'node setup/test/fixtures/regenerate-eval-prompt-bare-rubric.js แล้วพิจารณา bump GROUNDING_VERSION');
 });
 
 test('js/prompts.js ต้องไม่มี require/import (classic script)', () => {
@@ -188,7 +219,7 @@ test('js/prompts.js ต้องไม่มี require/import (classic script)'
 
 // ── collectGuidelineSources ──────────────────────────────
 
-const SRC_A = { docId: 'ccpe_461', title: 'เอกสาร ก', page: 12, url: 'https://x/461' };
+const SRC_A = { docId: 'ccpe461_uri', title: 'เอกสาร ก', page: 12, url: 'https://x/461' };
 const SRC_B = { docId: 'cpg_2565', title: 'เอกสาร ข', page: 3 };
 
 test('เคสไม่มี annotation -> คืน array ว่าง', () => {
@@ -203,7 +234,7 @@ test('รวม sources จากทุกข้อ เรียงตาม DOM
   rubric[0].sources = [SRC_B];   // history (หมวดที่ 1)
   const out = collectGuidelineSources(makeCase(rubric));
   // array ข้าม realm เทียบด้วย deepStrictEqual ไม่ได้ — เทียบเป็น string
-  assert.strictEqual(Array.from(out, s => s.docId).join(','), 'cpg_2565,ccpe_461');
+  assert.strictEqual(Array.from(out, s => s.docId).join(','), 'cpg_2565,ccpe461_uri');
 });
 
 test('dedup ด้วย docId|page — เอกสารหน้าเดียวกันไม่ซ้ำ', () => {
@@ -236,7 +267,23 @@ test('source ที่ไม่มี docId ถูกข้าม', () => {
   rubric[0].sources = [{ title: 'ไม่มี docId' }, SRC_A];
   const out = collectGuidelineSources(makeCase(rubric));
   assert.strictEqual(out.length, 1);
-  assert.strictEqual(out[0].docId, 'ccpe_461');
+  assert.strictEqual(out[0].docId, 'ccpe461_uri');
+});
+
+test('url ที่ไม่ใช่ http(s) (เช่น javascript:) ถูกตัดออกเหลือ null', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  rubric[0].sources = [{ docId: 'ccpe461_uri', title: 'เอกสาร ก', url: 'javascript:alert(1)' }];
+  const out = collectGuidelineSources(makeCase(rubric));
+  assert.strictEqual(out[0].url, null);
+});
+
+test('url ที่เป็น http(s) ปกติ ผ่านได้ตามเดิม', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  rubric[0].sources = [{ docId: 'ccpe461_uri', title: 'เอกสาร ก', url: 'https://ccpe.pharmacycouncil.org/showfile.php?file=461' }];
+  const out = collectGuidelineSources(makeCase(rubric));
+  assert.strictEqual(out[0].url, 'https://ccpe.pharmacycouncil.org/showfile.php?file=461');
 });
 
 test('เติมค่า default ให้ครบทุก field ที่หน้าสรุปต้องใช้', () => {
@@ -258,7 +305,7 @@ test('ลำดับคงที่เมื่อเรียกซ้ำ (ต
   const first  = Array.from(collectGuidelineSources(c), s => s.docId).join(',');
   const second = Array.from(collectGuidelineSources(c), s => s.docId).join(',');
   assert.strictEqual(first, second);
-  assert.strictEqual(first, 'ccpe_461,cpg_2565');  // diagnosis มาก่อน counseling
+  assert.strictEqual(first, 'ccpe461_uri,cpg_2565');  // diagnosis มาก่อน counseling
 });
 
 test('ข้อ femaleOnly ถูกข้ามสำหรับคนชาย', () => {
@@ -281,5 +328,5 @@ test('ข้อ femaleOnly ถูกรวมสำหรับคนหญิ�
   femaleCase.gender = 'female';
   const out = collectGuidelineSources(femaleCase);
   assert.strictEqual(out.length, 1, 'เอกสารจากข้อ femaleOnly ต้องขึ้นสำหรับคนหญิง');
-  assert.strictEqual(out[0].docId, 'ccpe_461');
+  assert.strictEqual(out[0].docId, 'ccpe461_uri');
 });
