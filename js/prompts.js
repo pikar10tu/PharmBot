@@ -14,6 +14,11 @@ const DOMAIN_LABELS  = {
   counseling: 'การให้คำแนะนำ (Counseling)',
 };
 
+// ── เวอร์ชันเฉลย+prompt ที่ใช้ประเมิน (treatment fidelity) ─────
+// อยู่ในโค้ด ไม่ใช่ Firestore เพื่อให้ตรวจย้อนจาก git ได้และไม่มีใครแก้กลางการเก็บข้อมูล
+// bump เมื่อแก้ annotation ในเคส หรือแก้ prompt ของ Step 4 · freeze ก่อนเก็บข้อมูลจริง
+const GROUNDING_VERSION = '2026-08-09';
+
 // ── Patient tone (แทน free-text personality) ──────────────────
 const TONE_OPTIONS = [
   { value: 'neutral',   label: 'เรียบเฉย (ปกติ)' },
@@ -258,37 +263,35 @@ function buildCounselingPrompt(caseData, dispensedDrugs, voiceMode = false) {
 - ห้ามออกนอกบทบาท และห้ามแต่งข้อมูลใหม่ที่ไม่มีในบทบาท — ถ้าถูกถามเรื่องที่ไม่รู้/ไม่มีในข้อมูล ตอบว่าไม่แน่ใจหรือจำไม่ได้${voiceOverlay}`;
 }
 
-// ── Guideline evidence block (RAG) ────────────────────────────
-// chunks ว่าง -> คืน '' -> eval prompt ทำงานเหมือนไม่มี RAG ทุกประการ
-function buildGuidelineBlock(chunks) {
-  if (!Array.isArray(chunks) || !chunks.length) return '';
+// ── Static guideline grounding ────────────────────────────────
+// หลักฐานอ้างอิงผูกกับข้อ rubric รายข้อ (annotated marking scheme)
+// เขียนไว้ล่วงหน้าในเฉลยเคสและผ่านการตรวจของผู้เชี่ยวชาญ — ไม่ได้ค้นคืนตอน runtime
+// ข้อที่ไม่มี rationale ต้องได้บรรทัดเดียวเหมือนก่อนมีฟีเจอร์นี้ทุกประการ
 
-  const items = chunks.map((c, i) => {
-    const src = [c.title || c.docId, c.page ? `หน้า ${c.page}` : ''].filter(Boolean).join(' ');
-    return `[G${i + 1}] แหล่ง: ${src}\nสรุป: ${c.summaryTh || '-'}\nเนื้อหา: ${(c.text || '').slice(0, 900)}`;
-  }).join('\n\n');
+function formatSourceRef(s) {
+  if (!s) return '';
+  const name = s.title || s.docId || '';
+  return name ? `${name}${s.page ? ` หน้า ${s.page}` : ''}` : '';
+}
 
-  return `
+function renderRubricLine(item) {
+  const head = `- (${item.id}) ${item.label} [น้ำหนักข้อ ${item.weight}${item.critical ? ', CRITICAL' : ''}]`;
+  const rationale = String(item.rationale || '').trim();
+  if (!rationale) return head;
 
-<Guideline_Evidence>
-${items}
-</Guideline_Evidence>
+  const refs = (item.sources || []).map(formatSourceRef).filter(Boolean);
+  const srcLine = refs.length ? `\n  (ที่มา: ${refs.join(' · ')})` : '';
+  return `${head}\n  เกณฑ์อ้างอิง: ${rationale}${srcLine}`;
+}
 
-การใช้หลักฐานข้างต้น:
-- อ้างอิงได้เฉพาะข้อความใน <Guideline_Evidence> เท่านั้น **ห้ามแต่งเพิ่มจากความรู้ของคุณเอง**
-- **บังคับ:** ทุกครั้งที่นำเนื้อหาจากหลักฐานมาเขียนใน feedback ต้องเขียน tag กำกับไว้ในประโยคนั้นด้วย
-  ตัวอย่างที่ถูก: "ควรให้ยาต้านจุลชีพนาน 10 วันเพื่อป้องกันไข้รูมาติก [G2]"
-  ตัวอย่างที่ผิด: เขียนเนื้อหาจากหลักฐานแต่ไม่ใส่ tag แล้วไปใส่ไว้แค่ในช่อง "citations"
-  → tag ที่อยู่ในช่อง "citations" ต้องปรากฏอยู่ในข้อความ feedback ด้วยเสมอ
-- **ถ้าหลักฐานขัดกับเฉลยของเคสใน <Case_Info> ให้ยึดเฉลยของเคสเสมอ และห้ามอ้าง chunk นั้น**
-  (เฉลยผ่านการตรวจของผู้เชี่ยวชาญแล้ว ส่วนหลักฐานอาจมาจากบริบทอื่น เช่น โรงพยาบาล ไม่ใช่ร้านขายยา)
-- หลักฐานนี้ใช้เพื่อ "อธิบายให้ลึกขึ้น" เท่านั้น **ห้ามใช้เปลี่ยนการตัดสิน earned รายข้อ**`;
+function rubricHasAnnotations(rubric) {
+  return (rubric || []).some(it => String(it.rationale || '').trim());
 }
 
 // ── Evaluation prompt (Step 4) ────────────────────────────────
 // AI ตัดสินแค่ earned ต่อข้อ (0|0.5|1) — JS คำนวณคะแนนเองผ่าน scoreRubric()
-// guidelineChunks = หลักฐานจาก RAG (ว่างได้ — prompt จะเหมือนเดิมทุกประการ)
-function buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory, guidelineChunks = []) {
+// หลักฐานอ้างอิงมาจาก annotation ในข้อ rubric (ถ้าเคสนั้นมี) ไม่มีการค้นคืนตอน runtime
+function buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory) {
   const isFemale = caseData.gender === 'female';
 
   // rubric เฉพาะเคสนี้ (กรองข้อ active + femaleOnly ตามเพศจริง)
@@ -300,9 +303,7 @@ function buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistor
     const items = rubric.filter(it => it.domain === dom);
     if (!items.length) return '';
     const head = `[${DOMAIN_LABELS[dom]} | น้ำหนัก domain ${Math.round(DOMAIN_WEIGHTS[dom] * 100)}%]`;
-    const lines = items.map(it =>
-      `- (${it.id}) ${it.label} [น้ำหนักข้อ ${it.weight}${it.critical ? ', CRITICAL' : ''}]`
-    ).join('\n');
+    const lines = items.map(renderRubricLine).join('\n');
     return `${head}\n${lines}`;
   }).filter(Boolean).join('\n\n');
 
@@ -346,6 +347,11 @@ function buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistor
       ).join('\n')
     : '(ไม่มีการให้คำแนะนำ)';
 
+  // คำสั่งนี้โผล่เฉพาะเคสที่มี annotation — เคสอื่นได้ prompt เท่าเดิมทุกตัวอักษร
+  const groundingRules = rubricHasAnnotations(rubric) ? `
+- ข้อที่มี "เกณฑ์อ้างอิง" กำกับ: ให้ตัดสิน earned ตามเกณฑ์นั้นเป็นหลัก และอธิบายใน feedback ว่านักศึกษาทำได้ตรงหรือขาดตรงไหนเทียบกับเกณฑ์
+- ห้ามแต่งเนื้อหาเชิงวิชาการเพิ่มเองนอกเหนือจาก "เกณฑ์อ้างอิง" ที่ให้ไว้` : '';
+
   return `คุณคือ "อาจารย์เภสัชกรผู้ประเมิน OSPE" ประเมินนักศึกษาเภสัชศาสตร์จาก transcript การให้บริการที่ร้านขายยาชุมชน
 
 <Case_Info>
@@ -370,7 +376,6 @@ ${chatText}
 <Counseling_Transcript>
 ${counselingText}
 </Counseling_Transcript>
-${buildGuidelineBlock(guidelineChunks)}
 
 วิธีประเมิน (สำคัญมาก):
 - หน้าที่ของคุณคือ "ตัดสินรายข้อ" เท่านั้น — **ห้ามคิดคะแนนรวมเอง** ระบบจะคำนวณคะแนนจากน้ำหนักให้เอง
@@ -380,7 +385,7 @@ ${buildGuidelineBlock(guidelineChunks)}
     0   = ไม่ได้ทำ หรือทำผิด
 - ข้อ CRITICAL ที่เกี่ยวกับความปลอดภัย (แพ้ยา/ตั้งครรภ์) ถ้าไม่ถาม → earned = 0 เสมอ
 - ข้อเลือกยา: จ่าย first-line ถูก+regimen ครบ = 1, จ่าย alternative หรือ regimen ไม่ครบ = 0.5, จ่าย unacceptable หรือไม่จ่าย = 0
-- อ้างอิงหลักฐานจาก transcript เสมอ ก่อนสรุป earned ให้เขียนวิเคราะห์ทีละหมวดใน "reasoning"
+- อ้างอิงหลักฐานจาก transcript เสมอ ก่อนสรุป earned ให้เขียนวิเคราะห์ทีละหมวดใน "reasoning"${groundingRules}
 
 ตอบเป็น JSON เท่านั้น ห้ามใส่ backtick หรือ markdown ใช้ "id" ตรงตามวงเล็บใน <Checklist>:
 {
@@ -392,12 +397,9 @@ ${buildGuidelineBlock(guidelineChunks)}
   "drug_feedback": "เลือกยาถูกไหม regimen ถูกต้องไหม",
   "counseling_feedback": "ให้คำแนะนำครบไหม",
   "counseling_missed": ["counseling point ที่ขาดไป"],
-  "summary": "สรุปภาพรวม 2-3 ประโยค จุดเด่นและจุดที่ต้องพัฒนา",
-  "citations": ["G1"]
+  "summary": "สรุปภาพรวม 2-3 ประโยค จุดเด่นและจุดที่ต้องพัฒนา"
 }
 
 หมายเหตุ:
-- ต้องมี "items" ครบทุก id ที่อยู่ใน <Checklist> ห้ามข้าม
-- "citations" = รายการ tag ที่คุณอ้างจริงในข้อความ feedback (ไม่ได้อ้างเลยให้ใส่ [])
-  ถ้าไม่มี <Guideline_Evidence> ให้ใส่ [] เสมอ`;
+- ต้องมี "items" ครบทุก id ที่อยู่ใน <Checklist> ห้ามข้าม`;
 }
