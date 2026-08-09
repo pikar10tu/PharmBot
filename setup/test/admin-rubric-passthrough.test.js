@@ -25,12 +25,12 @@ function rubricMapBlock() {
 }
 
 test('บล็อกประกอบ rubric ต้อง pass-through rationale', () => {
-  assert.ok(/rationale/.test(rubricMapBlock()),
+  assert.ok(/it\.rationale/.test(rubricMapBlock()),
     'rationale จะหายเมื่ออาจารย์กดบันทึกเคส');
 });
 
 test('บล็อกประกอบ rubric ต้อง pass-through sources', () => {
-  assert.ok(/sources/.test(rubricMapBlock()),
+  assert.ok(/it\.sources/.test(rubricMapBlock()),
     'sources จะหายเมื่ออาจารย์กดบันทึกเคส');
 });
 
