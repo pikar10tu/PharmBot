@@ -17,7 +17,9 @@ function initTheme() {
 }
 
 const THEMES = [
-  { id: 'dispensa', color: '#22c1dd', label: '💠 DISPENSA'  },
+  // id ยังเป็น 'dispensa' โดยตั้งใจ — เก็บไว้ใน localStorage ของผู้ใช้เดิมแล้ว
+  // เปลี่ยน id = ธีมที่เขาเลือกไว้จะไม่ match CSS ไหนเลย หน้าตาเพี้ยนจนกว่าจะเลือกใหม่
+  { id: 'dispensa', color: '#22c1dd', label: '💠 Pharm From Home' },
   { id: 'sakura',   color: '#ec4899', label: '🌸 Sakura'   },
   { id: 'sky',      color: '#0284c7', label: '🩵 Sky'       },
   { id: 'lavender', color: '#c084fc', label: '💜 Lavender'  },
@@ -139,8 +141,8 @@ function renderNavbar(pid) {
   return `
     <nav class="navbar">
       <span class="navbar-brand">
-        <img src="img/logo.jpg" alt="DISPENSA" class="navbar-brand-logo" />
-        DISPENSA
+        <img src="img/logo.jpg?v=2" alt="Pharm From Home" class="navbar-brand-logo" />
+        Pharm From Home
       </span>
       <div class="navbar-right">
         <span class="text-dim text-sm">${pid || ''}</span>

@@ -4,11 +4,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**DISPENSA** (ชื่อเดิม PharmBot v2) — ระบบจำลองร้านขายยาชุมชนสำหรับนักศึกษาเภสัชศาสตร์ฝึกซักประวัติและจ่ายยา
+**Pharm From Home** (ชื่อเดิม DISPENSA / PharmBot v2) — ระบบจำลองร้านขายยาชุมชนสำหรับนักศึกษาเภสัชศาสตร์ฝึกซักประวัติและจ่ายยา
 Deployed on GitHub Pages (static) + Firebase (Auth + Firestore backend)
 
-**⚠️ ชื่อภายในยังเป็น pharmbot ทั้งหมด** — localStorage key `pharmbot-theme`/`pharmbot-char`,
-auth domain `@pharmbot.local`, firebase project `pharmbot-8496c` — ตั้งใจไม่แตะ
+**⚠️ ชื่อภายในยังเป็นของแบรนด์เก่าทั้งหมด** — localStorage key `pharmbot-theme`/`pharmbot-char`,
+auth domain `@pharmbot.local`, firebase project `pharmbot-8496c`,
+และ **id ของธีมเริ่มต้นยังเป็น `dispensa`** (`css/main.css` selector + `dashboard.js` default)
+— ตั้งใจไม่แตะ เพราะ id ธีมถูกเก็บใน localStorage ของผู้ใช้เดิมแล้ว เปลี่ยนแล้วหน้าตาจะเพี้ยนจนกว่าเขาจะเลือกธีมใหม่
 
 ---
 

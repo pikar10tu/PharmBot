@@ -1,5 +1,5 @@
 /* ============================================================
-   main.css — DISPENSA  (v4 — brand rebrand: navy + cyan default theme)
+   main.css — Pharm From Home  (v4 — brand rebrand: navy + cyan default theme)
    ============================================================ */
 
 @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Mitr:wght@400;500;600&display=swap');
@@ -33,7 +33,8 @@
 
 /* ── Themes ───────────────────────────────────────────────── */
 
-/* 💠 DISPENSA — deep navy + cyan (brand default)
+/* 💠 Pharm From Home — deep navy + cyan (brand default)
+   ⚠️ selector ยังเป็น "dispensa" โดยตั้งใจ — ผู้ใช้เดิมมีค่านี้ใน localStorage แล้ว
    สีอ้างอิงจากโลโก้: กรมท่า #16233f · ฟ้าเทอร์ควอยซ์ #22c1dd · ชมพูบานเย็น #e5188a · เหลืองทอง #f4c11f */
 [data-theme="dispensa"] {
   --bg1: #0c1730; --bg2: #16233f;

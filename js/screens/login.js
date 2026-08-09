@@ -9,7 +9,7 @@ function renderLogin(container) {
 
         <!-- Logo -->
         <div class="text-center mb-3">
-          <img src="img/logo.jpg" alt="DISPENSA — AI-Supported Virtual Patient Program" class="brand-logo" />
+          <img src="img/logo.jpg?v=2" alt="Pharm From Home — AI-Supported Virtual Patient Program" class="brand-logo" />
           <p class="text-dim mt-1">ระบบฝึกปฏิบัติงานร้านยาชุมชน</p>
         </div>
 
@@ -35,7 +35,7 @@ function renderLogin(container) {
         </div>
 
         <p class="text-center text-xs text-dim mt-2">
-          DISPENSA — สำหรับการศึกษาเท่านั้น
+          Pharm From Home — สำหรับการศึกษาเท่านั้น
         </p>
       </div>
     </div>
