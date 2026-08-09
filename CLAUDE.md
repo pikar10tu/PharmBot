@@ -239,14 +239,16 @@ Required composite indexes (Firebase Console → Firestore → Indexes):
 ทั้งสองฟิลด์ optional · ข้อที่ไม่มี `rationale` ได้ prompt เหมือนก่อนมีฟีเจอร์นี้ทุกประการ
 · **ยังไม่มี UI แก้ไขใน admin** (pass-through อย่างเดียว) รอเคสที่ผ่าน IOC
 
-**Cases ปัจจุบัน (5 cases):**
-- `case001_uri_pharyngitis` — เจ็บคอ (easy, female)
-- `case002_gi_diarrhea` — ท้องเสีย (easy, GI)
-- `case003_msk_lbp` — ปวดหลัง (MSK)
-- `case004_derm_tinea` — เชื้อราที่เท้า (DERM)
-- `case005_refer_headache` — Red Flag Headache (REFER)
+**Cases ปัจจุบัน (7 cases — เคสทดสอบ ยังไม่ผ่าน IOC):**
+- `case001_uri_pharyngitis` — เจ็บคอ (easy, RESP, female)
+- `case002_gi_diarrhea` — ท้องเสีย (easy, GI, male)
+- `case003_msk_backpain` — ปวดหลังส่วนล่าง (easy, MSK, random)
+- `case004_derm_tinea_pedis` — เชื้อราที่เท้า (medium, DERM, male)
+- `case005_refer_thunderclap` — Red Flag Headache (hard, REFER, female)
+- `case006_gu_uti` — ปัสสาวะแสบขัด (medium, GU_STI, female)
+- `case007_neuro_migraine` — ปวดหัวข้างเดียว / Migraine without aura (medium, NEURO, female)
 
-**Cases ที่ต้องเพิ่ม (Phase 3):** UTI, Allergic Rhinitis, GERD/Dyspepsia, Pregnancy scenario (GYN)
+**Cases ที่ต้องเพิ่ม (Phase 3):** Allergic Rhinitis, GERD/Dyspepsia, Pregnancy scenario (GYN)
 
 ---
 

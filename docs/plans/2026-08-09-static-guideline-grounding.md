@@ -1129,5 +1129,13 @@ Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
 ## หลังจบทุก Task — ยังต้องทำด้วยมือ
 
 1. **Smoke test ในเบราว์เซอร์จริง** — `npx serve .` แล้วเดินครบ 4 ขั้นตอน 1 เคส ตรวจว่าประเมินผ่าน หน้าสรุปขึ้นปกติ และไม่มี error ใน console (เคสทดสอบยังไม่มี annotation จึงต้อง **ไม่** เห็น section อ้างอิง) — ค้างมาจากรอบก่อน ยังไม่เคยทำ
+   ยืนยันโดยเฉพาะว่า section อ้างอิงไม่ปรากฏ เพราะเคสทดสอบทั้ง 7 เคสใน `setup/seed-cases.js` ไม่มีฟิลด์
+   `rubric` เลยสักเคส — `buildRubricForCase` จึงเดินทาง migration path เสมอ (seed default + migrate
+   counseling/specificChecklist เดิม) ซึ่งไม่มี annotation ติดมาด้วย ทำให้ `collectGuidelineSources`
+   คืน `[]` ในโปรดักชันตอนนี้เสมอ — เป็นขอบเขตที่ตั้งใจไว้ และเป็นการยืนยัน end-to-end ที่ถูกที่สุด
+   ก่อนเนื้อหาจริงมาถึง
 2. **ตรวจ `/results` doc ล่าสุด** ว่ามี `guidelineRefs: []` และ `groundingVersion: '2026-08-09'` และไม่มีฟิลด์ `rag`
 3. **push 20+ commits ที่ค้างอยู่** — ยืนยันกับผู้ใช้ก่อน push (GitHub Actions deploy ทันทีเมื่อ push `main`)
+4. **`rubricHash`** (ดู `docs/specs/2026-08-09-static-guideline-grounding.md` งานถัดไป ข้อ 6 สำหรับ
+   รายละเอียด field/สูตร hash) — ยังไม่ทำตอนนี้เพราะ rubric จะแก้อีกรอบตอนเคส IOC มา ทำตอนใกล้ freeze
+   `GROUNDING_VERSION` แทน หลัง rubric ของเคสจริงนิ่งแล้ว

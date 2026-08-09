@@ -130,6 +130,8 @@ rubric item เพิ่ม 2 ฟิลด์ **optional** เก็บใน `c
 (และ regex จับ tag พลาดมาแล้ว 2 รอบระหว่างวัดผล A/B วันที่ 2026-08-09)
 
 แทนที่ด้วย: หน้าสรุปแสดง **union ของ `sources` จากทุกข้อในเคส** ซึ่งเหมือนกันทุกครั้งที่ทำเคสเดิม
+**ด้วยเพศผู้ป่วยเดียวกัน** — เคสที่ `gender: 'random'` มีข้อ `femaleOnly` ที่กรองตามเพศจริงหลังสุ่ม
+(`randomizePatientData`) รายการอ้างอิงจึงต่างกันได้ระหว่างการสุ่มเป็นชายกับหญิง แต่นิ่งเสมอเมื่อเพศเดียวกัน
 
 ### `GROUNDING_VERSION`
 
@@ -250,4 +252,15 @@ summary.js   อ่าน result.guidelineRefs ตรงๆ
 3. UI แก้ `rationale` / `sources` ใน admin rubric editor
 4. ผู้เชี่ยวชาญตรวจ annotation ทุกบรรทัด
 5. freeze `GROUNDING_VERSION` + prompt ก่อนเก็บข้อมูล — treatment fidelity
-6. smoke test ในเบราว์เซอร์จริง · ทดสอบเสียงจริง 1 เคส (ค้างจากรอบก่อน)
+6. **`rubricHash` — ยังไม่ทำตอนนี้ เพราะ rubric จะแก้อีกรอบตอนเคส IOC มา hash วันนี้ไม่มีความหมาย**
+   `GROUNDING_VERSION` เป็น git constant ที่ dev เท่านั้นแก้ได้ แต่ annotation อยู่ใน Firestore `/cases`
+   ที่ admin แก้ได้โดยไม่ต้องแก้โค้ด — ถ้าครูปรับ label/weight กลางการเก็บข้อมูล ผลที่บันทึกจะ stamp
+   ด้วย version เดิมทั้งที่ rubric จริงเปลี่ยนไปแล้ว และ `/results` เก็บแค่ `guidelineRefs` +
+   `caseSnapshot: {title, groupId, difficulty}` — ไม่พอย้อนสร้าง rubric ที่ใช้ตัดสินจริง
+   ทางแก้ที่ถูกต้องคือเพิ่มฟิลด์ `rubricHash` ข้าง `groundingVersion` ใน `/results` —
+   deterministic hash (เช่น SHA-256 ตัด 8-12 ตัวแรก) คำนวณจาก rubric ที่ผ่านการ filter
+   `active`/`femaleOnly` แล้ว (ชุดเดียวกับที่ส่งเข้า `buildEvalPrompt`/`scoreRubric`) โดย serialize
+   แต่ละข้อเป็น `id|label|weight|critical|rationale` เรียงตามลำดับที่ `buildRubricForCase` คืนมา
+   ก่อน hash เพื่อให้ผลนิ่ง — ทำตอนใกล้ freeze (ข้อ 5) หลัง rubric ของเคสจริงนิ่งแล้ว ไม่ใช่ตอนนี้ที่
+   เคสยังเป็นของทดสอบและจะถูกแทนที่ทั้งชุด
+7. smoke test ในเบราว์เซอร์จริง · ทดสอบเสียงจริง 1 เคส (ค้างจากรอบก่อน)
