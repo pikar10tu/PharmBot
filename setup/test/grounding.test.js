@@ -260,3 +260,26 @@ test('ลำดับคงที่เมื่อเรียกซ้ำ (ต
   assert.strictEqual(first, second);
   assert.strictEqual(first, 'ccpe_461,cpg_2565');  // diagnosis มาก่อน counseling
 });
+
+test('ข้อ femaleOnly ถูกข้ามสำหรับคนชาย', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  const femaleItem = { id: 'h8', domain: 'history', label: 'ถามการตั้งครรภ์', weight: 6, critical: true, active: true, femaleOnly: true, sources: [SRC_A] };
+  rubric.push(femaleItem);
+  const maleCase = makeCase(rubric);
+  maleCase.gender = 'male';
+  const out = collectGuidelineSources(maleCase);
+  assert.strictEqual(out.length, 0, 'เอกสารจากข้อ femaleOnly ต้องไม่ขึ้นสำหรับคนชาย');
+});
+
+test('ข้อ femaleOnly ถูกรวมสำหรับคนหญิง', () => {
+  const { collectGuidelineSources } = loadPrompts();
+  const rubric = JSON.parse(JSON.stringify(BARE_RUBRIC));
+  const femaleItem = { id: 'h8', domain: 'history', label: 'ถามการตั้งครรภ์', weight: 6, critical: true, active: true, femaleOnly: true, sources: [SRC_A] };
+  rubric.push(femaleItem);
+  const femaleCase = makeCase(rubric);
+  femaleCase.gender = 'female';
+  const out = collectGuidelineSources(femaleCase);
+  assert.strictEqual(out.length, 1, 'เอกสารจากข้อ femaleOnly ต้องขึ้นสำหรับคนหญิง');
+  assert.strictEqual(out[0].docId, 'ccpe_461');
+});

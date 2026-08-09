@@ -292,8 +292,9 @@ function rubricHasAnnotations(rubric) {
 // เรียกตอน Step 4 (ไม่ใช่ตอนแสดงผล) เพราะ /results เก็บแค่ caseSnapshot ที่ไม่มี rubric
 // และเพื่อให้ผลเก่าไม่เปลี่ยนตามการแก้ annotation ภายหลัง
 // ลำดับต้องคงที่ -> ไล่ตาม DOMAIN_ORDER แล้วตามลำดับข้อในหมวด
+// กรองตามเพศจริง -> ต้อง match กับข้อที่ส่งเข้า buildEvalPrompt และ scoreRubric
 function collectGuidelineSources(caseData) {
-  const rubric = buildRubricForCase(caseData).filter(it => it.active !== false);
+  const rubric = buildRubricForCase(caseData).filter(it => it.active !== false && (!it.femaleOnly || caseData?.gender === 'female'));
   const seen = new Set();
   const out  = [];
 
