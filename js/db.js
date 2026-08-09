@@ -89,7 +89,7 @@ async function getTodaySessionCount(userId) {
 }
 
 // ── Results ───────────────────────────────────────────────────
-async function saveResult(sessionId, userId, evalJson, caseSnapshot = null, ragInfo = null) {
+async function saveResult(sessionId, userId, evalJson, caseSnapshot = null, grounding = null) {
   const resultData = {
     sessionId,
     userId,
@@ -101,15 +101,10 @@ async function saveResult(sessionId, userId, evalJson, caseSnapshot = null, ragI
     counselingScore:   evalJson.counseling_score  || 0,
     overallScore:      evalJson.overall           || 0,
     feedbackJson:      evalJson,
-    // ร่องรอยการค้นคืน — ใช้ตรวจย้อนตอนวิเคราะห์ผลวิจัยว่า feedback อ้างอิงอะไร
-    rag: ragInfo ? {
-      version:   ragInfo.corpusVersion || null,
-      status:    ragInfo.status || null,
-      queries:   ragInfo.queries || [],
-      retrieved: ragInfo.retrieved || [],
-      citations: Array.isArray(evalJson.citations) ? evalJson.citations : [],
-      ms:        ragInfo.ms || 0,
-    } : null,
+    // อ้างอิงที่ผูกกับข้อ rubric ของเคส ณ ตอนที่ทำ — เก็บสำเนาไว้เพื่อให้ผลเก่า
+    // ไม่เปลี่ยนตามการแก้เฉลยภายหลัง และตรวจย้อนเชิงวิจัยได้
+    guidelineRefs:     grounding?.refs || [],
+    groundingVersion:  grounding?.version || null,
     createdAt:         firebase.firestore.FieldValue.serverTimestamp(),
   };
   await db.collection('sessions').doc(sessionId).update({ status: 'evaluated' });

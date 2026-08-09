@@ -915,11 +915,7 @@ async function _runEval() {
     <div class="mt-2"><span class="spinner"></span></div>`;
 
   try {
-    // ค้นคืนหลักฐานจากคลังไกด์ไลน์ — ล้มแล้วเดินต่อ ไม่ throw และไม่กระทบคะแนน
-    const rag = await RAG.retrieve(_caseData, _dispensedDrugs, _caseData.groupId);
-    if (rag.status !== 'ok') console.info('RAG:', rag.status);
-
-    const prompt  = buildEvalPrompt(_caseData, _chatHistory, _dispensedDrugs, _counselingHistory, rag.chunks);
+    const prompt  = buildEvalPrompt(_caseData, _chatHistory, _dispensedDrugs, _counselingHistory);
     const raw     = await geminiComplete(prompt);
     // Strip markdown code fences if present
     const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
@@ -927,21 +923,17 @@ async function _runEval() {
 
     // คำนวณคะแนนแบบ deterministic จากน้ำหนัก rubric (AI ให้แค่ earned รายข้อ)
     //
-    // ⚠️ scoreRubric ไม่รับ argument ใดจาก rag — สูตรคำนวณจึงแยกขาดจาก RAG
-    //    แต่ "ไม่ได้แปลว่าคะแนนเท่าเดิม" — หลักฐานที่ใส่เข้า prompt เปลี่ยนการตัดสิน
-    //    earned ของ AI ได้ วัดจริง 2026-08-09 เคส pharyngitis: ไม่มี RAG = 56,
-    //    มี RAG = 55-60 (drug 70->85, history 70->62)
-    //    ยอมรับได้เพราะคะแนน AI เป็น feedback เชิงก่อรูป ไม่ใช่ตัวแปรตามของงานวิจัย
-    //    แต่ต้อง freeze corpusVersion + prompt ก่อนเก็บข้อมูล (treatment fidelity)
+    // ⚠️ annotation (rationale) ในข้อ rubric ตั้งใจให้เปลี่ยนการตัดสิน earned ของ AI
+    //    แต่ไม่แตะสูตรคำนวณ — scoreRubric ใช้ weight ล้วน
+    //    ต้อง freeze GROUNDING_VERSION + prompt ก่อนเก็บข้อมูล (treatment fidelity)
     const scored = scoreRubric(_caseData, evalJson.items, _caseData.gender);
     Object.assign(evalJson, scored);   // เติม *_score, overall, checklist_results
 
-    // เก็บรายการอ้างอิงไว้แสดงในหน้าสรุป — เฉพาะ chunk ที่ AI อ้างจริงเท่านั้น
-    const cited = new Set(Array.isArray(evalJson.citations) ? evalJson.citations : []);
-    evalJson.guidelineRefs = RAG.formatCitations(rag.chunks).filter(c => cited.has(c.tag));
-
     const user   = getCurrentUser();
-    const result = await saveResult(_session.id, user.uid, evalJson, _caseData, rag);
+    const result = await saveResult(_session.id, user.uid, evalJson, _caseData, {
+      refs:    collectGuidelineSources(_caseData),
+      version: GROUNDING_VERSION,
+    });
     _disableRefreshGuard();   // evaluation saved — safe to leave
     Router.go('summary', { sessionId: _session.id, resultId: result.id });
 

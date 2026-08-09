@@ -100,24 +100,19 @@ function _renderSummaryUI(container, pid, result) {
             </div>`).join('')}
         </div>` : ''}
 
-      <!-- Guideline references (RAG) -->
-      <!-- ⚠️ ลิขสิทธิ์: แสดงได้แค่ summaryTh + ชื่อเอกสาร + หน้า + ลิงก์
-           ห้ามแสดง chunk.text ซึ่งเป็นข้อความต้นฉบับจากไกด์ไลน์ -->
-      ${(fb.guidelineRefs || []).length ? `
+      <!-- Guideline references (static grounding — ผูกกับข้อ rubric ของเคส) -->
+      <!-- ⚠️ ลิขสิทธิ์: แสดงได้แค่ชื่อเอกสาร + หน้า + ลิงก์
+           ห้ามแสดงข้อความต้นฉบับจากไกด์ไลน์ -->
+      ${(result.guidelineRefs || []).length ? `
         <div class="card mb-3">
           <h3 class="mb-1">📚 อ้างอิงแนวทางเวชปฏิบัติ</h3>
-          <!-- โมเดลฝัง tag ในข้อความ feedback จริง แต่รวมหลาย tag ไว้ในวงเล็บเดียวได้
-               เช่น [G2, G3, G4] — ข้อความจึงเขียนแบบไม่ผูกกับรูปแบบใดรูปแบบหนึ่ง -->
-          <p class="text-dim text-sm mb-2">รหัส G ที่ปรากฏในคำแนะนำข้างต้น ตรงกับเอกสารในรายการนี้</p>
-          ${fb.guidelineRefs.map(r => `
+          <p class="text-dim text-sm mb-2">เกณฑ์การประเมินเคสนี้อ้างอิงจากเอกสารต่อไปนี้</p>
+          ${result.guidelineRefs.map(r => `
             <div class="checklist-item">
-              <div class="checklist-icon">${_escS(r.tag)}</div>
+              <div class="checklist-icon">📄</div>
               <div class="checklist-text">
-                <div>${_escS(r.summaryTh)}</div>
-                <div class="checklist-note">
-                  ${_escS(r.title)}${r.page ? ` หน้า ${_escS(String(r.page))}` : ''}
-                  ${r.url ? ` · <a href="${_escS(r.url)}" target="_blank" rel="noopener">เปิดเอกสาร</a>` : ''}
-                </div>
+                <div>${_escS(r.title)}${r.page ? ` หน้า ${_escS(String(r.page))}` : ''}</div>
+                ${r.url ? `<div class="checklist-note"><a href="${_escS(r.url)}" target="_blank" rel="noopener">เปิดเอกสาร</a></div>` : ''}
               </div>
             </div>`).join('')}
         </div>` : ''}
