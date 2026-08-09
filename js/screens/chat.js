@@ -926,7 +926,13 @@ async function _runEval() {
     const evalJson = JSON.parse(cleaned);
 
     // คำนวณคะแนนแบบ deterministic จากน้ำหนัก rubric (AI ให้แค่ earned รายข้อ)
-    // ⚠️ ไม่มี argument ใดมาจาก rag — คะแนนต้องไม่เปลี่ยนจากการมี/ไม่มี RAG
+    //
+    // ⚠️ scoreRubric ไม่รับ argument ใดจาก rag — สูตรคำนวณจึงแยกขาดจาก RAG
+    //    แต่ "ไม่ได้แปลว่าคะแนนเท่าเดิม" — หลักฐานที่ใส่เข้า prompt เปลี่ยนการตัดสิน
+    //    earned ของ AI ได้ วัดจริง 2026-08-09 เคส pharyngitis: ไม่มี RAG = 56,
+    //    มี RAG = 55-60 (drug 70->85, history 70->62)
+    //    ยอมรับได้เพราะคะแนน AI เป็น feedback เชิงก่อรูป ไม่ใช่ตัวแปรตามของงานวิจัย
+    //    แต่ต้อง freeze corpusVersion + prompt ก่อนเก็บข้อมูล (treatment fidelity)
     const scored = scoreRubric(_caseData, evalJson.items, _caseData.gender);
     Object.assign(evalJson, scored);   // เติม *_score, overall, checklist_results
 

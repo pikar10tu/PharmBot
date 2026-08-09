@@ -106,9 +106,9 @@ function _renderSummaryUI(container, pid, result) {
       ${(fb.guidelineRefs || []).length ? `
         <div class="card mb-3">
           <h3 class="mb-1">📚 อ้างอิงแนวทางเวชปฏิบัติ</h3>
-          <!-- ไม่อ้างว่ามีรหัส [G1] ฝังอยู่ในข้อความ feedback — ทดสอบแล้วโมเดลไม่ใส่ให้
-               แม้จะสั่งแบบบังคับพร้อมตัวอย่าง (2026-08-09) ข้อความนี้จึงบอกแค่ที่มา -->
-          <p class="text-dim text-sm mb-2">คำแนะนำข้างต้นบางส่วนอ้างอิงจากเอกสารเหล่านี้</p>
+          <!-- โมเดลฝัง tag ในข้อความ feedback จริง แต่รวมหลาย tag ไว้ในวงเล็บเดียวได้
+               เช่น [G2, G3, G4] — ข้อความจึงเขียนแบบไม่ผูกกับรูปแบบใดรูปแบบหนึ่ง -->
+          <p class="text-dim text-sm mb-2">รหัส G ที่ปรากฏในคำแนะนำข้างต้น ตรงกับเอกสารในรายการนี้</p>
           ${fb.guidelineRefs.map(r => `
             <div class="checklist-item">
               <div class="checklist-icon">${_escS(r.tag)}</div>
