@@ -16,12 +16,12 @@ auth domain `@pharmbot.local`, firebase project `pharmbot-8496c` — ตั้�
 
 | ต้องการ | ไปที่ |
 |--------|------|
-| แก้ prompt ผู้ป่วย / prompt ประเมิน | `js/prompts.js` (370 บรรทัด, pure functions) |
-| แก้ flow session 4 ขั้นตอน | `js/screens/chat.js` (1,051 บรรทัด — ⚠️ ใหญ่) |
+| แก้ prompt ผู้ป่วย / prompt ประเมิน | `js/prompts.js` (434 บรรทัด, pure functions) |
+| แก้ flow session 4 ขั้นตอน | `js/screens/chat.js` (1,058 บรรทัด — ⚠️ ใหญ่) |
 | แก้ rubric / น้ำหนักคะแนน | `prompts.js` — `DOMAIN_WEIGHTS` บรรทัด 8, `getDefaultRubric()` บรรทัด 65 |
-| แก้/เพิ่ม Firestore queries | `js/db.js` (164 บรรทัด) |
+| แก้/เพิ่ม Firestore queries | `js/db.js` (168 บรรทัด) |
 | เพิ่ม/แก้ cases | `setup/seed-cases.js` แล้วรัน `node seed-cases.js` |
-| Admin panel | `js/screens/admin.js` (1,090 บรรทัด — ⚠️ ใหญ่) |
+| Admin panel | `js/screens/admin.js` (1,093 บรรทัด — ⚠️ ใหญ่) |
 | เพิ่ม route ใหม่ | `js/router.js` + `index.html` (เพิ่ม `<script>`) |
 | แก้หลักฐานอ้างอิงในเฉลย (annotation) | `docs/specs/2026-08-09-static-guideline-grounding.md` |
 
@@ -41,9 +41,10 @@ auth domain `@pharmbot.local`, firebase project `pharmbot-8496c` — ตั้�
 เก็บลง `/results` ต่อไปเพื่อ **วิเคราะห์เสริม** ว่าสอดคล้องกับคะแนนผู้เชี่ยวชาญแค่ไหน
 
 ผลที่ตามมา:
-- ทั้ง eval pipeline (รวม RAG) เป็นส่วนหนึ่งของ **intervention** ไม่ใช่ instrument → ไม่ต้องทำ IOC แยก
+- ทั้ง eval pipeline เป็นส่วนหนึ่งของ **intervention** ไม่ใช่ instrument → ตัว pipeline เองไม่ต้องทำ IOC แยก
+  (แต่ **เนื้อหาเคส** รวมถึง annotation `rationale`/`sources` ที่เขียนลงแต่ละข้อ rubric **ต้องผ่านการตรวจของทีมผู้เชี่ยวชาญ** ก่อนใช้เก็บข้อมูลจริง — ดู Case Schema ด้านล่าง)
 - **แอปไม่ต้องมีโหมด pretest/posttest** เพราะการสอบทักษะเกิดนอกแอป
-- ข้อจำกัดที่เหลือคือ **treatment fidelity** — freeze prompt + corpus + `corpusVersion` ก่อนเก็บข้อมูล ห้ามแก้กลางคัน
+- ข้อจำกัดที่เหลือคือ **treatment fidelity** — freeze prompt + rubric annotation + `GROUNDING_VERSION` (`js/prompts.js:20`) ก่อนเก็บข้อมูล ห้ามแก้กลางคัน
 
 ### ขอบเขตเนื้อหา (ตามเล่ม บท 3 ฉบับทีม 25 ก.ค.)
 
@@ -319,7 +320,7 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 
 ## Known Issues
 
-- `chat.js` 1,067 บรรทัด — ยากต่อการ audit; ควรแยกก่อนแก้ไขใหญ่
+- `chat.js` 1,058 บรรทัด — ยากต่อการ audit; ควรแยกก่อนแก้ไขใหญ่
 - Scoring weights hardcoded ใน `prompts.js:8`
 - No `evalModel` separation — patient + evaluator ใช้ model เดียวกัน
 - No survey/questionnaire system
