@@ -8,13 +8,13 @@
 //    node eval-retrieval.js --verbose  แสดงผลทุก query ไม่ใช่เฉพาะที่พลาด
 //
 //  เกณฑ์ผ่าน: recall@6 >= 0.8
-//  ใช้ js/rag-core.js ตัวเดียวกับที่เบราว์เซอร์ใช้ ผลจึงเทียบได้ตรง
+//  ใช้ setup/lib/rag-core.js ตัวเดียวกับที่ index-guidelines.js ใช้ ผลจึงเทียบได้ตรง
 // ============================================================
 
 const admin = require('firebase-admin');
 const fs    = require('fs');
 const path  = require('path');
-const { dequantize, cosine, mergeTopK, capPerDoc } = require('../js/rag-core');
+const { dequantize, cosine, mergeTopK, capPerDoc } = require('./lib/rag-core');
 const { embedTexts, EMBED_MODEL } = require('./lib/embed');
 
 const args    = process.argv.slice(2);

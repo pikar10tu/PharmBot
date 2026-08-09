@@ -2,11 +2,9 @@
 //  rag-core.js
 //  คณิตค้นคืน — ไม่มี I/O ไม่มี dependency
 //
-//  ⚠️ ไฟล์นี้ต้องรันได้ทั้งเบราว์เซอร์ (global scope) และ Node (require)
-//     - ห้ามใช้ require ข้างใน / ห้ามใช้ ESM import
-//     - ปิดท้ายด้วย module.exports แบบมีเงื่อนไข
-//     ใช้ร่วมกันเพื่อให้ผลค้นคืนตอน offline (audit / eval-retrieval)
-//     ตรงกับที่นักศึกษาเจอจริงในเบราว์เซอร์
+//  ⚠️ offline เท่านั้น — เบราว์เซอร์ไม่โหลดไฟล์นี้แล้วตั้งแต่ถอด runtime RAG
+//     (2026-08-09) ใช้โดย setup/index-guidelines.js และ setup/eval-retrieval.js
+//     เก็บไว้เพราะคลัง 719 chunk คือวัตถุดิบสำหรับเขียน annotation ในเฉลยเคส
 // ============================================================
 
 // ── Quantization ────────────────────────────────────────────
@@ -91,6 +89,4 @@ function capPerDoc(hits, maxPerDoc) {
   return out;
 }
 
-const RAGCore = { quantize, dequantize, cosine, mergeTopK, capPerDoc };
-
-if (typeof module !== 'undefined') module.exports = RAGCore;
+module.exports = { quantize, dequantize, cosine, mergeTopK, capPerDoc };

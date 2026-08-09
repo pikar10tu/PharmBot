@@ -1,12 +1,12 @@
 // ============================================================
 //  rag-core.test.js
-//  ทดสอบ js/rag-core.js ซึ่งเบราว์เซอร์กับ Node ใช้ร่วมกัน
+//  ทดสอบ setup/lib/rag-core.js — คณิตค้นคืนล้วน ไม่มี I/O
 //  รัน: cd setup && npm test
 // ============================================================
 
 const test = require('node:test');
 const assert = require('node:assert');
-const { quantize, dequantize, cosine, mergeTopK, capPerDoc } = require('../../js/rag-core');
+const { quantize, dequantize, cosine, mergeTopK, capPerDoc } = require('../lib/rag-core');
 
 // pseudo-random แบบ deterministic — ไม่ให้ test flaky
 function randVec(n, seed = 1) {

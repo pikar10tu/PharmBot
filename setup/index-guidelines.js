@@ -17,7 +17,7 @@ const admin = require('firebase-admin');
 const fs    = require('fs');
 const path  = require('path');
 const { chunkPages } = require('./lib/chunk');
-const { quantize }   = require('../js/rag-core');
+const { quantize }   = require('./lib/rag-core');
 const {
   summarizeChunks, embedTexts, chunkHash, shardEntries, buildEmbedInput,
   EMBED_MODEL, GEN_MODEL,
