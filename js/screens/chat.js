@@ -915,18 +915,27 @@ async function _runEval() {
     <div class="mt-2"><span class="spinner"></span></div>`;
 
   try {
-    const prompt  = buildEvalPrompt(_caseData, _chatHistory, _dispensedDrugs, _counselingHistory);
+    // ค้นคืนหลักฐานจากคลังไกด์ไลน์ — ล้มแล้วเดินต่อ ไม่ throw และไม่กระทบคะแนน
+    const rag = await RAG.retrieve(_caseData, _dispensedDrugs, _caseData.groupId);
+    if (rag.status !== 'ok') console.info('RAG:', rag.status);
+
+    const prompt  = buildEvalPrompt(_caseData, _chatHistory, _dispensedDrugs, _counselingHistory, rag.chunks);
     const raw     = await geminiComplete(prompt);
     // Strip markdown code fences if present
     const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
     const evalJson = JSON.parse(cleaned);
 
     // คำนวณคะแนนแบบ deterministic จากน้ำหนัก rubric (AI ให้แค่ earned รายข้อ)
+    // ⚠️ ไม่มี argument ใดมาจาก rag — คะแนนต้องไม่เปลี่ยนจากการมี/ไม่มี RAG
     const scored = scoreRubric(_caseData, evalJson.items, _caseData.gender);
     Object.assign(evalJson, scored);   // เติม *_score, overall, checklist_results
 
+    // เก็บรายการอ้างอิงไว้แสดงในหน้าสรุป — เฉพาะ chunk ที่ AI อ้างจริงเท่านั้น
+    const cited = new Set(Array.isArray(evalJson.citations) ? evalJson.citations : []);
+    evalJson.guidelineRefs = RAG.formatCitations(rag.chunks).filter(c => cited.has(c.tag));
+
     const user   = getCurrentUser();
-    const result = await saveResult(_session.id, user.uid, evalJson, _caseData);
+    const result = await saveResult(_session.id, user.uid, evalJson, _caseData, rag);
     _disableRefreshGuard();   // evaluation saved — safe to leave
     Router.go('summary', { sessionId: _session.id, resultId: result.id });
 

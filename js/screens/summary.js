@@ -100,6 +100,28 @@ function _renderSummaryUI(container, pid, result) {
             </div>`).join('')}
         </div>` : ''}
 
+      <!-- Guideline references (RAG) -->
+      <!-- ⚠️ ลิขสิทธิ์: แสดงได้แค่ summaryTh + ชื่อเอกสาร + หน้า + ลิงก์
+           ห้ามแสดง chunk.text ซึ่งเป็นข้อความต้นฉบับจากไกด์ไลน์ -->
+      ${(fb.guidelineRefs || []).length ? `
+        <div class="card mb-3">
+          <h3 class="mb-1">📚 อ้างอิงแนวทางเวชปฏิบัติ</h3>
+          <!-- ไม่อ้างว่ามีรหัส [G1] ฝังอยู่ในข้อความ feedback — ทดสอบแล้วโมเดลไม่ใส่ให้
+               แม้จะสั่งแบบบังคับพร้อมตัวอย่าง (2026-08-09) ข้อความนี้จึงบอกแค่ที่มา -->
+          <p class="text-dim text-sm mb-2">คำแนะนำข้างต้นบางส่วนอ้างอิงจากเอกสารเหล่านี้</p>
+          ${fb.guidelineRefs.map(r => `
+            <div class="checklist-item">
+              <div class="checklist-icon">${_escS(r.tag)}</div>
+              <div class="checklist-text">
+                <div>${_escS(r.summaryTh)}</div>
+                <div class="checklist-note">
+                  ${_escS(r.title)}${r.page ? ` หน้า ${_escS(String(r.page))}` : ''}
+                  ${r.url ? ` · <a href="${_escS(r.url)}" target="_blank" rel="noopener">เปิดเอกสาร</a>` : ''}
+                </div>
+              </div>
+            </div>`).join('')}
+        </div>` : ''}
+
       <!-- Actions -->
       <div class="flex gap-2 mb-3" style="justify-content:center;flex-wrap:wrap;">
         <button class="btn btn-ghost" onclick="Router.go('history')">📋 ประวัติการฝึก</button>
