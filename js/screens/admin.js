@@ -555,6 +555,11 @@ function _newRubricId(domain) {
   return `${domain[0]}x${Date.now().toString(36)}${(_rubricUid++).toString(36)}`;
 }
 
+// ข้อนี้มีหลักฐานอ้างอิง (rationale/sources) ที่ยังไม่มี UI แก้ไข — ลบแล้วพิมพ์ใหม่เองไม่ได้
+function _itemHasAnnotation(it) {
+  return !!(String(it.rationale || '').trim() || (Array.isArray(it.sources) && it.sources.length));
+}
+
 function _renderRubricEditor() {
   const host = document.getElementById('rubric-editor');
   if (!host) return;
@@ -567,7 +572,7 @@ function _renderRubricEditor() {
 
     const rows = items.map(it => {
       const dim = it.active === false ? 'opacity:0.45;' : '';
-      const tags = `${it.critical ? '<span class="badge" style="font-size:0.62rem;background:rgba(239,68,68,0.18);">CRITICAL</span>' : ''}${it.femaleOnly ? '<span class="badge" style="font-size:0.62rem;">♀ เฉพาะหญิง</span>' : ''}`;
+      const tags = `${it.critical ? '<span class="badge" style="font-size:0.62rem;background:rgba(239,68,68,0.18);">CRITICAL</span>' : ''}${it.femaleOnly ? '<span class="badge" style="font-size:0.62rem;">♀ เฉพาะหญิง</span>' : ''}${_itemHasAnnotation(it) ? '<span class="badge" style="font-size:0.62rem;background:rgba(34,197,94,0.18);" title="มีหลักฐานอ้างอิง (rationale/sources) — ยังแก้ไม่ได้ในหน้านี้">📚 มีหลักฐาน</span>' : ''}`;
       return `
         <div class="dp-entry" data-id="${_escA(it.id)}" style="display:grid;grid-template-columns:auto 1fr auto auto;gap:0.4rem 0.5rem;align-items:center;
           padding:0.4rem 0.55rem;background:var(--glass-bg,rgba(255,255,255,0.04));
@@ -627,7 +632,10 @@ function _wireRubricEditor() {
   host.querySelectorAll('.rb-remove').forEach(btn =>
     btn.addEventListener('click', () => {
       const i = _caseRubric.findIndex(it => it.id === btn.dataset.id);
-      if (i >= 0) { _caseRubric.splice(i, 1); _renderRubricEditor(); }
+      if (i < 0) return;
+      if (_itemHasAnnotation(_caseRubric[i]) &&
+          !confirm('ข้อนี้มีหลักฐานอ้างอิง (rationale/sources) — ลบแล้วจะหายและพิมพ์กลับเองไม่ได้ ยืนยันลบ?')) return;
+      _caseRubric.splice(i, 1); _renderRubricEditor();
     }));
 
   host.querySelectorAll('.rb-add').forEach(btn =>

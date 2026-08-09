@@ -327,3 +327,4 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 - Playwright tests: `02-student-flow` (chat UI) และ `04-voice-ui` fail
 - ยังไม่มี UI แก้ annotation (rationale/sources) ใน admin rubric editor
 - ปุ่ม "↺ ค่าเริ่มต้น" ต่อหมวดใน rubric editor ลบ annotation ของหมวดนั้นทิ้ง (มี confirm dialog)
+- ปุ่ม "✕" ลบข้อ rubric ทีละข้อ ถ้าข้อนั้นมี annotation จะมี confirm dialog ก่อนลบ (ข้อที่ไม่มี annotation ลบได้ทันทีไม่มี confirm)
