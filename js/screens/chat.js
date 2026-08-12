@@ -22,6 +22,14 @@ let _liveMode          = false;  // true = Live API active, false = Web Speech f
 let _liveConnecting    = false;  // true while awaiting Live API connect (prevents double-connect)
 let _isRandomCase      = false;  // true = entered via random case — hide case title
 
+// ── โหมดเสียงล้วน ────────────────────────────────────────────
+// true  = โหมดพิมพ์หายจาก UI ปกติ เหลือเป็นโหมดฉุกเฉินที่โผล่เองเมื่อเสียงล้ม
+// false = กลับไปเป็นแอปแบบเดิมทุกประการ (ทางถอยที่ไม่ต้อง revert commit)
+// ⚠️ ต้อง freeze ค่านี้ก่อนเก็บข้อมูลจริง ห้ามแก้กลางการทดลอง
+const VOICE_ONLY = true;
+
+let _emergencyText = false;   // true = ลงถึง L2 แล้ว ห้ามกลับไปเป็นเสียงอีกทั้งเซสชัน
+
 // Capture channel of the current turn, stored as `via` on every history entry.
 // Research-relevant: only user turns are transcribed, and Live API transcription is
 // markedly more accurate on Thai medical vocabulary than Web Speech. Without this
@@ -176,7 +184,7 @@ function _renderChatUI(container, pid) {
       <div id="panel-1" class="session-panel">
 
         <!-- Conversation transcript (compact, scrollable) -->
-        <div class="transcript-wrap">
+        <div class="transcript-wrap${VOICE_ONLY ? ' hidden' : ''}">
           <div class="chat-messages" id="chat-messages"></div>
         </div>
 
@@ -211,13 +219,15 @@ function _renderChatUI(container, pid) {
 
         <!-- Footer bar -->
         <div class="session-footer">
+          ${VOICE_ONLY ? '' : `
           <div class="mode-switcher">
             <button class="mode-btn active" id="tab-voice-1" onclick="_switchMode(1,'voice')">🎙️ เสียง</button>
             <button class="mode-btn" id="tab-text-1" onclick="_switchMode(1,'text')">💬 ข้อความ</button>
-          </div>
+          </div>`}
+          ${VOICE_ONLY ? '' : `
           <label class="tts-check" id="tts-label" style="display:none;">
             <input type="checkbox" id="tts-toggle" /> อ่านเสียง
-          </label>
+          </label>`}
           <button class="btn btn-ghost btn-sm" id="char-toggle-btn" title="ทดลอง: ตัวละครเคลื่อนไหว" style="font-size:0.8rem;padding:0.35rem 0.7rem;">${_charMode ? '🎭 ตัวละคร ON' : '🎭 ตัวละคร'}</button>
           <button class="btn btn-success btn-sm" id="done-history-btn">💊 เลือกและจ่ายยา →</button>
         </div>
@@ -240,7 +250,7 @@ function _renderChatUI(container, pid) {
         <div id="dispensed-summary" class="alert alert-info text-sm"></div>
 
         <!-- Conversation transcript -->
-        <div class="transcript-wrap">
+        <div class="transcript-wrap${VOICE_ONLY ? ' hidden' : ''}">
           <div class="chat-messages" id="counsel-messages"></div>
         </div>
 
@@ -274,10 +284,11 @@ function _renderChatUI(container, pid) {
 
         <!-- Footer bar -->
         <div class="session-footer">
+          ${VOICE_ONLY ? '' : `
           <div class="mode-switcher">
             <button class="mode-btn active" id="tab-voice-3" onclick="_switchMode(3,'voice')">🎙️ เสียง</button>
             <button class="mode-btn" id="tab-text-3" onclick="_switchMode(3,'text')">💬 ข้อความ</button>
-          </div>
+          </div>`}
           <button class="btn btn-success btn-sm" id="done-counsel-btn">✅ จบการให้บริการ →</button>
         </div>
       </div>
@@ -413,6 +424,8 @@ function _attachEvents() {
 // ── Voice Mode (Web Speech STT + Gemini TTS) ──────────────────
 
 async function _switchMode(panelStep, mode) {
+  // โหมดเสียงล้วน: ห้ามสลับเป็นโหมดพิมพ์ด้วยมือ เข้าได้ทางเดียวคือ _revealEmergencyText
+  if (VOICE_ONLY && mode === 'text') return;
   const textTab  = document.getElementById(`tab-text-${panelStep}`);
   const voiceTab = document.getElementById(`tab-voice-${panelStep}`);
   const textRow  = document.getElementById(`text-input-row-${panelStep}`);
@@ -439,6 +452,22 @@ async function _switchMode(panelStep, mode) {
     if (ttsLabel) ttsLabel.style.display = 'flex';
     _stopVoice();
   }
+}
+
+// เปิดโหมดพิมพ์ฉุกเฉิน — ทางเดียวที่ผู้เรียนจะได้พิมพ์เมื่อ VOICE_ONLY
+// เรียกเมื่อบันไดสำรองลงถึง L2 แล้วเท่านั้น
+function _revealEmergencyText(panelStep, reason) {
+  if (_emergencyText) return;
+  _emergencyText = true;
+  _stopVoice();
+
+  const panel = document.getElementById(`panel-${panelStep}`);
+  panel?.querySelector('.transcript-wrap')?.classList.remove('hidden');
+  document.getElementById(`text-input-row-${panelStep}`)?.classList.remove('hidden');
+  document.getElementById(`voice-input-row-${panelStep}`)?.classList.add('hidden');
+
+  _notify(panelStep, '⚠️ ระบบเสียงใช้งานไม่ได้ กรุณาพิมพ์คุยกับผู้ป่วยแทน — ผลการฝึกยังบันทึกตามปกติ');
+  console.warn('voice ladder → L2:', reason);
 }
 
 async function _startVoice(panelStep) {

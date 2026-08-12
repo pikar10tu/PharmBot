@@ -1,248 +1,61 @@
 // ============================================================
 //  04-voice-ui.spec.js
-//  ทดสอบ voice UI elements — ไม่ใช้ microphone จริง
-//  Mock SpeechRecognition + speechSynthesis ไว้ใน initScript
+//  โหมดเสียงล้วน — ผู้เรียนต้องไม่เห็นฟองแชท/ช่องพิมพ์
+//  และโหมดฉุกเฉินต้องเรียกกลับมาได้จริง (ไม่ใช้ไมโครโฟนจริง)
 // ============================================================
 
 const { test, expect } = require('@playwright/test');
 const { loginAs } = require('../helpers/auth');
 
-const ADMIN_ID = process.env.ADMIN_ID;
-const ADMIN_PW = process.env.ADMIN_PASSWORD;
+const STUDENT_ID = process.env.STUDENT_ID;
+const STUDENT_PW = process.env.STUDENT_PASSWORD;
 
-// ── Mock browser speech APIs ──────────────────────────────────
-// เพิ่มก่อน page load เพื่อให้ JS ของแอปเห็น mock แทน API จริง
-const SPEECH_MOCK = `
-  // Mock SpeechRecognition
-  class MockSpeechRecognition extends EventTarget {
-    constructor() {
-      super();
-      this.lang = 'th-TH';
-      this.continuous = false;
-      this.interimResults = false;
-      this.maxAlternatives = 1;
-      this._started = false;
-    }
-    start()  { this._started = true;  this.dispatchEvent(new Event('start')); }
-    stop()   { this._started = false; this.dispatchEvent(new Event('end'));   }
-    abort()  { this._started = false; this.dispatchEvent(new Event('end'));   }
-  }
-  window.SpeechRecognition       = MockSpeechRecognition;
-  window.webkitSpeechRecognition = MockSpeechRecognition;
-
-  // Mock speechSynthesis
-  window.speechSynthesis = {
-    speak:  () => {},
-    cancel: () => {},
-    pause:  () => {},
-    resume: () => {},
-    getVoices: () => [],
-    speaking: false,
-    pending:  false,
-    paused:   false,
-  };
-  window.SpeechSynthesisUtterance = class {
-    constructor(text) { this.text = text; this.lang = ''; this.rate = 1; this.pitch = 1; }
-  };
-
-  // Mock AudioContext (ป้องกัน error จาก geminiTTS ถ้าถูกเรียก)
-  window.AudioContext = window.AudioContext || class {
-    constructor() { this.state = 'running'; this.destination = {}; }
-    createBuffer() { return { copyToChannel: () => {} }; }
-    createBufferSource() { return { buffer: null, connect: () => {}, start: () => {}, onended: null }; }
-    close() {}
-  };
-`;
-
-// Helper: login → navigate to chat
-async function goToChat(page) {
-  await loginAs(page, ADMIN_ID, ADMIN_PW);
-  await page.click('#btn-start');
-  await page.waitForSelector('.group-card[data-group="INF_URI"]');
-  await page.click('.group-card[data-group="INF_URI"]');
-  await page.waitForSelector('.case-card', { timeout: 15_000 });
-  await page.locator('.case-card').first().click();
-  await expect(page.locator('#panel-1')).toBeVisible({ timeout: 30_000 });
-  // รอ AI message แรก
-  await page.waitForSelector('.msg', { timeout: 30_000 });
-}
-
-// ── Tests ─────────────────────────────────────────────────────
-
-test.describe('Voice UI — Step 1 (ซักประวัติ)', () => {
-
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(SPEECH_MOCK);
-  });
-
-  test('voice/text tab มีครบทั้งคู่ใน panel-1', async ({ page }) => {
-    await goToChat(page);
-    await expect(page.locator('#tab-text-1')).toBeVisible();
-    await expect(page.locator('#tab-voice-1')).toBeVisible();
-    // voice-first: voice tab active by default
-    await expect(page.locator('#tab-voice-1')).toHaveClass(/active/);
-  });
-
-  test('สวิตช์ไป voice mode → text input ซ่อน, voice status โชว์', async ({ page }) => {
-    await goToChat(page);
-    await page.click('#tab-voice-1');
-    // text input row ต้องซ่อน
-    await expect(page.locator('#text-input-row-1')).toHaveClass(/hidden/);
-    // voice status row ต้องโชว์
-    await expect(page.locator('#voice-input-row-1')).not.toHaveClass(/hidden/);
-    // waveform visible
-    await expect(page.locator('#waveform-1')).toBeVisible();
-    await page.screenshot({ path: 'test-results/screenshots/voice-mode-step1.png', fullPage: true });
-  });
-
-  test('สวิตช์กลับ text mode → text input กลับมา', async ({ page }) => {
-    await goToChat(page);
-    await page.click('#tab-voice-1');
-    await page.click('#tab-text-1');
-    await expect(page.locator('#text-input-row-1')).not.toHaveClass(/hidden/);
-    await expect(page.locator('#voice-input-row-1')).toHaveClass(/hidden/);
-  });
-
-  test('voice tab active class เปลี่ยนถูกต้องเมื่อ toggle', async ({ page }) => {
-    await goToChat(page);
-    // เริ่มต้น voice active (voice-first)
-    await expect(page.locator('#tab-voice-1')).toHaveClass(/active/);
-    await expect(page.locator('#tab-text-1')).not.toHaveClass(/active/);
-    // switch text
-    await page.click('#tab-text-1');
-    await expect(page.locator('#tab-text-1')).toHaveClass(/active/);
-    await expect(page.locator('#tab-voice-1')).not.toHaveClass(/active/);
-    // switch back voice
-    await page.click('#tab-voice-1');
-    await expect(page.locator('#tab-voice-1')).toHaveClass(/active/);
-    await expect(page.locator('#tab-text-1')).not.toHaveClass(/active/);
-  });
-
-  test('TTS toggle checkbox มีอยู่และ toggle ได้', async ({ page }) => {
-    await goToChat(page);
-    // TTS toggle อยู่ใน text mode (voice mode ซ่อน tts-label)
-    await page.click('#tab-text-1');
-    const toggle = page.locator('#tts-toggle');
-    await expect(toggle).toBeVisible();
-    await expect(toggle).not.toBeChecked();
-    await toggle.check();
-    await expect(toggle).toBeChecked();
-    await toggle.uncheck();
-    await expect(toggle).not.toBeChecked();
-  });
-
-  test('TTS label ซ่อนเมื่อ voice mode, โชว์เมื่อ text mode', async ({ page }) => {
-    await goToChat(page);
-    // voice-first: tts-label ซ่อนอยู่แล้วตั้งแต่ต้น
-    const visVoice = await page.locator('#tts-label').evaluate(el => getComputedStyle(el).visibility);
-    expect(visVoice).toBe('hidden');
-    // สลับไป text mode → tts-label กลับมา visible
-    await page.click('#tab-text-1');
-    const visText = await page.locator('#tts-label').evaluate(el => getComputedStyle(el).visibility);
-    expect(visText).not.toBe('hidden');
-  });
-
-  test('push-to-talk mic button มีและ clickable (text mode)', async ({ page }) => {
-    await goToChat(page);
-    // สลับไป text mode ก่อน (default คือ voice-first)
-    await page.click('#tab-text-1');
-    const mic = page.locator('#mic-btn');
-    await expect(mic).toBeVisible();
-    await expect(mic).toBeEnabled();
-    // Click ได้โดยไม่ error (mock SpeechRecognition รับได้)
-    await mic.click();
-    await expect(mic).toHaveClass(/listening/);
-    // click อีกครั้งเพื่อ stop
-    await mic.click();
-    await expect(mic).not.toHaveClass(/listening/);
-  });
-
-  test('voice status text อัปเดตเมื่อเข้า voice mode', async ({ page }) => {
-    await goToChat(page);
-    await page.click('#tab-voice-1');
-    const statusEl = page.locator('#voice-status-1');
-    await expect(statusEl).toBeVisible();
-    const text = await statusEl.textContent();
-    // ต้องมีข้อความสถานะอะไรก็ได้ (ไม่ว่าง)
-    expect(text?.trim().length).toBeGreaterThan(0);
-  });
-
+test.beforeEach(async ({ page }) => {
+  await loginAs(page, STUDENT_ID, STUDENT_PW);
+  await page.goto('/#groups');
+  // .group-card / .case-card ไม่มีจริงใน DOM — groups.js เรนเดอร์
+  // <div class="card" id="pick-all"> (สุ่มทุกระบบ) และคลิกแล้วสุ่มเคส + Router.go('chat')
+  // ทันที ไม่ผ่านหน้าเลือกเคสแยกต่างหาก (ดู js/screens/groups.js:68)
+  await page.locator('#pick-all').click();
+  await expect(page.locator('#panel-1')).toBeVisible();
 });
 
-test.describe('Voice UI — Step 3 (ให้คำแนะนำ)', () => {
-
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(SPEECH_MOCK);
-  });
-
-  // Helper: ไปถึง step 3 โดยผ่าน step 1 และ 2
-  async function goToStep3(page) {
-    await goToChat(page);
-    // ข้าม step 1 → step 2
-    await page.click('#done-history-btn');
-    await expect(page.locator('#panel-2')).not.toHaveClass(/hidden/, { timeout: 5_000 });
-    // mock confirm() → true เพื่อข้ามผ่าน drug validation dialog
-    await page.evaluate(() => { window.confirm = () => true; });
-    // step 2 → step 3
-    await page.click('#confirm-drugs-btn');
-    await expect(page.locator('#panel-3')).not.toHaveClass(/hidden/, { timeout: 15_000 });
-  }
-
-  test('panel-3 มี voice/text tab ครบ', async ({ page }) => {
-    await goToStep3(page);
-    await expect(page.locator('#tab-text-3')).toBeVisible();
-    await expect(page.locator('#tab-voice-3')).toBeVisible();
-  });
-
-  test('สวิตช์ voice mode ใน step 3 → voice status โชว์', async ({ page }) => {
-    await goToStep3(page);
-    await page.click('#tab-voice-3');
-    await expect(page.locator('#voice-input-row-3')).not.toHaveClass(/hidden/);
-    await expect(page.locator('#waveform-3')).toBeVisible();
-    await page.screenshot({ path: 'test-results/screenshots/voice-mode-step3.png', fullPage: true });
-  });
-
-  test('mic-btn-3 exists และ clickable ใน text mode', async ({ page }) => {
-    await goToStep3(page);
-    await page.click('#tab-text-3');
-    await expect(page.locator('#mic-btn-3')).toBeVisible();
-    await page.locator('#mic-btn-3').click();
-    await expect(page.locator('#mic-btn-3')).toHaveClass(/listening/);
-  });
-
+test('ไม่มีแท็บสลับโหมดให้กด', async ({ page }) => {
+  await expect(page.locator('.mode-switcher')).toHaveCount(0);
+  await expect(page.locator('#tab-text-1')).toHaveCount(0);
 });
 
-test.describe('Voice — Edge Cases', () => {
+test('ฟองแชทถูกซ่อนแต่ DOM ยังอยู่', async ({ page }) => {
+  await expect(page.locator('#chat-messages')).toHaveCount(1);
+  await expect(page.locator('#panel-1 .transcript-wrap')).toBeHidden();
+});
 
-  test('เบราว์เซอร์ไม่รองรับ SpeechRecognition → แสดง error message', async ({ page }) => {
-    // ไม่ inject mock → SpeechRecognition จะไม่มีใน headless chromium
-    await page.addInitScript(`
-      delete window.SpeechRecognition;
-      delete window.webkitSpeechRecognition;
-    `);
-    await loginAs(page, ADMIN_ID, ADMIN_PW);
-    await page.click('#btn-start');
-    await page.waitForSelector('.group-card[data-group="INF_URI"]');
-    await page.click('.group-card[data-group="INF_URI"]');
-    await page.waitForSelector('.case-card', { timeout: 15_000 });
-    await page.locator('.case-card').first().click();
-    await page.waitForSelector('#panel-1', { timeout: 30_000 });
-    await page.waitForSelector('.msg', { timeout: 30_000 });
+test('ช่องพิมพ์ถูกซ่อน', async ({ page }) => {
+  await expect(page.locator('#text-input-row-1')).toBeHidden();
+});
 
-    // กด voice tab → ควร fallback กลับ text mode + แสดง error msg
-    // (Live API จะลองก่อน แล้ว fallback เมื่อ mic ไม่มี — อาจใช้เวลา ~5-15s)
-    await page.click('#tab-voice-1');
-    await page.waitForFunction(
-      () => {
-        const hasError   = document.querySelectorAll('.msg-system').length > 0;
-        const inTextMode = !document.getElementById('text-input-row-1')?.classList.contains('hidden');
-        return hasError || inTextMode;
-      },
-      { timeout: 25_000 }
-    );
-    const hasError = await page.locator('.msg-system').count();
-    const fallbackToText = await page.locator('#text-input-row-1').evaluate(el => !el.classList.contains('hidden'));
-    expect(hasError > 0 || fallbackToText).toBeTruthy();
+test('เวทีเสียง ซับไตเติล และช่องแจ้งเตือนยังอยู่', async ({ page }) => {
+  await expect(page.locator('#voice-input-row-1')).toBeVisible();
+  await expect(page.locator('#voice-subtitle-1')).toHaveCount(1);
+  await expect(page.locator('#voice-notice-1')).toHaveCount(1);
+});
+
+test('สลับเป็นโหมดพิมพ์ด้วยมือไม่ได้', async ({ page }) => {
+  await page.evaluate(() => _switchMode(1, 'text'));
+  await expect(page.locator('#text-input-row-1')).toBeHidden();
+});
+
+test('โหมดฉุกเฉินเปิดฟองแชท ช่องพิมพ์ และข้อความแจ้ง', async ({ page }) => {
+  await page.evaluate(() => _revealEmergencyText(1, 'mic-denied'));
+  await expect(page.locator('#panel-1 .transcript-wrap')).toBeVisible();
+  await expect(page.locator('#text-input-row-1')).toBeVisible();
+  await expect(page.locator('#voice-notice-1')).toContainText('พิมพ์คุยกับผู้ป่วย');
+});
+
+test('เปิดโหมดฉุกเฉินซ้ำแล้วไม่พัง', async ({ page }) => {
+  await page.evaluate(() => {
+    _revealEmergencyText(1, 'mic-denied');
+    _revealEmergencyText(1, 'no-speech-api');
   });
-
+  await expect(page.locator('#text-input-row-1')).toBeVisible();
 });
