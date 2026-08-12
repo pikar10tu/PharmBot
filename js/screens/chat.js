@@ -30,6 +30,10 @@ const VOICE_ONLY = true;
 
 let _emergencyText = false;   // true = ลงถึง L2 แล้ว ห้ามกลับไปเป็นเสียงอีกทั้งเซสชัน
 let _voiceLevel = 'L0';   // ระดับปัจจุบันของบันไดสำรอง (ดู js/voice-ladder.js)
+// panelStep ที่ถูกเปิดโหมดพิมพ์ฉุกเฉินไปแล้วจริง — _emergencyText เป็น flag ระดับเซสชัน
+// แต่การเปิด UI เป็นรายพาเนล ถ้าใช้แค่ _emergencyText คุมความ idempotent พาเนลที่ 2
+// (Step 3) จะไม่มีวันถูกเปิดเพราะพาเนล 1 เปิดไปแล้ว ทำให้เสียงค้างที่ "กำลังเชื่อมต่อ…"
+let _emergencyRevealedPanels = new Set();
 
 // Capture channel of the current turn, stored as `via` on every history entry.
 // Research-relevant: only user turns are transcribed, and Live API transcription is
@@ -97,6 +101,7 @@ async function renderChat(container, params = {}) {
   _caseStarted   = false;
   _emergencyText = false;
   _voiceLevel    = 'L0';
+  _emergencyRevealedPanels = new Set();
   _stopSessionTimer();
   _timerRemaining = SESSION_TIME_LIMIT_SEC;
   _timerExpired   = false;
@@ -460,7 +465,10 @@ async function _switchMode(panelStep, mode) {
 // เปิดโหมดพิมพ์ฉุกเฉิน — ทางเดียวที่ผู้เรียนจะได้พิมพ์เมื่อ VOICE_ONLY
 // เรียกเมื่อบันไดสำรองลงถึง L2 แล้วเท่านั้น
 function _revealEmergencyText(panelStep, reason) {
-  if (_emergencyText) return;
+  // idempotent ต่อ "พาเนลนี้" เท่านั้น — ไม่ใช่ต่อเซสชัน เพราะ Step 1 กับ Step 3
+  // เป็นคนละ DOM panel กันคนละแผงจริง เปิดพาเนล 1 แล้วไม่ได้แปลว่าพาเนล 3 เปิดไปด้วย
+  if (_emergencyRevealedPanels.has(panelStep)) return;
+  _emergencyRevealedPanels.add(panelStep);
   _emergencyText = true;
   _stopVoice();
 
@@ -487,6 +495,15 @@ function _degrade(panelStep, failureKind) {
 }
 
 async function _startVoice(panelStep) {
+  // เซสชันนี้ลงถึง L2 ไปแล้ว (จากพาเนลก่อนหน้า) — ห้าม retry Live/Web Speech ซ้ำ
+  // ไม่งั้นจะติดค้างที่ "กำลังเชื่อมต่อ…" (ถ้าล้มซ้ำ) หรือฟื้นเสียงกลับมาโดยไม่ตั้งใจ
+  // (ถ้าสาเหตุเดิมใช้ไม่ได้กับพาเนลนี้ เช่น mic-denied เฉพาะพาเนล 1) ซึ่งขัดกับกติกา
+  // "ลงได้อย่างเดียว ไม่ขึ้น" — แค่เปิดโหมดพิมพ์ฉุกเฉินให้พาเนลนี้แล้วจบ
+  if (VOICE_ONLY && _emergencyText) {
+    _revealEmergencyText(panelStep, 'already-degraded');
+    return;
+  }
+
   const msgId  = panelStep === 1 ? 'chat-messages' : 'counsel-messages';
   const apiKey = getGeminiKey();
 
