@@ -385,8 +385,7 @@ function _attachEvents() {
       if (profile?.role !== 'admin') {
         const count = await getTodaySessionCount(user.uid);
         if (count >= 5) {
-          _addMsg('chat-messages', 'system',
-            '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้');
+          _notify(1, '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้');
           restoreBtn();
           return;
         }
@@ -394,7 +393,7 @@ function _attachEvents() {
 
       _session = await createSession(user.uid, _caseData);
     } catch (e) {
-      _addMsg('chat-messages', 'system', `⚠️ เริ่มเคสไม่สำเร็จ: ${e.message} — กรุณาลองใหม่`);
+      _notify(1, `⚠️ เริ่มเคสไม่สำเร็จ: ${e.message} — กรุณาลองใหม่`);
       restoreBtn();
       return;
     }
@@ -477,6 +476,14 @@ function _revealEmergencyText(panelStep, reason) {
   document.getElementById(`text-input-row-${panelStep}`)?.classList.remove('hidden');
   document.getElementById(`voice-input-row-${panelStep}`)?.classList.add('hidden');
 
+  // Same two things _switchMode(panelStep,'text') used to do — only matter when
+  // VOICE_ONLY is rolled back to false, the one case where the mode switcher and
+  // the TTS checkbox actually exist in the DOM. No-ops (optional chaining) otherwise.
+  document.getElementById(`tab-voice-${panelStep}`)?.classList.remove('active');
+  document.getElementById(`tab-text-${panelStep}`)?.classList.add('active');
+  const ttsLabel = document.getElementById('tts-label'); // panel 1 only
+  if (ttsLabel) ttsLabel.style.display = 'flex';
+
   _notify(panelStep, '⚠️ ระบบเสียงใช้งานไม่ได้ กรุณาพิมพ์คุยกับผู้ป่วยแทน — ผลการฝึกยังบันทึกตามปกติ');
   console.warn('voice ladder → L2:', reason);
 }
@@ -518,7 +525,11 @@ async function _startVoice(panelStep) {
   _setVoiceStatus(panelStep, '⏳ กำลังเชื่อมต่อ…', false);
 
   // ── Try Gemini Live API first ──────────────────────────────
-  if (apiKey && !_liveConnecting) {
+  // Gate on _voiceLevel still being L0: a session already degraded to L1 in an
+  // earlier panel must not re-attempt Live here — gemini-live.js's setup timeout is
+  // 20s of the student's 300s budget, and a successful reconnect would silently
+  // restore L0 while /sessions.degraded still says L1 ("ลงได้อย่างเดียว" would break).
+  if (apiKey && !_liveConnecting && _voiceLevel === 'L0') {
     _liveConnecting = true;
     const sysPrompt = panelStep === 1
       ? buildSystemPrompt(_caseData, true)
@@ -697,11 +708,15 @@ function _startVoiceWebSpeech(panelStep) {
 
 function _stopVoice() {
   _stopCharAnim(_voicePanelStep || 1);
+  // Teardown _liveClient BEFORE flipping _voiceMode off — GeminiLiveClient.disconnect()
+  // calls _flushUserTranscript() to emit any trailing utterance still buffered by VAD
+  // (see comment at gemini-live.js's disconnect()), and onUserTranscript's `if (!_voiceMode)
+  // return;` gate would silently discard it if _voiceMode were already false here.
+  if (_liveClient) { try { _liveClient.interruptPlayback(); _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   _voiceMode      = false;
   _voicePanelStep = 0;
   _liveMode       = false;
   _liveConnecting = false;
-  if (_liveClient) { try { _liveClient.interruptPlayback(); _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   try { _voiceRecognition?.abort(); } catch (_) {}
   _voiceRecognition = null;
   geminiTTSStop();
@@ -756,7 +771,11 @@ function _setVoiceStatus(panelStep, text, animate) {
 function _notify(panelStep, msg) {
   const el = document.getElementById(`voice-notice-${panelStep}`);
   if (el) el.textContent = msg;
-  // ยังลง log เหมือนเดิม เพื่อให้ทีมเห็นใน transcript ว่านักศึกษาเจออะไร
+  // เขียนต่อ DOM ไว้ด้วย (เหมือน _addMsg ทุกครั้ง) — แต่นี่คือ DOM node ของหน้านักศึกษาเอง
+  // เท่านั้น ไม่ได้ push เข้า _chatHistory/_counselingHistory และไม่ persist ไป /sessions
+  // ห้ามเข้าใจว่าทีมจะเห็นข้อความนี้ผ่าน transcript viewer — มันหายไปถ้า refresh
+  // สัญญาณการลดระดับที่ทีมใช้ติดตามจริงคือ markSessionDegraded() ซึ่งเขียน /sessions.degraded
+  // NOTIFY-EXEMPT: this is _notify()'s own call — the mechanism every other site routes through
   _addMsg(panelStep === 1 ? 'chat-messages' : 'counsel-messages', 'system', msg);
 }
 
@@ -833,13 +852,23 @@ async function _initConversation() {
   // ฉากเปิดสร้างอัตโนมัติจากเพศ/อายุ/อาชีพ/โทน (เคสเดิมที่มี sceneDesc ก็ยังใช้ได้)
   const scene = _caseData.sceneDesc || buildSceneDesc(_caseData);
   if (scene) {
-    _addMsg('chat-messages', 'system', `📍 ${scene}`);
+    _addMsg('chat-messages', 'system', `📍 ${scene}`);   // NOTIFY-EXEMPT: informational not failure/required-action, and VOICE_ONLY branch below already surfaces it visibly in #voice-notice-1
+    // VOICE_ONLY hides the transcript, so before เริ่มเคส is pressed there is nothing
+    // else on screen to tell the student who they just walked in on — surface it in
+    // the voice-notice slot too, which IS visible at that point.
+    if (VOICE_ONLY) {
+      const el = document.getElementById('voice-notice-1');
+      if (el) el.textContent = `📍 ${scene}`;
+    }
   }
   // Wait for student to press เริ่มเคส — do not auto-connect
 }
 
 async function _sendChat() {
   if (!_caseStarted) {
+    // NOTIFY-EXEMPT: unreachable under VOICE_ONLY — #text-input-row-1 (the only way to
+    // reach _sendChat) stays hidden until _caseStarted is true, so this guard can only
+    // fire when VOICE_ONLY is false, where .chat-messages is never hidden in the first place
     _addMsg('chat-messages', 'system', '⚠️ กรุณากดปุ่ม "🟢 เริ่มเคส" ก่อนเริ่มสนทนา');
     return;
   }
@@ -896,7 +925,7 @@ async function _sendChat() {
     updateSessionChat(_session.id, _chatHistory).catch(() => {});
   } catch (e) {
     _hideTyping('chat-messages');
-    _addMsg('chat-messages', 'system', `⚠️ ${e.message}`);
+    _notify(1, `⚠️ ${e.message}`);
   } finally {
     _aiTyping = false;
     _lockInput(false, 'chat-input', 'send-btn');
@@ -912,7 +941,7 @@ function _goStep2() {
   // ไม่มี session = ยังไม่ได้กดเริ่มเคส — เดิมข้ามไป Step 2 ได้เลยทั้งที่ยังไม่ได้ซักประวัติ
   // (และ Step 2/3 เรียก updateSession*(_session.id) ซึ่งจะพังถ้า _session ยังเป็น null)
   if (!_caseStarted || !_session) {
-    _addMsg('chat-messages', 'system', '⚠️ กรุณากดปุ่ม "🟢 เริ่มเคส" และซักประวัติก่อนไปขั้นจ่ายยา');
+    _notify(1, '⚠️ กรุณากดปุ่ม "🟢 เริ่มเคส" และซักประวัติก่อนไปขั้นจ่ายยา');
     return;
   }
   _stopVoice(); // stop voice mode if active
@@ -1022,7 +1051,7 @@ async function _sendCounseling() {
     updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
   } catch (e) {
     _hideTyping('counsel-messages');
-    _addMsg('counsel-messages', 'system', `⚠️ ${e.message}`);
+    _notify(3, `⚠️ ${e.message}`);
   } finally {
     _aiTyping = false;
     _lockInput(false, 'counsel-input', 'send-counsel-btn');
