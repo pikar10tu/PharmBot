@@ -29,7 +29,8 @@ const SESSION = {
   chatHistory: [
     { role: 'user',  text: 'เจ็บคอมากี่วันแล้วครับ', via: 'live' },
     { role: 'model', text: 'สามวันค่ะ' },
-    { role: 'user', text: 'แล้วก็มีไข้', via: 'live', interrupted: true },
+    { role: 'model', text: 'แล้วก็มีไข้', via: 'live', interrupted: true },
+    { role: 'user', text: 'คุณมีอาการอื่นไหม', via: 'live' },
   ],
   counselingHistory: [{ role: 'user', text: 'กินหลังอาหาร', via: 'webspeech' }],
   dispensedDrugs: [{ name: 'Amoxicillin', strength: '500mg', form: 'capsule' }],
