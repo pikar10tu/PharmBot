@@ -371,15 +371,28 @@ function buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistor
     ? dispensedDrugs.map(d => `${d.name} ${d.strength} (${d.form})`).join(', ')
     : 'ไม่ได้จ่ายยา';
 
-  const chatText = chatHistory.map(m =>
-    `[${m.role === 'user' ? 'เภสัชกร' : 'ผู้ป่วย'}]: ${m.text}`
-  ).join('\n');
+  // เทิร์นที่มาจากเสียงถูกกำกับไว้ ผู้ประเมินจะได้รู้ว่าบรรทัดไหน "ถอดมา" ไม่ใช่ที่นักศึกษาพิมพ์เอง
+  const isVoiceTurn = (m) => m.role === 'user' && (m.via === 'live' || m.via === 'webspeech');
+  const renderTurn  = (m) =>
+    `[${m.role === 'user' ? 'เภสัชกร' : 'ผู้ป่วย'}${isVoiceTurn(m) ? ' (ถอดจากเสียง)' : ''}]: ${m.text}`;
+
+  const chatText = chatHistory.map(renderTurn).join('\n');
 
   const counselingText = counselingHistory.length
-    ? counselingHistory.map(m =>
-        `[${m.role === 'user' ? 'เภสัชกร' : 'ผู้ป่วย'}]: ${m.text}`
-      ).join('\n')
+    ? counselingHistory.map(renderTurn).join('\n')
     : '(ไม่มีการให้คำแนะนำ)';
+
+  // โมเดล Live กิน "เสียง" ตรงๆ ส่วน transcript เป็น ASR อีกสายที่วิ่งขนานกันและเพี้ยนได้
+  // (ชื่อยาผิด หรือทั้งประโยคกลายเป็นภาษาอื่น) → ผู้ป่วยตอบถูกทั้งที่ข้อความอ่านไม่รู้เรื่องได้
+  // กฎชุดนี้จึงโผล่เฉพาะ session ที่ใช้เสียงจริง — session พิมพ์ล้วนได้ prompt เท่าเดิมทุกตัวอักษร
+  const hasVoiceTurns = chatHistory.some(isVoiceTurn) || counselingHistory.some(isVoiceTurn);
+  const voiceRules = hasVoiceTurns ? `
+- บรรทัดที่กำกับ "(ถอดจากเสียง)" มาจากระบบถอดเสียงอัตโนมัติ อาจสะกดผิด ชื่อยาเพี้ยน หรือกลายเป็นภาษาอื่นทั้งประโยค
+- **ผู้ป่วยได้ยินเสียงจริง ไม่ได้อ่านข้อความนี้** คำตอบของผู้ป่วยจึงเป็นหลักฐานว่าเภสัชกรถามอะไรไปจริงๆ — ถ้าบรรทัดเภสัชกรอ่านไม่ได้ความ แต่ผู้ป่วยตอบสอดคล้องกับคำถามใด ให้ถือว่าถามคำถามนั้นจริงและให้ earned ตามนั้น
+- ชื่อยา/ศัพท์เทคนิคที่ออกเสียงใกล้เคียงของจริง ให้ตีความเป็นคำที่ถูกต้อง
+- **ห้ามหัก earned เพราะ transcript สะกดผิด ผิดภาษา หรืออ่านไม่รู้เรื่อง** ให้ตัดสินจากเนื้อหาที่สื่อสารกันได้จริงเท่านั้น
+- บรรทัดผู้ป่วยที่ลงท้ายด้วย "…" คือถูกเภสัชกรพูดแทรกกลางประโยค ไม่ใช่ผู้ป่วยพูดไม่จบเอง — ห้ามตีความว่าผู้ป่วยปิดบังข้อมูล
+- แต่ถ้าไม่มีร่องรอยในคำตอบผู้ป่วยเลยว่าเภสัชกรถามประเด็นนั้น ให้ earned = 0 ตามปกติ ห้ามเดาเข้าข้าง` : '';
 
   // คำสั่งนี้โผล่เฉพาะเคสที่มี annotation — เคสอื่นได้ prompt เท่าเดิมทุกตัวอักษร
   const groundingRules = rubricHasAnnotations(rubric) ? `
@@ -419,7 +432,7 @@ ${counselingText}
     0   = ไม่ได้ทำ หรือทำผิด
 - ข้อ CRITICAL ที่เกี่ยวกับความปลอดภัย (แพ้ยา/ตั้งครรภ์) ถ้าไม่ถาม → earned = 0 เสมอ
 - ข้อเลือกยา: จ่าย first-line ถูก+regimen ครบ = 1, จ่าย alternative หรือ regimen ไม่ครบ = 0.5, จ่าย unacceptable หรือไม่จ่าย = 0
-- อ้างอิงหลักฐานจาก transcript เสมอ ก่อนสรุป earned ให้เขียนวิเคราะห์ทีละหมวดใน "reasoning"${groundingRules}
+- อ้างอิงหลักฐานจาก transcript เสมอ ก่อนสรุป earned ให้เขียนวิเคราะห์ทีละหมวดใน "reasoning"${voiceRules}${groundingRules}
 
 ตอบเป็น JSON เท่านั้น ห้ามใส่ backtick หรือ markdown ใช้ "id" ตรงตามวงเล็บใน <Checklist>:
 {

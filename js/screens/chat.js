@@ -527,13 +527,16 @@ async function _startVoice(panelStep) {
       if (el) el.textContent += chunk;
     };
 
-    client.onModelTranscript = (text) => {
+    client.onModelTranscript = (text, meta) => {
       if (!_pharmacistSpoke || !text || !_voiceMode) return;
       const sub = document.getElementById(`voice-subtitle-${panelStep}`);
       if (sub) sub.textContent = '';
+      // Barge-in: the patient was cut off mid-sentence. Keep what the student heard —
+      // the '…' marks the truncation for both the student and the Step 4 evaluator.
+      const finalText = meta?.interrupted ? `${text}…` : text;
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
-      hist.push({ role: 'model', text, via: 'live' });
-      _addMsg(msgId, 'model', text);
+      hist.push({ role: 'model', text: finalText, via: 'live', ...(meta?.interrupted && { interrupted: true }) });
+      _addMsg(msgId, 'model', finalText);
       if (panelStep === 1) updateSessionChat(_session.id, _chatHistory).catch(() => {});
       else                 updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
     };

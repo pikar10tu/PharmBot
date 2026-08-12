@@ -192,7 +192,7 @@ Required composite indexes (Firebase Console → Firestore → Indexes):
 |----------|------|-------------|
 | `buildSystemPrompt(caseData, voiceMode)` | Step 1 | 12 กฎเหล็ก, persona, secretInfo, voice overlay |
 | `buildCounselingPrompt(caseData, dispensedDrugs, voiceMode)` | Step 3 | patient รับยาแล้ว รอ counseling |
-| `buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory)` | Step 4 | AI ตัดสิน earned รายข้อ — **ไม่คิดคะแนนรวมเอง** |
+| `buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory)` | Step 4 | AI ตัดสิน earned รายข้อ — **ไม่คิดคะแนนรวมเอง** · เทิร์นที่ `via` เป็น `live`/`webspeech` ถูกกำกับ "(ถอดจากเสียง)" + แนบกฎผ่อนผัน ASR (ดู Voice Mode) |
 | `buildRubricForCase(caseData)` | eval + admin | ใช้ rubric ของเคส ถ้าไม่มีก็ seed default + migrate ของเดิม |
 | `collectGuidelineSources(caseData)` | Step 4 → summary | รวมแหล่งอ้างอิงจาก annotation ของ rubric ทั้งเคส (dedup, เรียงตาม `DOMAIN_ORDER`) |
 | `scoreRubric(caseData, itemResults, gender)` | chat.js | **คำนวณคะแนนใน JS แบบ deterministic** |
@@ -268,19 +268,35 @@ Streams mic audio (16 kHz PCM16) → receives audio (24 kHz) + text transcripts
 Transcripts push to `_chatHistory` / `_counselingHistory` → Step 4 eval works unchanged
 Voice: `Aoede` (female) / `Puck` (male). Falls back to text mode on connection failure.
 
+- **Barge-in** — เมื่อนักศึกษาพูดแทรก คำตอบผู้ป่วยส่วนที่พูดไปแล้วจะถูกบันทึกลง history พร้อม `interrupted: true` และต่อท้ายด้วย `…` (นักศึกษาได้ยินไปแล้วจริง — ถ้าทิ้ง eval จะเห็นเทิร์นที่ผู้ป่วยเงียบ)
+- **Session resumption ไม่ได้ต่อไว้โดยตั้งใจ** — session ถูกจำกัด 5 นาทีด้วย timer ต่ำกว่า connection lifetime ~10 นาที (วิธีเปิดอยู่ในคอมเมนต์ `gemini-live.js`)
+- **Debug** — `GeminiLiveClient.debug = true` ใน console เพื่อ log audio frame ด้วย (ปกติ log เฉพาะ setup/transcript/error/goAway)
+- คิวเล่นเสียงใน `audio/playback.worklet.js` จำกัด 45 วินาที ถ้าล้นจะ `console.warn` ไม่ดรอปเงียบ
+
+**⚠️ transcript ไม่ใช่สิ่งที่โมเดลได้ยิน** — โมเดล native audio กินเสียงตรงๆ ส่วน `inputAudioTranscription`
+เป็น ASR อีกสายที่วิ่งขนานกันเพื่อ log/แสดงผลเท่านั้น สองสายนี้ไม่ตรงกันได้ (ผู้ป่วยตอบถูกทั้งที่ข้อความเพี้ยน
+หรือถอดออกมาเป็นภาษาลาว/เขมร) และ **public API ไม่มีทางล็อกภาษา** — `AudioTranscriptionConfig` ไม่มี field ใดๆ เลย
+ผลคือ `buildEvalPrompt()` ต้องผ่อนผันให้ transcript ที่เพี้ยน โดยใช้ **คำตอบของผู้ป่วยเป็นหลักฐาน**
+ว่านักศึกษาถามอะไรจริง (ผู้ป่วยตอบจากเสียง ไม่ได้ตอบจากข้อความ) — ห้ามลบกฎชุดนี้ออกจาก prompt
+
 ---
 
 ## Gemini Config
 
 Key **never in source** — stored in Firestore `/config/gemini`, loaded into `_geminiKey` after login.
 
-**Model recommendations:**
-| Use case | Model | เหตุผล |
-|---------|-------|-------|
-| Patient simulation (Steps 1,3) | `gemini-2.0-flash` | Thai ดีขึ้น, เร็ว, ราคาใกล้เคียง 1.5-flash |
-| Evaluation (Step 4) | `gemini-2.5-flash` | Thinking mode → scoring แม่นขึ้น |
+**โมเดลที่ใช้จริง** (ตรวจจาก `/config/gemini` เมื่อ 2026-08-13):
 
-ปัจจุบัน `/config/gemini` มีแค่ `model` field เดียว — ควรเพิ่ม `evalModel` (Phase 4)
+| Use case | Model | มาจากไหน |
+|---------|-------|---------|
+| Patient simulation (Steps 1,3) — โหมดพิมพ์ | `gemini-2.5-flash` | `/config/gemini.model` |
+| Evaluation (Step 4) | `gemini-2.5-flash` | `/config/gemini.evalModel` **ยังไม่ตั้ง** → fallback เป็น `model` (`gemini.js:13`) |
+| Patient simulation — โหมดเสียง | `gemini-3.1-flash-live-preview` | hardcoded ใน `gemini-live.js` (คนละ endpoint ไม่อ่านจาก config) |
+
+⚠️ `gemini-2.0-*` และ `gemini-1.5-*` **เลิกใช้แล้ว ห้ามใช้**
+
+ยังไม่มี `evalModel` แยก (Phase 4) — ตอนนี้ไม่พังเพราะ fallback แต่ถ้าจะแยกจริงต้องเซ็ตใน Firestore
+ไม่ต้องแก้โค้ด (`setGeminiConfig()` รับ 3 ตัวอยู่แล้ว)
 
 ---
 
@@ -319,9 +335,9 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 - [ ] Expert review patient behavior (อาจารย์เภสัชกร)
 
 ### Phase 4 — AI Upgrade
-- [ ] แยก `/config/gemini` เป็น `model` + `evalModel`
-- [ ] Upgrade patient → gemini-2.0-flash
-- [ ] Upgrade eval → gemini-2.5-flash (thinking mode)
+- [x] ~~Upgrade eval → gemini-2.5-flash~~ — ใช้อยู่แล้ว (ผ่าน fallback ของ `model`)
+- [ ] ตั้ง `evalModel` ใน Firestore ให้ชัด แทนการพึ่ง fallback (แยก patient/eval ออกจากกันได้จริง)
+- [ ] ตัดสินใจว่าโหมดพิมพ์ควรใช้โมเดลเดียวกับโหมดเสียงไหม — ตอนนี้คนละตัว (`gemini-2.5-flash` vs `gemini-3.1-flash-live-preview`) พฤติกรรมผู้ป่วยจึงไม่เหมือนกันเป๊ะระหว่างสองโหมด ซึ่งกระทบ treatment fidelity ถ้าผู้เรียนสลับโหมดกลางการทดลอง
 
 ### Phase 5 — Validation & Testing
 - [ ] Fix Playwright tests (chat UI + voice UI)
