@@ -51,7 +51,7 @@ async function renderHistory(container) {
 
   } catch (e) {
     document.getElementById('history-list').innerHTML =
-      `<div class="alert alert-error">โหลดประวัติล้มเหลว: ${_escH(e.message)}</div>`;
+      `<div class="alert alert-error">โหลดประวัติล้มเหลว: ${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -73,10 +73,10 @@ function _historyRow(r) {
   ];
 
   return `
-    <div class="history-item" data-result-id="${r.id}" data-case-title="${_escH(title)}">
+    <div class="history-item" data-result-id="${r.id}" data-case-title="${escapeHtml(title)}">
       <div class="history-score ${cls}" aria-label="คะแนนรวม ${total} เต็ม 100">${total}</div>
       <div style="flex:1;min-width:0;">
-        <div class="font-bold text-sm">${_escH(title)}</div>
+        <div class="font-bold text-sm">${escapeHtml(title)}</div>
         <div class="text-dim text-xs">${dateStr}</div>
         <div class="flex gap-1 mt-1" style="flex-wrap:wrap;">
           ${scores.map(s => `<span class="badge" style="font-size:0.7rem;">${s.l} ${s.v}</span>`).join('')}
@@ -86,6 +86,3 @@ function _historyRow(r) {
     </div>`;
 }
 
-function _escH(str) {
-  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}

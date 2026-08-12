@@ -26,6 +26,12 @@ jobs:
       - name: Setup Pages
         uses: actions/configure-pages@v4
 
+      # เขียน ?v= จาก hash ของไฟล์จริง เพื่อไม่ต้อง bump เองทีละไฟล์
+      # (ลืม bump = ผู้ใช้ได้ไฟล์เก่าจาก cache ทั้งที่ deploy ใหม่แล้ว)
+      # ทำเฉพาะใน artifact ที่ deploy ไม่ commit กลับเข้า repo
+      - name: Stamp asset versions
+        run: node scripts/stamp-assets.js
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:

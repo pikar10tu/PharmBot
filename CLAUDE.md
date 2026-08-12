@@ -122,6 +122,7 @@ admin.firestore().collection('config').doc('gemini').set({
 
 ### Script Load Order (index.html — critical)
 ```
+utils.js            → escapeHtml / escapeHtmlBr (ไม่มี dependency ต้องมาก่อนสุด)
 firebase-config.js  → initializes firebase + auth + db globals
 gemini.js           → uses db (loadGeminiConfig)
 gemini-live.js      → WebSocket client for Gemini Live API (voice mode)
@@ -134,7 +135,13 @@ screens/*.js        → use all of the above
 router.js           → init() called LAST, after onAuthReady()
 ```
 All JS is **global scope**. Adding a `<script>` out of order causes "X is not defined" at runtime.
-**No build step** — แก้ไฟล์แล้ว commit ตรงๆ อย่าลืม bump `?v=` ใน `index.html` เมื่อแก้ไฟล์ที่ deploy แล้ว
+**No build step** — แก้ไฟล์แล้ว commit ตรงๆ
+**ไม่ต้อง bump `?v=` เองแล้ว** — GitHub Actions รัน `scripts/stamp-assets.js` เขียน `?v=<md5 8 ตัว>`
+จากเนื้อไฟล์จริงให้ก่อน upload artifact (ค่าใน repo จึงไม่สำคัญ ของที่ deploy เป็นตัวจริง)
+ตรวจเองได้ด้วย `node scripts/stamp-assets.js --check`
+
+**HTML escaping** — ใช้ `escapeHtml()` เสมอเมื่อยัดค่าลง attribute, `escapeHtmlBr()` เมื่อต้องคง `\n`
+ทั้งสองอยู่ใน `js/utils.js` (เดิมมี helper ก๊อปกัน 5 ตัวและ 3 ตัวไม่ escape เครื่องหมายคำพูด)
 
 ### Routing
 Hash-based SPA (`js/router.js`, 57 บรรทัด)

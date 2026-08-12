@@ -817,6 +817,22 @@ p  { line-height: 1.7; color: var(--text-dim); }
   .drug-grid  { grid-template-columns: 1fr 1fr; }
   .chat-wrap  { height: calc(100vh - 240px); }
   .modal      { max-height: 95vh; }
+
+  /* navbar เป็น sticky อยู่ทุกหน้า — วัดแล้วที่ 360px มันสูง 94px (เทียบ 58px บน desktop)
+     เพราะชื่อแบรนด์กับปุ่มออกจากระบบตกบรรทัด กินพื้นที่จอมือถือไปเปล่าๆ */
+  .navbar { padding: 0.6rem 0.9rem; gap: 0.5rem; }
+  .navbar-brand { font-size: 1rem; letter-spacing: 0.03em; white-space: nowrap; }
+  .navbar-brand-logo { height: 28px; }
+  .navbar-right { gap: 0.5rem; }
+  .navbar-right .btn-sm { padding: 0.35rem 0.7rem; white-space: nowrap; }
+}
+
+/* จอแคบมาก (~320px / iPhone SE) — ที่ความกว้างนี้ชื่อแบรนด์ดัน navbar สูงถึง 115px
+   คือ 14% ของความสูงจอ ซ่อนเฉพาะ "ข้อความ" เหลือโลโก้ซึ่งสื่อแบรนด์ได้เหมือนกัน
+   ไม่กระทบ screen reader เพราะ <img> มี alt="Pharm From Home" อยู่แล้ว */
+@media (max-width: 420px) {
+  .navbar-brand { font-size: 0; gap: 0; }
+  .navbar-brand-logo { height: 30px; }
 }
 
 /* ============================================================

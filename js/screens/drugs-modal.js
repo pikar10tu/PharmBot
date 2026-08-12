@@ -57,7 +57,7 @@ async function openDrugsModal(currentDrugs, onConfirm) {
     } else {
       cont.innerHTML = selected.map((d, i) => `
         <span class="dispensed-chip">
-          ${_escM(d.name)} ${_escM(d.strength)}
+          ${escapeHtml(d.name)} ${escapeHtml(d.strength)}
           <button class="chip-remove" data-idx="${i}">×</button>
         </span>`).join('');
       cont.querySelectorAll('.chip-remove').forEach(btn => {
@@ -87,9 +87,9 @@ async function openDrugsModal(currentDrugs, onConfirm) {
       const isSel = selected.some(s => s.id === d.id);
       return `
         <div class="drug-card${isSel ? ' selected' : ''}" data-drug-id="${d.id}">
-          <div class="drug-name">${_escM(d.name)}</div>
-          <div class="drug-detail">${_escM(d.strength)} · ${_escM(d.form)}</div>
-          <div><span class="drug-badge">${_escM(d.category)}</span></div>
+          <div class="drug-name">${escapeHtml(d.name)}</div>
+          <div class="drug-detail">${escapeHtml(d.strength)} · ${escapeHtml(d.form)}</div>
+          <div><span class="drug-badge">${escapeHtml(d.category)}</span></div>
         </div>`;
     }).join('');
 
@@ -114,7 +114,7 @@ async function openDrugsModal(currentDrugs, onConfirm) {
     renderSelected();
   } catch (e) {
     document.getElementById('drug-list').innerHTML =
-      `<div class="alert alert-error" style="grid-column:1/-1;">โหลดยาล้มเหลว: ${_escM(e.message)}</div>`;
+      `<div class="alert alert-error" style="grid-column:1/-1;">โหลดยาล้มเหลว: ${escapeHtml(e.message)}</div>`;
   }
 
   // ── Events ───────────────────────────────────────────────
@@ -136,6 +136,3 @@ async function openDrugsModal(currentDrugs, onConfirm) {
   setTimeout(() => document.getElementById('drug-search')?.focus(), 80);
 }
 
-function _escM(str) {
-  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}

@@ -65,7 +65,7 @@ async function _loadAdminTab() {
     if (_adminTab === 'drugs')   await _renderDrugsTab(body);
     if (_adminTab === 'results') await _renderResultsTab(body);
   } catch (e) {
-    body.innerHTML = `<div class="alert alert-error">โหลดล้มเหลว: ${_escA(e.message)}</div>`;
+    body.innerHTML = `<div class="alert alert-error">โหลดล้มเหลว: ${escapeHtml(e.message)}</div>`;
   }
 }
 
@@ -130,8 +130,8 @@ function _caseRow(c) {
   return `
     <div class="history-item" style="cursor:default;">
       <div style="flex:1;min-width:0;">
-        <div class="font-bold text-sm">${_escA(c.title || c.id)}</div>
-        <div class="text-dim text-xs">${_escA(c.groupId)} · ${diffLabel(c.difficulty)}</div>
+        <div class="font-bold text-sm">${escapeHtml(c.title || c.id)}</div>
+        <div class="text-dim text-xs">${escapeHtml(c.groupId)} · ${diffLabel(c.difficulty)}</div>
       </div>
       <div class="flex gap-1">
         <button class="btn btn-ghost btn-sm edit-case-btn" data-id="${c.id}">แก้ไข</button>
@@ -397,10 +397,10 @@ function _renderIndicationDropdown(iid, query) {
   if (!matches.length) { drop.style.display = 'none'; return; }
 
   drop.innerHTML = matches.map(d => `
-    <div class="dp-item" data-iid="${_escA(iid)}" data-code="${_escA(d.id)}"
+    <div class="dp-item" data-iid="${escapeHtml(iid)}" data-code="${escapeHtml(d.id)}"
       style="padding:0.45rem 0.75rem;cursor:pointer;border-bottom:1px solid var(--glass-border,rgba(255,255,255,0.07));">
-      <div style="font-size:0.84rem;font-weight:600;">${_escA(d.name)} <span style="font-weight:400;">${_escA(d.strength || '')}</span></div>
-      <div style="font-size:0.73rem;opacity:0.55;">${_escA(d.form || '')} · ${_escA(d.category || '')}</div>
+      <div style="font-size:0.84rem;font-weight:600;">${escapeHtml(d.name)} <span style="font-weight:400;">${escapeHtml(d.strength || '')}</span></div>
+      <div style="font-size:0.73rem;opacity:0.55;">${escapeHtml(d.form || '')} · ${escapeHtml(d.category || '')}</div>
     </div>`).join('');
   drop.style.display = 'block';
 }
@@ -413,22 +413,22 @@ function _drugEntryHtml(iid, entry, i, drugMap) {
       padding:0.45rem 0.6rem;background:var(--glass-bg,rgba(255,255,255,0.04));
       border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;margin-bottom:0.35rem;align-items:start;">
       <div>
-        <span style="font-size:0.83rem;font-weight:600;">${_escA(d.name || entry.drugCode)}</span>
-        <span style="font-size:0.73rem;opacity:0.5;margin-left:0.3rem;">${_escA(d.strength || '')} ${_escA(d.form || '')}</span>
+        <span style="font-size:0.83rem;font-weight:600;">${escapeHtml(d.name || entry.drugCode)}</span>
+        <span style="font-size:0.73rem;opacity:0.5;margin-left:0.3rem;">${escapeHtml(d.strength || '')} ${escapeHtml(d.form || '')}</span>
       </div>
       <div class="flex gap-1 items-center">
-        <select class="input di-cat" data-iid="${_escA(iid)}" data-idx="${i}"
+        <select class="input di-cat" data-iid="${escapeHtml(iid)}" data-idx="${i}"
           style="font-size:0.78rem;padding:0.18rem 0.35rem;height:auto;min-width:8rem;">
           <option value="firstLine"    ${entry.category === 'firstLine'    ? 'selected' : ''}>✅ First line</option>
           <option value="alternatives" ${entry.category === 'alternatives' ? 'selected' : ''}>🔄 Alternative</option>
           <option value="unacceptable" ${entry.category === 'unacceptable' ? 'selected' : ''}>❌ ห้ามจ่าย</option>
         </select>
-        <button class="btn btn-danger btn-sm di-drug-remove" data-iid="${_escA(iid)}" data-idx="${i}"
+        <button class="btn btn-danger btn-sm di-drug-remove" data-iid="${escapeHtml(iid)}" data-idx="${i}"
           style="padding:0.18rem 0.45rem;font-size:0.8rem;line-height:1.2;">✕</button>
       </div>
       <div style="grid-column:span 2;${noRegimen ? 'display:none;' : ''}">
-        <input class="input di-regimen" data-iid="${_escA(iid)}" data-idx="${i}" type="text"
-          value="${_escA(entry.regimen || '')}"
+        <input class="input di-regimen" data-iid="${escapeHtml(iid)}" data-idx="${i}" type="text"
+          value="${escapeHtml(entry.regimen || '')}"
           placeholder="วิธีใช้ เช่น กิน 1 เม็ด วันละ 3 ครั้ง หลังอาหาร"
           style="font-size:0.8rem;" />
       </div>
@@ -455,16 +455,16 @@ function _renderDrugIndications() {
         padding:0.6rem 0.65rem;margin-bottom:0.6rem;background:rgba(255,255,255,0.02);">
         <div class="flex items-center gap-1" style="margin-bottom:0.45rem;">
           <span class="text-dim text-xs" style="white-space:nowrap;">ข้อบ่งใช้ ${ii + 1}</span>
-          <input class="input di-name" data-iid="${_escA(ind.id)}" type="text" value="${_escA(ind.name)}"
+          <input class="input di-name" data-iid="${escapeHtml(ind.id)}" type="text" value="${escapeHtml(ind.name)}"
             placeholder="เช่น ลดไข้/แก้ปวด, ฆ่าเชื้อ, แก้ไอ" style="font-size:0.83rem;font-weight:600;" />
-          <button class="btn btn-danger btn-sm di-remove" data-iid="${_escA(ind.id)}" title="ลบข้อบ่งใช้นี้"
+          <button class="btn btn-danger btn-sm di-remove" data-iid="${escapeHtml(ind.id)}" title="ลบข้อบ่งใช้นี้"
             style="padding:0.15rem 0.45rem;font-size:0.8rem;line-height:1.2;">✕</button>
         </div>
         <div class="di-drugs">${drugs}</div>
         <div style="position:relative;margin-top:0.4rem;">
-          <input class="input di-search" data-iid="${_escA(ind.id)}" type="text" autocomplete="off"
+          <input class="input di-search" data-iid="${escapeHtml(ind.id)}" type="text" autocomplete="off"
             placeholder="พิมพ์ชื่อยาเพื่อเพิ่มในข้อบ่งใช้นี้..." style="font-size:0.8rem;" />
-          <div class="di-dropdown" data-iid="${_escA(ind.id)}" style="display:none;position:absolute;z-index:20;width:100%;
+          <div class="di-dropdown" data-iid="${escapeHtml(ind.id)}" style="display:none;position:absolute;z-index:20;width:100%;
             background:var(--bg2,#1e293b);color:var(--text,#e2e8f0);
             border:1px solid var(--glass-border,rgba(255,255,255,0.12));
             border-radius:8px;max-height:230px;overflow-y:auto;margin-top:2px;
@@ -574,18 +574,18 @@ function _renderRubricEditor() {
       const dim = it.active === false ? 'opacity:0.45;' : '';
       const tags = `${it.critical ? '<span class="badge" style="font-size:0.62rem;background:rgba(239,68,68,0.18);">CRITICAL</span>' : ''}${it.femaleOnly ? '<span class="badge" style="font-size:0.62rem;">♀ เฉพาะหญิง</span>' : ''}${_itemHasAnnotation(it) ? '<span class="badge" style="font-size:0.62rem;background:rgba(34,197,94,0.18);" title="มีหลักฐานอ้างอิง (rationale/sources) — ยังแก้ไม่ได้ในหน้านี้">📚 มีหลักฐาน</span>' : ''}`;
       return `
-        <div class="dp-entry" data-id="${_escA(it.id)}" style="display:grid;grid-template-columns:auto 1fr auto auto;gap:0.4rem 0.5rem;align-items:center;
+        <div class="dp-entry" data-id="${escapeHtml(it.id)}" style="display:grid;grid-template-columns:auto 1fr auto auto;gap:0.4rem 0.5rem;align-items:center;
           padding:0.4rem 0.55rem;background:var(--glass-bg,rgba(255,255,255,0.04));
           border:1px solid var(--glass-border,rgba(255,255,255,0.08));border-radius:8px;margin-bottom:0.35rem;${dim}">
-          <input type="checkbox" class="rb-active" data-id="${_escA(it.id)}" ${it.active !== false ? 'checked' : ''} title="เปิด/ปิดข้อนี้" />
-          <input class="input rb-label" data-id="${_escA(it.id)}" type="text" value="${_escA(it.label)}"
+          <input type="checkbox" class="rb-active" data-id="${escapeHtml(it.id)}" ${it.active !== false ? 'checked' : ''} title="เปิด/ปิดข้อนี้" />
+          <input class="input rb-label" data-id="${escapeHtml(it.id)}" type="text" value="${escapeHtml(it.label)}"
             style="font-size:0.8rem;padding:0.25rem 0.45rem;" />
           <div class="flex items-center gap-1">
             ${tags}
-            <input class="input rb-weight" data-id="${_escA(it.id)}" type="number" min="0" max="50" value="${Number(it.weight) || 0}"
+            <input class="input rb-weight" data-id="${escapeHtml(it.id)}" type="number" min="0" max="50" value="${Number(it.weight) || 0}"
               style="font-size:0.8rem;width:3.4rem;padding:0.25rem 0.35rem;text-align:center;" title="น้ำหนักข้อ" />
           </div>
-          <button class="btn btn-danger btn-sm rb-remove" data-id="${_escA(it.id)}"
+          <button class="btn btn-danger btn-sm rb-remove" data-id="${escapeHtml(it.id)}"
             style="padding:0.15rem 0.4rem;font-size:0.78rem;line-height:1.2;">✕</button>
         </div>`;
     }).join('') || '<div class="text-dim text-xs" style="padding:0.3rem 0;">ยังไม่มีข้อในหมวดนี้</div>';
@@ -593,7 +593,7 @@ function _renderRubricEditor() {
     return `
       <div style="margin-bottom:1rem;">
         <div class="flex items-center justify-between" style="flex-wrap:wrap;gap:0.4rem;margin-bottom:0.4rem;">
-          <div class="font-bold text-sm">${_escA(DOMAIN_LABELS[dom])}
+          <div class="font-bold text-sm">${escapeHtml(DOMAIN_LABELS[dom])}
             <span class="text-dim text-xs">· น้ำหนักหมวด ${domPct}% · รวม ${total} แต้ม</span>
           </div>
           <div class="flex gap-1">
@@ -929,10 +929,10 @@ async function _renderGroupsTab(body) {
 function _groupRow(g) {
   return `
     <div class="history-item" style="cursor:default;">
-      <div style="font-size:1.5rem;width:2rem;text-align:center;flex-shrink:0;">${_escA(g.emoji || '📦')}</div>
+      <div style="font-size:1.5rem;width:2rem;text-align:center;flex-shrink:0;">${escapeHtml(g.emoji || '📦')}</div>
       <div style="flex:1;min-width:0;">
-        <div class="font-bold text-sm">${_escA(g.id)}</div>
-        <div class="text-dim text-xs">${_escA(g.label || '(ไม่มีชื่อ)')} · ลำดับ ${g.sortOrder ?? '—'}</div>
+        <div class="font-bold text-sm">${escapeHtml(g.id)}</div>
+        <div class="text-dim text-xs">${escapeHtml(g.label || '(ไม่มีชื่อ)')} · ลำดับ ${g.sortOrder ?? '—'}</div>
       </div>
       <div class="flex gap-1">
         <button class="btn btn-ghost btn-sm edit-group-btn" data-id="${g.id}">แก้ไข</button>
@@ -999,9 +999,9 @@ async function _renderDrugsTab(body) {
     <div class="drug-grid drug-grid-compact mb-3" id="drugs-grid">
       ${_adminDrugs.map(d => `
         <div class="drug-card">
-          <div class="drug-name">${_escA(d.name)}</div>
-          <div class="drug-detail">${_escA(d.strength)} · ${_escA(d.form)}</div>
-          <div><span class="drug-badge">${_escA(d.category)}</span></div>
+          <div class="drug-name">${escapeHtml(d.name)}</div>
+          <div class="drug-detail">${escapeHtml(d.strength)} · ${escapeHtml(d.form)}</div>
+          <div><span class="drug-badge">${escapeHtml(d.category)}</span></div>
         </div>`).join('')}
     </div>
 
@@ -1085,8 +1085,8 @@ async function _renderResultsTab(body) {
           <div class="history-item admin-result" data-result-id="${r.id}" style="cursor:pointer;">
             <div class="history-score ${cls}">${total}</div>
             <div style="flex:1;min-width:0;">
-              <div class="font-bold text-sm">${_escA(r.userId || '—')}</div>
-              <div class="text-dim text-xs">${dateStr} · session: ${_escA(r.sessionId?.slice(0,8) || '—')}…</div>
+              <div class="font-bold text-sm">${escapeHtml(r.userId || '—')}</div>
+              <div class="text-dim text-xs">${dateStr} · session: ${escapeHtml(r.sessionId?.slice(0,8) || '—')}…</div>
               <div class="flex gap-1 mt-1" style="flex-wrap:wrap;">
                 <span class="badge" style="font-size:0.7rem;">ซักประวัติ ${r.historyScore || 0}</span>
                 <span class="badge" style="font-size:0.7rem;">ยา ${r.drugScore || 0}</span>
@@ -1103,6 +1103,3 @@ async function _renderResultsTab(body) {
   });
 }
 
-function _escA(str) {
-  return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}

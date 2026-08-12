@@ -138,7 +138,7 @@ async function renderChat(container, params = {}) {
     container.innerHTML = `
       ${renderNavbar(pid)}
       <div class="container fade-in" style="max-width:720px;">
-        <div class="alert alert-error">โหลดเคสล้มเหลว: ${_esc(e.message)}</div>
+        <div class="alert alert-error">โหลดเคสล้มเหลว: ${escapeHtmlBr(e.message)}</div>
         <button class="btn btn-ghost btn-sm mt-2" onclick="Router.go('groups')">← กลับ</button>
       </div>`;
   }
@@ -154,9 +154,9 @@ function _renderChatUI(container, pid) {
 
       <!-- Case info bar -->
       <div class="flex items-center gap-1 mb-2" style="flex-wrap:wrap;">
-        ${_isRandomCase ? '' : `<span class="font-bold">${_esc(c.title || c.id)}</span>`}
+        ${_isRandomCase ? '' : `<span class="font-bold">${escapeHtmlBr(c.title || c.id)}</span>`}
         <span class="difficulty-badge difficulty-${c.difficulty || 'easy'}">${diffLabel(c.difficulty)}</span>
-        <span class="text-dim text-sm">${c.gender === 'male' ? 'ชาย' : 'หญิง'} ${c.age} ปี${c.occupation ? ' · ' + _esc(c.occupation) : ''}</span>
+        <span class="text-dim text-sm">${c.gender === 'male' ? 'ชาย' : 'หญิง'} ${c.age} ปี${c.occupation ? ' · ' + escapeHtmlBr(c.occupation) : ''}</span>
         <span class="session-timer" id="session-timer" style="margin-left:auto;" title="เวลาทำเคส (เริ่มนับเมื่อกดเริ่มเคส)">⏱ 5:00</span>
         <button class="btn btn-ghost btn-sm" id="quit-btn" style="color:var(--error,#ef4444);">✕ ยุติเคส</button>
       </div>
@@ -189,7 +189,7 @@ function _renderChatUI(container, pid) {
           <img src="${_charImgIdle}" id="patient-char-1"
                class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
           <div class="char-info-overlay">
-            <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
+            <div class="orb-name">${escapeHtmlBr(c.name || 'ผู้ป่วย')}</div>
             <div class="voice-waveform" id="waveform-1">
               <span></span><span></span><span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span>
@@ -252,7 +252,7 @@ function _renderChatUI(container, pid) {
           <img src="${_charImgIdle}" id="patient-char-3"
                class="patient-char${_charMode ? '' : ' hidden'}" alt="ผู้ป่วย" />
           <div class="char-info-overlay">
-            <div class="orb-name">${_esc(c.name || 'ผู้ป่วย')}</div>
+            <div class="orb-name">${escapeHtmlBr(c.name || 'ผู้ป่วย')}</div>
             <div class="voice-waveform" id="waveform-3">
               <span></span><span></span><span></span><span></span><span></span>
               <span></span><span></span><span></span><span></span>
@@ -841,7 +841,7 @@ function _renderChips() {
   }
   cont.innerHTML = _dispensedDrugs.map((d, i) => `
     <span class="dispensed-chip">
-      ${_esc(d.name)} ${_esc(d.strength)}
+      ${escapeHtmlBr(d.name)} ${escapeHtmlBr(d.strength)}
       <button class="chip-rm" data-idx="${i}">×</button>
     </span>`).join('');
   cont.querySelectorAll('.chip-rm').forEach(btn => {
@@ -863,7 +863,7 @@ async function _goStep3() {
   const sumEl = document.getElementById('dispensed-summary');
   if (sumEl) {
     sumEl.innerHTML = _dispensedDrugs.length
-      ? `💊 ยาที่จ่าย: <strong>${_dispensedDrugs.map(d => `${_esc(d.name)} ${_esc(d.strength)}`).join(', ')}</strong>`
+      ? `💊 ยาที่จ่าย: <strong>${_dispensedDrugs.map(d => `${escapeHtmlBr(d.name)} ${escapeHtmlBr(d.strength)}`).join(', ')}</strong>`
       : '⚠️ ยังไม่ได้จ่ายยา — คะแนนยาจะถูกหัก';
   }
 
@@ -985,7 +985,7 @@ async function _runEval() {
 
   } catch (e) {
     if (card) card.innerHTML = `
-      <div class="alert alert-error mb-2">ประเมินผลล้มเหลว: ${_esc(e.message)}</div>
+      <div class="alert alert-error mb-2">ประเมินผลล้มเหลว: ${escapeHtmlBr(e.message)}</div>
       <p class="text-dim text-sm mb-2">กรุณาลองใหม่ หรือกดข้ามเพื่อดูผลบางส่วน</p>
       <button class="btn btn-primary" id="retry-eval-btn">ลองอีกครั้ง</button>`;
     document.getElementById('retry-eval-btn')?.addEventListener('click', _runEval);
@@ -1008,7 +1008,7 @@ function _addMsg(containerId, role, text) {
       ? 'คุณ (เภสัชกร)'
       : (_caseData?.name || 'ผู้ป่วย');
     el.className  = `msg msg-${role === 'user' ? 'user' : 'patient'}`;
-    el.innerHTML  = `<div class="msg-name">${label}</div><div>${_esc(text)}</div>`;
+    el.innerHTML  = `<div class="msg-name">${label}</div><div>${escapeHtmlBr(text)}</div>`;
   }
 
   wrap.appendChild(el);
@@ -1041,11 +1041,6 @@ function _lockInput(locked, inputId, btnId) {
   if (btn) btn.disabled = locked;
 }
 
-function _esc(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/\n/g, '<br>');
-}
 
 function _toApiHistory(history) {
   return history.map(m => ({ role: m.role, parts: [{ text: m.text }] }));

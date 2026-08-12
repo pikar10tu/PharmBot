@@ -24,7 +24,7 @@ async function renderSummary(container, params = {}) {
     container.innerHTML = `
       ${renderNavbar(pid)}
       <div class="container fade-in" style="max-width:720px;">
-        <div class="alert alert-error">โหลดผลล้มเหลว: ${_escS(e.message)}</div>
+        <div class="alert alert-error">โหลดผลล้มเหลว: ${escapeHtmlBr(e.message)}</div>
         <button class="btn btn-ghost btn-sm mt-2" onclick="Router.go('history')">← ประวัติการฝึก</button>
       </div>`;
   }
@@ -56,7 +56,7 @@ function _renderSummaryUI(container, pid, result) {
           <div class="score-circle ${cls}" style="width:100px;height:100px;font-size:1.8rem;">${total}</div>
           <div class="score-label mt-1" style="font-size:1rem;">คะแนนรวม / 100</div>
         </div>
-        <p class="mt-2 text-dim">${_escS(fb.summary || '')}</p>
+        <p class="mt-2 text-dim">${escapeHtmlBr(fb.summary || '')}</p>
       </div>
 
       <!-- Score breakdown -->
@@ -83,7 +83,7 @@ function _renderSummaryUI(container, pid, result) {
       ${fb.behavior_note ? `
         <div class="card mb-3">
           <h3 class="mb-1">พฤติกรรมการสนทนา</h3>
-          <p class="text-dim text-sm">${_escS(fb.behavior_note)}</p>
+          <p class="text-dim text-sm">${escapeHtmlBr(fb.behavior_note)}</p>
         </div>` : ''}
 
       <!-- Checklist -->
@@ -94,8 +94,8 @@ function _renderSummaryUI(container, pid, result) {
             <div class="checklist-item">
               <div class="checklist-icon">${item.done ? '✅' : '❌'}</div>
               <div class="checklist-text">
-                <div>${item.item}. ${_escS(item.label)}</div>
-                ${item.note ? `<div class="checklist-note">${_escS(item.note)}</div>` : ''}
+                <div>${item.item}. ${escapeHtmlBr(item.label)}</div>
+                ${item.note ? `<div class="checklist-note">${escapeHtmlBr(item.note)}</div>` : ''}
               </div>
             </div>`).join('')}
         </div>` : ''}
@@ -111,8 +111,8 @@ function _renderSummaryUI(container, pid, result) {
             <div class="checklist-item">
               <div class="checklist-icon">📄</div>
               <div class="checklist-text">
-                <div>${_escS(r.title)}${r.page ? ` หน้า ${_escS(String(r.page))}` : ''}</div>
-                ${r.url ? `<div class="checklist-note"><a href="${_escS(r.url)}" target="_blank" rel="noopener">เปิดเอกสาร</a></div>` : ''}
+                <div>${escapeHtmlBr(r.title)}${r.page ? ` หน้า ${escapeHtmlBr(String(r.page))}` : ''}</div>
+                ${r.url ? `<div class="checklist-note"><a href="${escapeHtmlBr(r.url)}" target="_blank" rel="noopener">เปิดเอกสาร</a></div>` : ''}
               </div>
             </div>`).join('')}
         </div>` : ''}
@@ -131,18 +131,12 @@ function _feedbackBlock(title, feedback, missed) {
   return `
     <div class="card mb-3">
       <h3 class="mb-1">${title}</h3>
-      ${feedback ? `<p class="text-dim text-sm mb-1">${_escS(feedback)}</p>` : ''}
+      ${feedback ? `<p class="text-dim text-sm mb-1">${escapeHtmlBr(feedback)}</p>` : ''}
       ${missed?.length ? `
         <div class="mt-1">
           <div class="text-sm text-dim mb-1">ประเด็นที่ขาดไป:</div>
-          ${missed.map(m => `<div class="text-sm" style="padding:0.2rem 0 0.2rem 0.75rem;border-left:2px solid var(--warning);">• ${_escS(m)}</div>`).join('')}
+          ${missed.map(m => `<div class="text-sm" style="padding:0.2rem 0 0.2rem 0.75rem;border-left:2px solid var(--warning);">• ${escapeHtmlBr(m)}</div>`).join('')}
         </div>` : ''}
     </div>`;
 }
 
-function _escS(str) {
-  return String(str || '')
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;').replace(/'/g, '&#39;')
-    .replace(/\n/g, '<br>');
-}

@@ -197,12 +197,9 @@ function renderNavbar(pid) {
   `;
 }
 
-// Attach logout after any screen that uses renderNavbar
-function attachLogout() {
-  document.getElementById('logout-btn')?.addEventListener('click', logout);
-}
-
-// Call after DOM insertion for all screens using navbar
+// ปุ่ม logout อยู่ใน navbar ที่ถูก re-render ทุกหน้าจอ จึงใช้ delegate ที่ document
+// ระดับเดียว แทนการผูก listener ใหม่ทุกครั้ง (ฟังก์ชัน attachLogout() เดิมไม่เคยถูกเรียก
+// จากที่ไหนเลย — ลบทิ้งแล้ว)
 document.addEventListener('click', e => {
   if (e.target && e.target.id === 'logout-btn') logout();
 });
