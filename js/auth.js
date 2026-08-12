@@ -37,9 +37,23 @@ function getCurrentUser()    { return _currentUser;  }
 function getUserProfile()    { return _userProfile;   }
 function isAdmin()           { return _userProfile?.role === 'admin'; }
 
-// Called on app start — restore session if still logged in
+// Called on app start — restore session if still logged in.
+//
+// ⚠️ ต้องยิง callback "ครั้งเดียว" เท่านั้น
+// onAuthStateChanged ยิงซ้ำตอน sign-in สำเร็จด้วย (โหลดหน้า = null → login = user)
+// รอบที่สองจะไปเรียก Router.init() ซ้ำ → มี hashchange listener 2 ตัว →
+// ทุกหน้า render 2 รอบ → เข้าเคส 1 ครั้งได้ session doc 2 ใบ + เรียก Gemini ซ้ำ
+// state หลังจากนี้ดูแลโดย loginWithParticipantId() / logout() โดยตรงอยู่แล้ว
 function onAuthReady(callback) {
-  auth.onAuthStateChanged(async (user) => {
+  let fired      = false;
+  let unsubscribe = null;
+
+  unsubscribe = auth.onAuthStateChanged(async (user) => {
+    if (fired) return;
+    fired = true;
+    // null ได้เฉพาะกรณียิงแบบ synchronous ซึ่ง flag ด้านบนกันไว้แล้ว
+    if (unsubscribe) unsubscribe();
+
     if (user) {
       _currentUser = user;
       try {

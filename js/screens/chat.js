@@ -128,8 +128,9 @@ async function renderChat(container, params = {}) {
       }
     }
 
-    _session = await createSession(user.uid, _caseData);
-    _refreshGuardActive = true;   // warn on accidental refresh from here on
+    // ⚠️ ไม่สร้าง session ตรงนี้ — ย้ายไปตอนกด "🟢 เริ่มเคส" (ดู start-case-btn)
+    // เปิดเคสมาดูแล้วถอยออกต้องไม่เสียโควต้า และต้องไม่ทิ้ง doc เปล่าไว้ใน /sessions
+    // refresh guard ก็เปิดตอนนั้นเช่นกัน — ยังไม่เริ่มก็ยังไม่มีอะไรให้เตือน
     _renderChatUI(container, pid);
     await _initConversation();
 
@@ -343,9 +344,44 @@ function _attachEvents() {
   });
 
   // Start case button (Step 1 voice stage)
-  document.getElementById('start-case-btn')?.addEventListener('click', () => {
-    _caseStarted = true;
-    document.getElementById('start-case-btn')?.classList.add('hidden');
+  // จุดเดียวที่สร้าง session — โควต้าถูกใช้เมื่อนักศึกษาตั้งใจเริ่มจริงเท่านั้น
+  document.getElementById('start-case-btn')?.addEventListener('click', async () => {
+    if (_caseStarted) return;                    // กันกดรัว
+    const btn = document.getElementById('start-case-btn');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> กำลังเริ่ม…'; }
+
+    const restoreBtn = () => {
+      if (!btn) return;
+      btn.disabled  = false;
+      btn.innerHTML = '🟢 เริ่มเคส';
+    };
+
+    try {
+      const user    = getCurrentUser();
+      const profile = getUserProfile();
+
+      // เช็คโควต้าอีกรอบ ณ วินาทีที่เริ่มจริง — กันเปิดค้างหลายแท็บแล้วกดพร้อมกัน
+      if (profile?.role !== 'admin') {
+        const count = await getTodaySessionCount(user.uid);
+        if (count >= 5) {
+          _addMsg('chat-messages', 'system',
+            '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้');
+          restoreBtn();
+          return;
+        }
+      }
+
+      _session = await createSession(user.uid, _caseData);
+    } catch (e) {
+      _addMsg('chat-messages', 'system', `⚠️ เริ่มเคสไม่สำเร็จ: ${e.message} — กรุณาลองใหม่`);
+      restoreBtn();
+      return;
+    }
+
+    // สร้าง session สำเร็จแล้วค่อยเริ่มจับเวลา — latency ของเน็ตจะได้ไม่กินเวลาทำเคส
+    _caseStarted        = true;
+    _refreshGuardActive = true;   // warn on accidental refresh from here on
+    btn?.classList.add('hidden');
     _startSessionTimer();
     _startVoice(1).catch(e => console.warn('start voice:', e.message));
   });
@@ -621,7 +657,11 @@ function _stopCharAnim(panelStep) {
 }
 
 function _quitSession() {
-  if (!confirm('ยุติเคสนี้และกลับหน้าหลักใช่ไหม?\n\nเซสชันนี้จะนับเป็น 1 ครั้งในโควต้าวันนี้')) return;
+  // ยังไม่กดเริ่มเคส = ยังไม่มี session ใน Firestore = ยังไม่เสียโควต้า อย่าไปขู่เขา
+  const msg = _session
+    ? 'ยุติเคสนี้และกลับหน้าหลักใช่ไหม?\n\nเซสชันนี้จะนับเป็น 1 ครั้งในโควต้าวันนี้'
+    : 'ออกจากเคสนี้ใช่ไหม?\n\nยังไม่ได้เริ่ม จึงยังไม่นับโควต้า';
+  if (!confirm(msg)) return;
   _disableRefreshGuard();
   _stopSessionTimer();
   _stopVoice();
@@ -778,6 +818,12 @@ async function _sendChat() {
 }
 
 function _goStep2() {
+  // ไม่มี session = ยังไม่ได้กดเริ่มเคส — เดิมข้ามไป Step 2 ได้เลยทั้งที่ยังไม่ได้ซักประวัติ
+  // (และ Step 2/3 เรียก updateSession*(_session.id) ซึ่งจะพังถ้า _session ยังเป็น null)
+  if (!_caseStarted || !_session) {
+    _addMsg('chat-messages', 'system', '⚠️ กรุณากดปุ่ม "🟢 เริ่มเคส" และซักประวัติก่อนไปขั้นจ่ายยา');
+    return;
+  }
   _stopVoice(); // stop voice mode if active
   _step = 2;
   _updateStepper();

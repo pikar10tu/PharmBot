@@ -1,9 +1,21 @@
 // ============================================================
 //  screens/cases.js
+//
+//  ⚠️ หน้านี้เข้าไม่ถึงใน flow ปกติ — groups.js สุ่มเคสแล้วไป #chat ตรงๆ
+//     (สเปกวิจัย §3.4.1: นักศึกษาเลือกเคสเจาะจงไม่ได้)
+//     เหลือไว้เพราะยังเข้าได้ทาง URL และเพราะ diffLabel() ข้างล่างถูกใช้โดย
+//     chat.js กับ admin.js — ลบไฟล์นี้ทิ้งสองหน้านั้นพังทันที
 // ============================================================
 
 async function renderCases(container, params = {}) {
   const { groupId, groupLabel } = params;
+
+  // ไม่มี groupId = เปิด #cases ตรงๆ หรือ refresh แล้ว params หาย
+  // เดิมปล่อยหลุดไปถึง Firestore แล้วโชว์ error อังกฤษดิบให้นักศึกษาเห็น:
+  // "Function Query.where() called with invalid data. Unsupported field value: undefined"
+  // (เทียบ chat.js กับ summary.js ที่ guard แบบนี้ไว้แล้ว)
+  if (!groupId) { Router.go('groups'); return; }
+
   const profile = getUserProfile();
   const pid     = profile?.participantId || getCurrentUser()?.email?.split('@')[0].toUpperCase();
 

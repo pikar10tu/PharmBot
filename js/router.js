@@ -16,6 +16,7 @@ const SCREENS = {
 
 const Router = {
   _params: {},
+  _inited: false,
 
   go(route, params = {}) {
     this._params = params;
@@ -24,7 +25,11 @@ const Router = {
 
   getParams() { return this._params; },
 
+  // เรียกซ้ำไม่ได้ — listener ตัวที่สองทำให้ทุก hashchange dispatch 2 รอบ
+  // (คู่กับ onAuthReady ใน auth.js ที่ยิง callback ครั้งเดียว)
   init() {
+    if (this._inited) return;
+    this._inited = true;
     window.addEventListener('hashchange', () => this._dispatch());
     this._dispatch();
   },
