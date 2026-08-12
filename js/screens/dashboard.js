@@ -2,13 +2,34 @@
 //  screens/dashboard.js
 // ============================================================
 
+// ── A11y helper (global) ──────────────────────────────────────
+// การ์ดทั้งแอปเป็น <div> + cursor:pointer → Tab ไม่ถึง กด Enter ไม่ได้
+// เปลี่ยนเป็น <button> จริงจะพัง layout (flex/grid + padding ของ .card)
+// จึงใส่ role/tabindex/keydown ให้แทน — screen reader และคีย์บอร์ดใช้ได้เท่ากัน
+function makeClickable(el, label) {
+  if (!el || el.dataset.a11yBound) return;
+  el.dataset.a11yBound = '1';
+  el.setAttribute('role', 'button');
+  el.setAttribute('tabindex', '0');
+  if (label) el.setAttribute('aria-label', label);
+  el.addEventListener('keydown', e => {
+    // Space ต้อง preventDefault ไม่งั้นหน้าเลื่อนลงไปด้วย
+    if (e.key === 'Enter' || e.key === ' ' || e.key === 'Spacebar') {
+      e.preventDefault();
+      el.click();
+    }
+  });
+}
+
 // ── Theme helpers (global) ────────────────────────────────────
 function applyTheme(name) {
   document.documentElement.setAttribute('data-theme', name || 'dispensa');
   localStorage.setItem('pharmbot-theme', name || 'dispensa');
-  document.querySelectorAll('.theme-dot').forEach(d =>
-    d.classList.toggle('active', d.dataset.theme === name)
-  );
+  document.querySelectorAll('.theme-dot').forEach(d => {
+    const on = d.dataset.theme === name;
+    d.classList.toggle('active', on);
+    d.setAttribute('aria-pressed', on ? 'true' : 'false');   // บอก screen reader ว่าอันไหนถูกเลือก
+  });
 }
 
 function initTheme() {
@@ -70,9 +91,10 @@ async function renderDashboard(container) {
 
       <!-- Theme picker -->
       <div class="flex items-center gap-2" style="margin-top:0.25rem;">
-        <span class="text-dim text-sm">ธีม</span>
-        <div class="theme-picker">
-          ${THEMES.map(t => `<button class="theme-dot" data-theme="${t.id}" title="${t.label}" style="background:${t.color};"></button>`).join('')}
+        <span class="text-dim text-sm" id="theme-label">ธีม</span>
+        <div class="theme-picker" role="group" aria-labelledby="theme-label">
+          ${THEMES.map(t => `<button type="button" class="theme-dot" data-theme="${t.id}"
+            title="${t.label}" aria-label="ธีม ${t.label}" style="background:${t.color};"></button>`).join('')}
         </div>
       </div>
     </div>
@@ -100,11 +122,7 @@ async function renderDashboard(container) {
       `;
 
       if (count >= max) {
-        document.getElementById('rate-alert').className = 'alert alert-warning mb-3';
-        document.getElementById('rate-alert').innerHTML =
-          '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้';
-        document.getElementById('btn-start').style.opacity = '0.4';
-        document.getElementById('btn-start').style.cursor  = 'not-allowed';
+        _setStartCardDisabled(true);
       }
     } catch (e) { console.warn('rate limit check failed', e); }
   }
@@ -115,11 +133,17 @@ async function renderDashboard(container) {
     el.addEventListener('mouseleave', () => { el.style.borderColor = ''; el.style.transform = ''; });
   });
 
+  // การ์ดพวกนี้ทำหน้าที่เป็นปุ่ม — ต้อง Tab ถึงและกด Enter/Space ได้
+  makeClickable(document.getElementById('btn-start'),   'เริ่มเคสใหม่');
+  makeClickable(document.getElementById('btn-history'), 'ประวัติการฝึก');
+  if (isAdm) makeClickable(document.getElementById('btn-admin'), 'Admin Panel');
+
   document.getElementById('btn-start').addEventListener('click', async () => {
     if (!isAdm) {
       const uid   = getCurrentUser().uid;
       const count = await getTodaySessionCount(uid);
-      if (count >= 5) return;
+      // เดิม return เงียบๆ — นักศึกษากดแล้วไม่มีอะไรเกิดขึ้น ไม่รู้ว่าพังหรือโควต้าหมด
+      if (count >= 5) { _setStartCardDisabled(true); return; }
     }
     Router.go('groups');
   });
@@ -127,13 +151,34 @@ async function renderDashboard(container) {
   // Mark active theme dot + wire clicks
   const savedTheme = localStorage.getItem('pharmbot-theme') || 'dispensa';
   document.querySelectorAll('.theme-dot').forEach(dot => {
-    dot.classList.toggle('active', dot.dataset.theme === savedTheme);
+    const on = dot.dataset.theme === savedTheme;
+    dot.classList.toggle('active', on);
+    dot.setAttribute('aria-pressed', on ? 'true' : 'false');   // ต้องตั้งตอน render แรกด้วย ไม่ใช่แค่ตอนคลิก
     dot.addEventListener('click', () => applyTheme(dot.dataset.theme));
   });
 
   document.getElementById('btn-history').addEventListener('click', () => Router.go('history'));
   if (isAdm) {
     document.getElementById('btn-admin')?.addEventListener('click', () => Router.go('admin'));
+  }
+}
+
+// โควต้าเต็ม — ต้องบอกให้รู้ทั้งทางสายตาและทาง screen reader
+// และเลื่อนข้อความเตือนให้เห็นเมื่อกดซ้ำ ไม่ใช่เงียบไปเฉยๆ
+function _setStartCardDisabled(disabled) {
+  const card  = document.getElementById('btn-start');
+  const alert = document.getElementById('rate-alert');
+  if (!card) return;
+
+  card.style.opacity = disabled ? '0.4' : '';
+  card.style.cursor  = disabled ? 'not-allowed' : 'pointer';
+  card.setAttribute('aria-disabled', disabled ? 'true' : 'false');
+
+  if (alert && disabled) {
+    alert.className = 'alert alert-warning mb-3';
+    alert.setAttribute('role', 'status');
+    alert.innerHTML = '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้';
+    alert.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 }
 

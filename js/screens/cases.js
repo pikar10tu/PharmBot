@@ -68,6 +68,7 @@ async function renderCases(container, params = {}) {
       card.addEventListener('click', () => {
         Router.go('chat', { caseId: card.dataset.case });
       });
+      makeClickable(card, 'เริ่มเคส ' + card.textContent.trim().replace(/\s+/g, ' '));
     });
   } catch (e) {
     document.getElementById('cases-container').innerHTML =

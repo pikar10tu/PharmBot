@@ -46,6 +46,7 @@ async function renderHistory(container) {
       el.addEventListener('click', () => {
         Router.go('summary', { resultId: el.dataset.resultId });
       });
+      makeClickable(el, 'ดูผลการประเมิน ' + el.dataset.caseTitle);
     });
 
   } catch (e) {
@@ -72,8 +73,8 @@ function _historyRow(r) {
   ];
 
   return `
-    <div class="history-item" data-result-id="${r.id}">
-      <div class="history-score ${cls}">${total}</div>
+    <div class="history-item" data-result-id="${r.id}" data-case-title="${_escH(title)}">
+      <div class="history-score ${cls}" aria-label="คะแนนรวม ${total} เต็ม 100">${total}</div>
       <div style="flex:1;min-width:0;">
         <div class="font-bold text-sm">${_escH(title)}</div>
         <div class="text-dim text-xs">${dateStr}</div>

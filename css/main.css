@@ -1121,3 +1121,34 @@ p  { line-height: 1.7; color: var(--text-dim); }
   .voice-waveform { height: 56px; }
   .voice-waveform span { width: 4px; }
 }
+
+/* ── A11y: focus indicator ────────────────────────────────────
+   เดิม .btn ไม่มี outline เลย และ .input ตั้ง outline:none ทับไว้
+   → คนที่ใช้คีย์บอร์ด (Tab) มองไม่เห็นเลยว่าตัวเองอยู่ตรงไหน
+   :focus-visible ไม่ทำงานตอนคลิกเมาส์ หน้าตาของคนใช้เมาส์จึงไม่เปลี่ยน
+   วางไว้ท้ายไฟล์เพื่อให้ชนะกฎ outline:none ที่ประกาศไว้ก่อนหน้า
+
+   ใช้ var(--text) ไม่ใช่ var(--accent) เพราะวัดพิกเซลจริงแล้วธีม sakura
+   ได้ contrast แค่ 2.99:1 (ชมพูบนพื้นชมพูอ่อน) ตกเกณฑ์ WCAG 1.4.11 ที่ 3:1
+   ส่วน --text ทุกธีมออกแบบมาให้อ่านออกบนพื้นตัวเองอยู่แล้ว จึงผ่านทั้ง 6 ธีม */
+:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+.input:focus-visible {
+  outline: 3px solid var(--text);
+  outline-offset: 1px;
+}
+
+/* ── A11y: prefers-reduced-motion ─────────────────────────────
+   เคารพการตั้งค่าระบบของผู้ใช้ที่เวียนหัวกับ animation
+   (แอปนี้มี orb pulse / waveform / fade-in ที่ขยับตลอดเวลา) */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

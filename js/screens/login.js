@@ -14,25 +14,30 @@ function renderLogin(container) {
         </div>
 
         <!-- Card -->
-        <div class="card">
+        <!-- ต้องเป็น <form> จริง: password manager ถึงจะเสนอบันทึก/เติมรหัสให้
+             และ Enter จากช่องไหนก็ submit ได้เองโดยไม่ต้องดัก keydown เอง -->
+        <form class="card" id="login-form" novalidate>
           <h3 class="mb-2">เข้าสู่ระบบ</h3>
 
-          <div id="login-alert" class="hidden mb-2"></div>
+          <!-- role=alert ให้ screen reader อ่านข้อความ error ทันทีที่ขึ้น -->
+          <div id="login-alert" class="hidden mb-2" role="alert" aria-live="assertive"></div>
 
           <div class="mb-2">
-            <label class="input-label">รหัสผู้เข้าร่วม</label>
-            <input id="login-id" class="input" type="text" placeholder="เช่น P00001" autocomplete="username" />
+            <label class="input-label" for="login-id">รหัสผู้เข้าร่วม</label>
+            <input id="login-id" name="username" class="input" type="text" placeholder="เช่น P00001"
+                   autocomplete="username" autocapitalize="characters" spellcheck="false" required />
           </div>
 
           <div class="mb-3">
-            <label class="input-label">รหัสผ่าน</label>
-            <input id="login-pw" class="input" type="password" placeholder="••••••••" autocomplete="current-password" />
+            <label class="input-label" for="login-pw">รหัสผ่าน</label>
+            <input id="login-pw" name="password" class="input" type="password" placeholder="••••••••"
+                   autocomplete="current-password" required />
           </div>
 
-          <button id="login-btn" class="btn btn-primary btn-full btn-lg">
+          <button id="login-btn" type="submit" class="btn btn-primary btn-full btn-lg">
             เข้าสู่ระบบ
           </button>
-        </div>
+        </form>
 
         <p class="text-center text-xs text-dim mt-2">
           Pharm From Home — สำหรับการศึกษาเท่านั้น
@@ -70,16 +75,30 @@ function renderLogin(container) {
         'auth/invalid-credential', 'auth/invalid-email',
         'auth/invalid-login-credentials',
       ].includes(e.code);
-      const msg = authFail
-        ? 'รหัสผู้เข้าร่วมหรือรหัสผ่านไม่ถูกต้อง'
-        : `เกิดข้อผิดพลาด: ${e.message || 'กรุณาลองใหม่'}`;
+
+      // เคสที่เจอบ่อยจริงเวลานักศึกษาพิมพ์ผิดหลายรอบ — เดิมหลุดไปโชว์ข้อความอังกฤษดิบ
+      let msg;
+      if (authFail)                              msg = 'รหัสผู้เข้าร่วมหรือรหัสผ่านไม่ถูกต้อง';
+      else if (e.code === 'auth/too-many-requests')
+        msg = 'ลองเข้าสู่ระบบผิดหลายครั้งเกินไป กรุณารอสักครู่แล้วลองใหม่ หรือติดต่อผู้ดูแล';
+      else if (e.code === 'auth/network-request-failed')
+        msg = 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ กรุณาตรวจสอบสัญญาณแล้วลองใหม่';
+      else if (e.code === 'auth/user-disabled')
+        msg = 'บัญชีนี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแล';
+      else                                       msg = `เกิดข้อผิดพลาด: ${e.message || 'กรุณาลองใหม่'}`;
+
       showAlert(msg);
       btn.disabled = false;
       btn.textContent = 'เข้าสู่ระบบ';
+      idInput.focus();   // พาเคอร์เซอร์กลับไปที่ช่องแรกให้พิมพ์ใหม่ได้เลย
     }
   }
 
-  btn.addEventListener('click', doLogin);
-  pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
-  idInput.addEventListener('keydown', e => { if (e.key === 'Enter') pwInput.focus(); });
+  // submit ครอบคลุมทั้งคลิกปุ่มและกด Enter จากช่องไหนก็ได้
+  document.getElementById('login-form').addEventListener('submit', e => {
+    e.preventDefault();
+    doLogin();
+  });
+
+  idInput.focus();
 }

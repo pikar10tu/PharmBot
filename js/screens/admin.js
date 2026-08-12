@@ -914,7 +914,14 @@ async function _renderGroupsTab(body) {
       try {
         await adminDeleteGroup(id);
         _loadAdminTab();
-      } catch (e) { alert('ลบล้มเหลว: ' + e.message); }
+      } catch (e) {
+        // เดิมใช้ alert() ซึ่งบล็อกทั้งหน้า — ใช้ .alert แบบเดียวกับ error อื่นในหน้า admin
+        const box = document.createElement('div');
+        box.className = 'alert alert-error mb-2';
+        box.setAttribute('role', 'alert');
+        box.textContent = 'ลบล้มเหลว: ' + e.message;
+        body.prepend(box);
+      }
     });
   });
 }

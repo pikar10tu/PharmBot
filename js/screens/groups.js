@@ -25,15 +25,26 @@ async function _startRandomCase(loader, cardEl) {
     const cases = await loader();
     if (!cases.length) {
       restore();
-      alert('ยังไม่มีเคสในระบบนี้ กำลังเพิ่มเนื้อหา — ลองเลือกระบบอื่นหรือ “สุ่มทุกระบบ” ดูนะ');
+      _showGroupsAlert('ยังไม่มีเคสในระบบนี้ กำลังเพิ่มเนื้อหา — ลองเลือกระบบอื่นหรือ “สุ่มทุกระบบ” ดูนะ');
       return;
     }
     const pick = cases[Math.floor(Math.random() * cases.length)];
     Router.go('chat', { caseId: pick.id, random: true });
   } catch (_) {
     restore();
-    alert('เกิดข้อผิดพลาด กรุณาลองใหม่');
+    _showGroupsAlert('เกิดข้อผิดพลาด กรุณาลองใหม่');
   }
+}
+
+// เดิมใช้ alert() ซึ่งบล็อกทั้งหน้าและหน้าตาหลุดจากธีมทั้งแอป
+// ใช้ .alert component ที่มีอยู่แล้วแทน + role="alert" ให้ screen reader อ่านทันที
+function _showGroupsAlert(msg) {
+  const box = document.getElementById('groups-alert');
+  if (!box) return;
+  box.className = 'alert alert-warning mb-3';
+  box.setAttribute('role', 'alert');
+  box.textContent = msg;
+  box.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
 }
 
 async function renderGroups(container) {
@@ -50,6 +61,8 @@ async function renderGroups(container) {
           <p class="text-dim text-sm">สุ่มทุกระบบ หรือเลือกเจาะจงระบบโรค — ระบบจะสุ่มเคสให้โดยอัตโนมัติ</p>
         </div>
       </div>
+
+      <div id="groups-alert" class="hidden mb-3"></div>
 
       <!-- สุ่มทุกระบบ -->
       <div class="card mb-3" id="pick-all" style="cursor:pointer;text-align:center;transition:all 0.2s;
@@ -82,9 +95,11 @@ async function renderGroups(container) {
   });
 
   // สุ่มทุกระบบ → เคส active ทั้งหมด
-  document.getElementById('pick-all').addEventListener('click', function () {
+  const pickAll = document.getElementById('pick-all');
+  pickAll.addEventListener('click', function () {
     _startRandomCase(getAllCases, this);
   });
+  makeClickable(pickAll, 'สุ่มเคสจากทุกกลุ่มโรค');
 
   // เลือกระบบ → สุ่มเคส active ในระบบนั้น
   document.querySelectorAll('.card[data-group]').forEach(card => {
@@ -92,5 +107,7 @@ async function renderGroups(container) {
       const groupId = this.dataset.group;
       _startRandomCase(() => getCasesByGroup(groupId), this);
     });
+    // labelTh มี <br> ปนอยู่ — ใช้ textContent ของการ์ดเป็น label แทน
+    makeClickable(card, 'สุ่มเคสจากระบบ ' + card.textContent.trim().replace(/\s+/g, ' '));
   });
 }
