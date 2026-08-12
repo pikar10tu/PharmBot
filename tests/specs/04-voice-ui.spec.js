@@ -59,3 +59,15 @@ test('เปิดโหมดฉุกเฉินซ้ำแล้วไม�
   });
   await expect(page.locator('#text-input-row-1')).toBeVisible();
 });
+
+// เส้นทางอัตโนมัติ: _startVoiceWebSpeech เรียก _revealEmergencyText เอง (ไม่ใช่ _switchMode)
+// เมื่อเบราว์เซอร์ไม่มี SpeechRecognition เลย — ก่อนหน้านี้ยิง _switchMode(panelStep,'text')
+// ซึ่งโดน guard ของ VOICE_ONLY บล็อกจนช่องพิมพ์ไม่มีวันโผล่มา (dead end)
+test('เบราว์เซอร์ไม่รองรับเสียง → เส้นทางอัตโนมัติเปิดช่องพิมพ์ฉุกเฉินได้เอง', async ({ page }) => {
+  await page.evaluate(() => {
+    delete window.SpeechRecognition;
+    delete window.webkitSpeechRecognition;
+    _startVoiceWebSpeech(1);
+  });
+  await expect(page.locator('#text-input-row-1')).toBeVisible();
+});

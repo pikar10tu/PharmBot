@@ -94,6 +94,7 @@ async function renderChat(container, params = {}) {
   _liveMode = false; _liveConnecting = false;
   _isRandomCase  = !!params.random;
   _caseStarted   = false;
+  _emergencyText = false;
   _stopSessionTimer();
   _timerRemaining = SESSION_TIME_LIMIT_SEC;
   _timerExpired   = false;
@@ -608,7 +609,7 @@ function _startVoiceWebSpeech(panelStep) {
 
   if (!SpeechRec) {
     _notify(panelStep, '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
-    _switchMode(panelStep, 'text');
+    _revealEmergencyText(panelStep, 'no-speech-api');
     return;
   }
 
@@ -649,7 +650,7 @@ function _startVoiceWebSpeech(panelStep) {
     _voiceRecognition.start();
   } catch (e) {
     _notify(panelStep, `⚠️ ไม่สามารถเริ่มรับเสียงได้: ${e.message}`);
-    _switchMode(panelStep, 'text');
+    _revealEmergencyText(panelStep, 'speech-not-allowed');
   }
 }
 
