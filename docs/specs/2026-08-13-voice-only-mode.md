@@ -44,7 +44,9 @@
 const VOICE_ONLY = true;   // js/screens/chat.js
 ```
 
-ทุกพฤติกรรมด้านล่างอ่านค่านี้ พลิกเป็น `false` → แอปกลับไปเหมือนเดิมทุกประการ (ทางถอยที่ไม่ต้อง revert commit กลางการเก็บข้อมูล)
+ทุกพฤติกรรมด้านล่างอ่านค่านี้ พลิกเป็น `false` → **UI ที่ผู้เรียนเห็น** กลับไปเหมือนเดิมทุกประการ (โหมดพิมพ์/mode switcher/ฟองแชทกลับมาเรนเดอร์) — ทางถอยที่ไม่ต้อง revert commit กลางการเก็บข้อมูล
+
+⚠️ **ไม่ครอบคลุมบันไดสำรอง** — `L0 Live → L1 Web Speech → L2 โหมดพิมพ์ฉุกเฉิน` (`js/voice-ladder.js`) ทำงานไม่มีเงื่อนไข ไม่ได้อ่านค่า `VOICE_ONLY` เลย พลิก flag เป็น `false` แล้วเสียงยังลดระดับอัตโนมัติและบันทึก `/sessions.degraded` เหมือนเดิมทุกประการ — ฉะนั้น "กลับไปเหมือนเดิม" หมายถึงหน้าตาที่ผู้เรียนเห็นเท่านั้น ไม่ใช่พฤติกรรมทั้งหมดของระบบ
 
 ### สิ่งที่ซ่อน — ซ่อนด้วยคลาส ไม่ลบ DOM
 
@@ -60,7 +62,7 @@ const VOICE_ONLY = true;   // js/screens/chat.js
 - **ซ่อนแต่เก็บ DOM** = `.chat-messages` และ `#text-input-row-N` — โหมดฉุกเฉินต้องเรียกกลับมาใช้ แค่ถอดคลาส `hidden` ออก บทสนทนาที่ผ่านมาโผล่ครบทันที ไม่ต้อง render ย้อนหลัง
 - **ไม่เรนเดอร์เลย** = `.mode-switcher` และ `.tts-check` — ไม่มีวันได้ใช้อีก เพราะโหมดฉุกเฉินเข้าเองอัตโนมัติ ไม่มีการสลับโหมดด้วยมือ
 
-`_addMsg()` **ไม่แก้เลย** — ยัง push เข้า `_chatHistory` และเขียนลง DOM เหมือนเดิม แค่ container ถูกซ่อน
+`_addMsg()` **ไม่แก้เลย** — เขียนลง DOM node เท่านั้น (แค่ container ถูกซ่อน ไม่ได้ลบ) **ไม่ได้ push เข้า `_chatHistory`/`_counselingHistory`** ทั้งสองอย่างชื่อคล้ายกันแต่คนละกลไก อย่าสับสน: `_chatHistory`/`_counselingHistory` คือ array ที่ persist ไปยัง `/sessions` และเป็นสิ่งที่ Step 4 evaluator กับหน้า admin transcript viewer อ่าน ส่วนสิ่งที่ `_addMsg()` เขียนเป็นแค่ DOM ชั่วคราวของหน้านักศึกษาเอง หายไปถ้า refresh — สัญญาณที่ทีมใช้ติดตามการลดระดับจริงคือ `markSessionDegraded()` ซึ่งเขียน `/sessions.degraded`
 
 ### ช่องแจ้งเตือน — `_notify()`
 
@@ -69,7 +71,7 @@ const VOICE_ONLY = true;   // js/screens/chat.js
 แก้: เพิ่ม element ถาวร `#voice-notice-{panelStep}` ใต้เวทีเสียง และฟังก์ชัน
 
 ```js
-_notify(panelStep, msg)   // เขียนลง #voice-notice-N (ผู้ใช้เห็น) + _addMsg(...,'system',...) (ลง log)
+_notify(panelStep, msg)   // เขียนลง #voice-notice-N (ผู้ใช้เห็น) + _addMsg(...,'system',...) (DOM เท่านั้น ไม่ persist — ดูหมายเหตุด้านบน)
 ```
 
 เปลี่ยนจุดที่เรียก `_addMsg(..., 'system', ...)` ทั้ง 4 จุดมาใช้ `_notify` แทน
