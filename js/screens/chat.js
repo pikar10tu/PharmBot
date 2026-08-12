@@ -29,6 +29,7 @@ let _isRandomCase      = false;  // true = entered via random case — hide case
 const VOICE_ONLY = true;
 
 let _emergencyText = false;   // true = ลงถึง L2 แล้ว ห้ามกลับไปเป็นเสียงอีกทั้งเซสชัน
+let _voiceLevel = 'L0';   // ระดับปัจจุบันของบันไดสำรอง (ดู js/voice-ladder.js)
 
 // Capture channel of the current turn, stored as `via` on every history entry.
 // Research-relevant: only user turns are transcribed, and Live API transcription is
@@ -95,6 +96,7 @@ async function renderChat(container, params = {}) {
   _isRandomCase  = !!params.random;
   _caseStarted   = false;
   _emergencyText = false;
+  _voiceLevel    = 'L0';
   _stopSessionTimer();
   _timerRemaining = SESSION_TIME_LIMIT_SEC;
   _timerExpired   = false;
@@ -471,6 +473,19 @@ function _revealEmergencyText(panelStep, reason) {
   console.warn('voice ladder → L2:', reason);
 }
 
+// ประตูเดียวสำหรับ "เสียงมีปัญหา" — ตัดสินระดับถัดไป ลงมือ แล้วบันทึกไว้ให้ทีม
+function _degrade(panelStep, failureKind) {
+  const next = nextVoiceLevel(_voiceLevel, failureKind);
+  if (next === _voiceLevel) return next;   // ชั่วคราว ไม่ต้องทำอะไร
+  _voiceLevel = next;
+
+  if (_session?.id) {
+    markSessionDegraded(_session.id, next, failureKind).catch(() => {});
+  }
+  if (next === 'L2') _revealEmergencyText(panelStep, failureKind);
+  return next;
+}
+
 async function _startVoice(panelStep) {
   const msgId  = panelStep === 1 ? 'chat-messages' : 'counsel-messages';
   const apiKey = getGeminiKey();
@@ -580,7 +595,7 @@ async function _startVoice(panelStep) {
       try { _liveClient?.disconnect(); } catch (_) {}
       _liveClient = null;
       _liveMode   = false;
-      _startVoiceWebSpeech(panelStep);
+      if (_degrade(panelStep, 'live-runtime-error') === 'L1') _startVoiceWebSpeech(panelStep);
     };
 
     try {
@@ -593,10 +608,15 @@ async function _startVoice(panelStep) {
       return;
     } catch (e) {
       _liveConnecting = false;
-      console.warn('GeminiLive connect failed, falling back to Web Speech:', e.message);
+      console.warn('GeminiLive connect failed:', e.message);
       try { client.disconnect(); } catch (_) {}
       if (!_voiceMode || _voicePanelStep !== panelStep) return; // already switched off
-      _notify(panelStep, '⚠️ เชื่อมต่อระบบเสียงไม่ได้ กำลังสลับไปโหมดสำรอง');
+      // ไมค์ถูกปฏิเสธ = Web Speech ก็ใช้ไมค์ตัวเดียวกัน ลองไปก็ล้มซ้ำ
+      const kind = /ไมโครโฟน/.test(e.message) ? 'mic-denied' : 'live-connect-failed';
+      _notify(panelStep, kind === 'mic-denied'
+        ? '⚠️ ไม่สามารถเข้าถึงไมโครโฟนได้ กรุณาอนุญาตสิทธิ์ไมโครโฟนแล้วลองใหม่'
+        : '⚠️ เชื่อมต่อระบบเสียงไม่ได้ กำลังสลับไปโหมดสำรอง');
+      if (_degrade(panelStep, kind) === 'L2') return;
     }
   }
 
@@ -609,7 +629,7 @@ function _startVoiceWebSpeech(panelStep) {
 
   if (!SpeechRec) {
     _notify(panelStep, '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
-    _revealEmergencyText(panelStep, 'no-speech-api');
+    _degrade(panelStep, 'no-speech-api');
     return;
   }
 
@@ -634,8 +654,12 @@ function _startVoiceWebSpeech(panelStep) {
   };
 
   _voiceRecognition.onerror = (e) => {
-    if (e.error === 'no-speech') return; // normal — onend will restart
+    if (e.error === 'no-speech') return; // ปกติ — onend จะ restart ให้
     console.warn('SpeechRecognition error:', e.error);
+    if (e.error === 'not-allowed' || e.error === 'audio-capture') {
+      _degrade(panelStep, 'speech-not-allowed');
+      return;
+    }
     if (_voiceMode) _setVoiceStatus(panelStep, `⚠️ ไม่สามารถรับเสียงได้ (${e.error})`, false);
   };
 
@@ -650,7 +674,7 @@ function _startVoiceWebSpeech(panelStep) {
     _voiceRecognition.start();
   } catch (e) {
     _notify(panelStep, `⚠️ ไม่สามารถเริ่มรับเสียงได้: ${e.message}`);
-    _revealEmergencyText(panelStep, 'speech-not-allowed');
+    _degrade(panelStep, 'speech-not-allowed');
   }
 }
 
@@ -827,6 +851,13 @@ async function _sendChat() {
     _chatHistory.push({ role: 'model', text: reply, via: _turnVia() });
     _addMsg('chat-messages', 'model', reply);
 
+    // L1: ฟองแชทถูกซ่อน ถ้าไม่ป้อนซับไตเติลผู้เรียนจะไม่เห็นอะไรเลย
+    // ที่ L2 ไม่ต้อง เพราะฟองแชทถูกเปิดกลับมาแล้ว
+    if (VOICE_ONLY && !_emergencyText) {
+      const sub = document.getElementById('voice-subtitle-1');
+      if (sub) sub.textContent = reply;
+    }
+
     if (_voiceMode && !_liveMode) {
       // Web Speech mode: play Gemini TTS, then recognition will restart via finally
       const waveform = document.getElementById('waveform-1');
@@ -945,6 +976,13 @@ async function _sendCounseling() {
     _hideTyping('counsel-messages');
     _counselingHistory.push({ role: 'model', text: reply, via: _turnVia() });
     _addMsg('counsel-messages', 'model', reply);
+
+    // L1: ฟองแชทถูกซ่อน ถ้าไม่ป้อนซับไตเติลผู้เรียนจะไม่เห็นอะไรเลย
+    // ที่ L2 ไม่ต้อง เพราะฟองแชทถูกเปิดกลับมาแล้ว
+    if (VOICE_ONLY && !_emergencyText) {
+      const sub = document.getElementById('voice-subtitle-3');
+      if (sub) sub.textContent = reply;
+    }
 
     if (_voiceMode && !_liveMode) {
       // Web Speech mode: play Gemini TTS, then recognition will restart via finally

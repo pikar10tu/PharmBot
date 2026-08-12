@@ -279,6 +279,14 @@ Voice: `Aoede` (female) / `Puck` (male). Falls back to text mode on connection f
 ผลคือ `buildEvalPrompt()` ต้องผ่อนผันให้ transcript ที่เพี้ยน โดยใช้ **คำตอบของผู้ป่วยเป็นหลักฐาน**
 ว่านักศึกษาถามอะไรจริง (ผู้ป่วยตอบจากเสียง ไม่ได้ตอบจากข้อความ) — ห้ามลบกฎชุดนี้ออกจาก prompt
 
+**โหมดเสียงล้วน (`VOICE_ONLY` ใน `chat.js`)** — โหมดพิมพ์ไม่อยู่ใน UI ปกติแล้ว
+ฟองแชทถูกซ่อนจากผู้เรียน (DOM ยังอยู่ครบ) ทีมดู transcript ได้ที่หน้า summary เมื่อล็อกอินเป็น admin
+
+บันไดสำรอง `L0 Live → L1 Web Speech → L2 โหมดพิมพ์ฉุกเฉิน` ลงได้อย่างเดียว
+ตรรกะอยู่ใน `js/voice-ladder.js` (ฟังก์ชันบริสุทธิ์ มี unit test) การลดระดับถูกบันทึกลง
+`/sessions.degraded` เพื่อให้ทีมคัดเซสชันที่เจอปัญหาเทคนิคออกจากการวิเคราะห์ได้
+— และเพราะ L1/L2 ใช้โมเดลข้อความ field นี้จึงเป็นบันทึก treatment fidelity ในตัว
+
 ---
 
 ## Gemini Config
@@ -342,6 +350,7 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 ### Phase 5 — Validation & Testing
 - [ ] Fix Playwright tests (chat UI + voice UI)
 - [ ] Inter-rater reliability: AI score vs. human expert score
+- [ ] ทดสอบโหมดฉุกเฉินด้วยมือก่อนเก็บข้อมูลจริง (ปฏิเสธสิทธิ์ไมค์ → ต้องลง L2 ทันที)
 
 ---
 
