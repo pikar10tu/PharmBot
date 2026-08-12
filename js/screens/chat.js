@@ -198,6 +198,7 @@ function _renderChatUI(container, pid) {
           </div>
           <button class="btn btn-success" id="start-case-btn" style="margin-top:0.75rem;font-size:1rem;padding:0.55rem 1.6rem;position:relative;z-index:2;">🟢 เริ่มเคส</button>
           <div class="voice-subtitle" id="voice-subtitle-1" style="position:relative;z-index:2;"></div>
+          <div class="voice-notice" id="voice-notice-1" style="position:relative;z-index:2;"></div>
         </div>
 
         <!-- Text input row (text mode — hidden by default) -->
@@ -260,6 +261,7 @@ function _renderChatUI(container, pid) {
             <div class="voice-status-text" id="voice-status-3">⏳ กำลังเชื่อมต่อ…</div>
           </div>
           <div class="voice-subtitle" id="voice-subtitle-3" style="position:relative;z-index:2;"></div>
+          <div class="voice-notice" id="voice-notice-3" style="position:relative;z-index:2;"></div>
         </div>
 
         <!-- Text input row (hidden by default) -->
@@ -544,7 +546,7 @@ async function _startVoice(panelStep) {
     client.onError = (errMsg) => {
       if (!_liveMode || !_voiceMode || _voicePanelStep !== panelStep) return;
       console.warn('GeminiLive error, falling back to Web Speech:', errMsg);
-      _addMsg(msgId, 'system', '⚠️ Live API ไม่พร้อมใช้ — สลับไป Web Speech');
+      _notify(panelStep, '⚠️ ระบบเสียงขัดข้อง กำลังสลับไปโหมดสำรอง');
       try { _liveClient?.disconnect(); } catch (_) {}
       _liveClient = null;
       _liveMode   = false;
@@ -564,7 +566,7 @@ async function _startVoice(panelStep) {
       console.warn('GeminiLive connect failed, falling back to Web Speech:', e.message);
       try { client.disconnect(); } catch (_) {}
       if (!_voiceMode || _voicePanelStep !== panelStep) return; // already switched off
-      _addMsg(msgId, 'system', '⚠️ Live API ไม่พร้อมใช้ — สลับไป Web Speech');
+      _notify(panelStep, '⚠️ เชื่อมต่อระบบเสียงไม่ได้ กำลังสลับไปโหมดสำรอง');
     }
   }
 
@@ -574,10 +576,9 @@ async function _startVoice(panelStep) {
 
 function _startVoiceWebSpeech(panelStep) {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const msgId     = panelStep === 1 ? 'chat-messages' : 'counsel-messages';
 
   if (!SpeechRec) {
-    _addMsg(msgId, 'system', '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
+    _notify(panelStep, '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
     _switchMode(panelStep, 'text');
     return;
   }
@@ -618,7 +619,7 @@ function _startVoiceWebSpeech(panelStep) {
   try {
     _voiceRecognition.start();
   } catch (e) {
-    _addMsg(msgId, 'system', `⚠️ ไม่สามารถเริ่มรับเสียงได้: ${e.message}`);
+    _notify(panelStep, `⚠️ ไม่สามารถเริ่มรับเสียงได้: ${e.message}`);
     _switchMode(panelStep, 'text');
   }
 }
@@ -677,6 +678,15 @@ function _setVoiceStatus(panelStep, text, animate) {
   if (el) el.textContent = text;
   const wv = document.getElementById(`waveform-${panelStep}`);
   if (wv) wv.classList.toggle('wave-active', animate);
+}
+
+// แจ้งผู้ใช้แบบค้างจนกว่าจะมีข้อความใหม่
+// ห้ามใช้ _setVoiceStatus แทน — onStateChange เขียนทับมันตลอดเวลา ข้อความจะหายใน 2-3 วินาที
+function _notify(panelStep, msg) {
+  const el = document.getElementById(`voice-notice-${panelStep}`);
+  if (el) el.textContent = msg;
+  // ยังลง log เหมือนเดิม เพื่อให้ทีมเห็นใน transcript ว่านักศึกษาเจออะไร
+  _addMsg(panelStep === 1 ? 'chat-messages' : 'counsel-messages', 'system', msg);
 }
 
 // ── Session Timer ──────────────────────────────────────────────
@@ -1054,8 +1064,8 @@ function _toApiHistory(history) {
 function _toggleVoice(inputId, btnId) {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRec) {
-    const msgId = document.getElementById('counsel-messages') ? 'counsel-messages' : 'chat-messages';
-    _addMsg(msgId, 'system', '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
+    const panelStep = inputId === 'chat-input' ? 1 : 3;
+    _notify(panelStep, '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
     return;
   }
 
