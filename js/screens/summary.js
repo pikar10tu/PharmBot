@@ -19,7 +19,12 @@ async function renderSummary(container, params = {}) {
     const snap = await db.collection('results').doc(resultId).get();
     if (!snap.exists) { Router.go('history'); return; }
     const result = { id: snap.id, ...snap.data() };
-    _renderSummaryUI(container, pid, result);
+    // ดึง session เฉพาะตอนเป็น admin — ชั้นกันข้อมูลรั่วชั้นที่ 1 (ไม่ดึงมาตั้งแต่แรก)
+    let session = null;
+    if (isAdmin() && result.sessionId) {
+      session = await getSessionById(result.sessionId).catch(() => null);
+    }
+    _renderSummaryUI(container, pid, result, session);
   } catch (e) {
     container.innerHTML = `
       ${renderNavbar(pid)}
@@ -30,7 +35,7 @@ async function renderSummary(container, params = {}) {
   }
 }
 
-function _renderSummaryUI(container, pid, result) {
+function _renderSummaryUI(container, pid, result, session = null) {
   const fb    = result.feedbackJson || {};
   const total = result.overallScore || fb.overall || 0;
   const cls   = total >= 80 ? 'good' : total >= 60 ? 'partial' : 'poor';
@@ -117,6 +122,8 @@ function _renderSummaryUI(container, pid, result) {
             </div>`).join('')}
         </div>` : ''}
 
+      ${_adminTranscriptBlock(session)}
+
       <!-- Actions -->
       <div class="flex gap-2 mb-3" style="justify-content:center;flex-wrap:wrap;">
         <button class="btn btn-ghost" onclick="Router.go('history')">📋 ประวัติการฝึก</button>
@@ -138,5 +145,54 @@ function _feedbackBlock(title, feedback, missed) {
           ${missed.map(m => `<div class="text-sm" style="padding:0.2rem 0 0.2rem 0.75rem;border-left:2px solid var(--warning);">• ${escapeHtmlBr(m)}</div>`).join('')}
         </div>` : ''}
     </div>`;
+}
+
+// ── บทสนทนาเต็ม (เฉพาะทีมงาน) ────────────────────────────────
+// ⚠️ นักศึกษาต้องไม่เห็นบล็อกนี้ — firestore.rules ยอมให้เขาอ่าน
+//    session ของตัวเองได้ การกันจึงต้องอยู่ที่ฝั่งเรนเดอร์ด้วย
+function _adminTranscriptBlock(session) {
+  if (!isAdmin() || !session) return '';
+
+  const turns = [...(session.chatHistory || []), ...(session.counselingHistory || [])];
+  const count = turns.reduce((acc, m) => {
+    if (m.role !== 'user') return acc;
+    const k = m.via || 'text';
+    acc[k] = (acc[k] || 0) + 1;
+    return acc;
+  }, {});
+  const viaSummary = ['live', 'webspeech', 'text']
+    .map(k => `${k} ${count[k] || 0}`).join(' · ');
+
+  const line = (m) => {
+    const who   = m.role === 'user' ? 'เภสัชกร' : (session.caseSnapshot?.name || 'ผู้ป่วย');
+    const badge = m.role === 'user'
+      ? `<span class="badge" style="font-size:0.65rem;">${escapeHtmlBr(m.via || 'text')}</span>` : '';
+    const cut   = m.interrupted ? ' <span class="text-dim text-xs">(ถูกพูดแทรก)</span>' : '';
+    return `
+      <div class="checklist-item">
+        <div class="checklist-text">
+          <div class="text-sm"><strong>${escapeHtmlBr(who)}</strong> ${badge}${cut}</div>
+          <div class="checklist-note">${escapeHtmlBr(m.text || '')}</div>
+        </div>
+      </div>`;
+  };
+
+  const drugs = (session.dispensedDrugs || [])
+    .map(d => `${d.name} ${d.strength} (${d.form})`).join(', ');
+
+  const deg = session.degraded;
+
+  return `
+    <details class="card mb-3">
+      <summary style="cursor:pointer;font-weight:bold;">🗂️ บทสนทนาเต็ม (เฉพาะทีมงาน)</summary>
+      <div class="text-dim text-sm mt-2 mb-2">คุณภาพ transcript: ${escapeHtmlBr(viaSummary)}</div>
+      ${deg ? `<div class="alert alert-warning text-sm mb-2">⚠️ เซสชันนี้ถูกลดระดับเป็น ${escapeHtmlBr(deg.level || '?')} เพราะ ${escapeHtmlBr(deg.reason || 'ไม่ระบุ')}</div>` : ''}
+      <h4 class="mb-1 mt-2">ขั้นที่ 1 — ซักประวัติ</h4>
+      ${(session.chatHistory || []).map(line).join('') || '<div class="text-dim text-sm">(ไม่มี)</div>'}
+      <h4 class="mb-1 mt-2">ยาที่จ่าย</h4>
+      <div class="text-sm">${escapeHtmlBr(drugs || 'ไม่ได้จ่ายยา')}</div>
+      <h4 class="mb-1 mt-2">ขั้นที่ 3 — ให้คำแนะนำ</h4>
+      ${(session.counselingHistory || []).map(line).join('') || '<div class="text-dim text-sm">(ไม่มี)</div>'}
+    </details>`;
 }
 
