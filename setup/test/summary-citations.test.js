@@ -6,9 +6,11 @@
 //  สำคัญเพราะข้อจำกัดลิขสิทธิ์: ห้ามแสดงข้อความต้นฉบับจากไกด์ไลน์
 //  แสดงได้แค่ชื่อเอกสาร + หน้า + ลิงก์
 //
-//  ⚠️ _escS ไม่ได้ก็อปมาจำลอง — ดึงตัวจริงจาก summary.js มารันตรงๆ
+//  ⚠️ ตัวหนีอักขระไม่ได้ก็อปมาจำลอง — ดึงตัวจริงจาก js/utils.js มารันตรงๆ
 //     (เคยพลาดมาแล้วรอบก่อน: มือก็อปหนีอักขระเพี้ยนจากของจริง แต่ test
 //     ยังผ่านเพราะวัด mock ไม่ใช่ของจริง — ห้ามเกิดซ้ำ)
+//     เดิมดึง _escS จาก summary.js แต่ 2026-08-12 helper 5 ตัวถูกรวมเข้า
+//     js/utils.js เหลือ escapeHtml / escapeHtmlBr — จึงย้ายมาดึงจากไฟล์นั้น
 // ============================================================
 
 const test = require('node:test');
@@ -19,13 +21,16 @@ const path = require('node:path');
 const SRC = fs.readFileSync(
   path.join(__dirname, '..', '..', 'js', 'screens', 'summary.js'), 'utf8');
 
-// ดึงฟังก์ชัน _escS ตัวจริงออกจากซอร์ส แล้วสร้างเป็นฟังก์ชันใช้งานได้จริง
+// รันซอร์ส js/utils.js ตัวจริงเพื่อเอา escapeHtmlBr มาใช้ใน test
 // เพื่อให้ test วัดพฤติกรรมของโค้ดจริง ไม่ใช่ stand-in ที่อาจ drift จากของจริง
-const escSMatch = SRC.match(/function _escS\(str\) \{[\s\S]*?\n\}/);
-assert.ok(escSMatch, 'หาไฟล์นิยาม _escS ในซอร์ส summary.js ไม่เจอ — โครงสร้างไฟล์เปลี่ยนไปหรือไม่?');
-const _escS = new Function('str', escSMatch[0].slice(escSMatch[0].indexOf('{') + 1, -1));
+const UTILS = fs.readFileSync(
+  path.join(__dirname, '..', '..', 'js', 'utils.js'), 'utf8');
+const { escapeHtmlBr } = new Function(
+  `${UTILS}\nreturn { escapeHtml, escapeHtmlBr };`)();
+assert.strictEqual(typeof escapeHtmlBr, 'function',
+  'หานิยาม escapeHtmlBr ใน js/utils.js ไม่เจอ — โครงสร้างไฟล์เปลี่ยนไปหรือไม่?');
 
-// จำลองบล็อกอ้างอิงให้ตรงกับซอร์สจริง (ทดสอบพฤติกรรม) — ใช้ _escS ตัวจริงด้านบน
+// จำลองบล็อกอ้างอิงให้ตรงกับซอร์สจริง (ทดสอบพฤติกรรม) — ใช้ตัวหนีอักขระจริงด้านบน
 function renderRefs(result) {
   return (result.guidelineRefs || []).length ? `
         <div class="card mb-3">
@@ -35,8 +40,8 @@ function renderRefs(result) {
             <div class="checklist-item">
               <div class="checklist-icon">📄</div>
               <div class="checklist-text">
-                <div>${_escS(r.title)}${r.page ? ` หน้า ${_escS(String(r.page))}` : ''}</div>
-                ${r.url ? `<div class="checklist-note"><a href="${_escS(r.url)}" target="_blank" rel="noopener">เปิดเอกสาร</a></div>` : ''}
+                <div>${escapeHtmlBr(r.title)}${r.page ? ` หน้า ${escapeHtmlBr(String(r.page))}` : ''}</div>
+                ${r.url ? `<div class="checklist-note"><a href="${escapeHtmlBr(r.url)}" target="_blank" rel="noopener">เปิดเอกสาร</a></div>` : ''}
               </div>
             </div>`).join('')}
         </div>` : '';
@@ -102,6 +107,17 @@ test('ซอร์สจริงต้องไม่แสดงข้อค�
 
 test('ซอร์สจริงต้องไม่เหลือกลไก tag G1..Gn', () => {
   assert.strictEqual(/r\.tag/.test(SRC), false, 'ยังเหลือ r.tag — กลไก tag ถูกตัดไปแล้ว');
+});
+
+test('ซอร์สจริงต้องหนีอักขระด้วย helper กลางจาก utils.js ไม่ใช่ตัวก๊อปในไฟล์', () => {
+  const block = SRC.slice(SRC.indexOf('guidelineRefs'), SRC.indexOf('<!-- Actions -->'));
+  // ถ้าใครก๊อป escape helper กลับเข้ามาในไฟล์ mirror ด้านบนจะวัดคนละตัวกับของจริงทันที
+  assert.strictEqual(/function _esc[A-Z]?\(/.test(SRC), false,
+    'พบ escape helper ตัวก๊อปใน summary.js — ต้องใช้ escapeHtml/escapeHtmlBr จาก js/utils.js');
+  assert.ok(/escapeHtmlBr\(r\.title\)/.test(block),
+    'บล็อกอ้างอิงไม่ได้หนีอักขระชื่อเอกสารด้วย escapeHtmlBr');
+  assert.ok(/href="\$\{escapeHtml(Br)?\(r\.url\)\}"/.test(block),
+    'ลิงก์เอกสารไม่ได้หนีอักขระ — attribute injection ได้');
 });
 
 test('ซอร์สจริงต้องมี section นี้อยู่ก่อนบล็อก Actions', () => {
