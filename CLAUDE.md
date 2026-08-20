@@ -354,7 +354,7 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 - [ ] ตัดสินใจว่าโหมดพิมพ์ควรใช้โมเดลเดียวกับโหมดเสียงไหม — ตอนนี้คนละตัว (`gemini-2.5-flash` vs `gemini-3.1-flash-live-preview`) พฤติกรรมผู้ป่วยจึงไม่เหมือนกันเป๊ะระหว่างสองโหมด ซึ่งกระทบ treatment fidelity ถ้าผู้เรียนสลับโหมดกลางการทดลอง
 
 ### Phase 5 — Validation & Testing
-- [ ] Fix Playwright tests (chat UI + voice UI)
+- [x] Fix Playwright tests (chat UI + voice UI) — 2026-08-20
 - [ ] Inter-rater reliability: AI score vs. human expert score
 - [ ] ทดสอบโหมดฉุกเฉินด้วยมือก่อนเก็บข้อมูลจริง (ปฏิเสธสิทธิ์ไมค์ → ต้องลง L2 ทันที)
 
@@ -366,7 +366,7 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 - Scoring weights hardcoded ใน `prompts.js:8`
 - No `evalModel` separation — patient + evaluator ใช้ model เดียวกัน
 - No survey/questionnaire system
-- Playwright tests: `02-student-flow` (chat UI) และ `04-voice-ui` fail
+- ~~Playwright tests: `02-student-flow` (chat UI) และ `04-voice-ui` fail~~ — **2026-08-20 เขียวหมดแล้ว** 24/24 Playwright · 108/108 `setup/npm test` (`02-student-flow` ถูกเขียนใหม่ให้ตรง flow สุ่มเคส · `summary-citations.test.js` เลิกไล่หา `_escS` ที่ถูกยุบไปแล้ว)
 - ยังไม่มี UI แก้ annotation (rationale/sources) ใน admin rubric editor
 - ปุ่ม "↺ ค่าเริ่มต้น" ต่อหมวดใน rubric editor ลบ annotation ของหมวดนั้นทิ้ง (มี confirm dialog)
 - ปุ่ม "✕" ลบข้อ rubric ทีละข้อ ถ้าข้อนั้นมี annotation จะมี confirm dialog ก่อนลบ (ข้อที่ไม่มี annotation ลบได้ทันทีไม่มี confirm)
