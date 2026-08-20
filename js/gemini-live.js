@@ -25,21 +25,27 @@ class GeminiLiveClient {
     this._connected   = false;
 
     this._pendingModelText    = '';
-    this._resumptionToken     = null;
     this._playbackInitPromise = null;   // singleton — prevents concurrent setup racing
     this._msgChain            = Promise.resolve();  // serial message processing — preserves arrival order
+    this._setupTimer          = null;   // cleared on EVERY exit path — a stale timer would
+                                        // fire onError on a client we already threw away
 
     this._pendingUserText     = '';      // accumulates inputTranscription chunks (see _flushUserTranscript)
 
     // ── Public callbacks ──────────────────────────────────────
     this.onUserSpeechStart        = null;  // () => void — fired on the FIRST chunk of a user utterance
     this.onUserTranscript         = null;  // (text: string) => void — fired with the COMPLETE utterance
-    this.onModelTranscript        = null;  // (text: string) => void — fired at turn end
+    // (text, meta?) => void — fired at turn end, or on barge-in with { interrupted: true }
+    this.onModelTranscript        = null;
     this.onPartialModelTranscript = null;  // (chunk: string) => void — streaming chunks
     // state: 'connecting' | 'ready' | 'ai-speaking' | 'listening' | 'disconnected'
     this.onStateChange            = null;  // (state: string) => void
     this.onError                  = null;  // (message: string) => void
-    this.onSessionResumptionToken = null;  // (token: string) => void
+
+    // Session resumption is intentionally NOT wired: a session is capped at 5 min by the
+    // chat timer, well under the ~10 min connection lifetime, so there is nothing to resume.
+    // To enable later: send `sessionResumption: { handle }` in setup, keep the handle from
+    // the `sessionResumptionUpdate` server message, and add reconnect logic in chat.js.
 
     // Set false to suppress AI audio + ai-speaking state until the first user turn
     this.audioEnabled = true;
@@ -80,6 +86,10 @@ class GeminiLiveClient {
                 // LOW = ต้องพูดชัดๆ จึงจะ interrupt — เสียง background / breathing ไม่ตัด
                 startOfSpeechSensitivity: 'START_SENSITIVITY_LOW',
                 prefixPaddingMs: 300,
+                // นักศึกษาเรียบเรียงคำถามภาษาไทยแล้วหยุดคิดกลางประโยคบ่อย —
+                // LOW + 900ms ให้รอจนแน่ใจว่าพูดจบจริง ไม่ตัดเทิร์นก่อนถามเสร็จ
+                endOfSpeechSensitivity: 'END_SENSITIVITY_LOW',
+                silenceDurationMs: 900,
               }
             },
             systemInstruction: {
@@ -89,7 +99,8 @@ class GeminiLiveClient {
         });
       };
 
-      const _setupTimer = setTimeout(() => {
+      this._setupTimer = setTimeout(() => {
+        this._setupTimer = null;
         if (!this._connected) {
           console.warn('GeminiLive: setup timeout');
           this.onError?.('เชื่อมต่อ Gemini Live timeout');
@@ -99,7 +110,7 @@ class GeminiLiveClient {
       }, 20000);
 
       this._ws.onmessage = (evt) => {
-        const doneFn = () => { clearTimeout(_setupTimer); resolve(); };
+        const doneFn = () => { this._clearSetupTimer(); resolve(); };
         // Chain serially so Blob.text() resolution order == WS arrival order
         this._msgChain = this._msgChain.then(async () => {
           const text = evt.data instanceof Blob ? await evt.data.text() : String(evt.data);
@@ -108,12 +119,14 @@ class GeminiLiveClient {
       };
 
       this._ws.onerror = () => {
+        this._clearSetupTimer();
         const msg = 'Gemini Live: ไม่สามารถเชื่อมต่อ WebSocket ได้';
         this.onError?.(msg);
         reject(new Error(msg));
       };
 
       this._ws.onclose = (evt) => {
+        this._clearSetupTimer();
         this._connected = false;
         console.warn(`GeminiLive WS closed: code=${evt.code} reason="${evt.reason}"`);
         if (evt.code !== 1000 && evt.code !== 1001) {
@@ -123,6 +136,10 @@ class GeminiLiveClient {
         this.onStateChange?.('disconnected');
       };
     });
+  }
+
+  _clearSetupTimer() {
+    if (this._setupTimer) { clearTimeout(this._setupTimer); this._setupTimer = null; }
   }
 
   // ── Send text turn ────────────────────────────────────────────
@@ -208,6 +225,7 @@ class GeminiLiveClient {
 
   // ── Disconnect ────────────────────────────────────────────────
   disconnect() {
+    this._clearSetupTimer();
     this._flushUserTranscript();  // don't lose a trailing utterance on hang-up / timeout
     this.stopMic();
     this._stopPlayback();
@@ -217,8 +235,9 @@ class GeminiLiveClient {
       try { this._ws.close(); } catch (_) {}
       this._ws = null;
     }
-    this._connected  = false;
-    this._msgChain   = Promise.resolve();  // drop any queued messages
+    this._connected        = false;
+    this._pendingModelText = '';
+    this._msgChain         = Promise.resolve();  // drop any queued messages
     this.onStateChange?.('disconnected');
   }
 
@@ -240,6 +259,13 @@ class GeminiLiveClient {
     try {
       await this._audioCtx.audioWorklet.addModule('audio/playback.worklet.js');
       this._playNode = new AudioWorkletNode(this._audioCtx, 'playback-processor');
+      // The worklet drops audio if its queue overflows — surface it instead of losing
+      // the patient's voice mid-sentence in silence.
+      this._playNode.port.onmessage = (e) => {
+        if (e.data?.dropped) {
+          console.warn(`GeminiLive: playback queue full — dropped ${e.data.dropped} samples`);
+        }
+      };
       this._playNode.connect(this._audioCtx.destination);
     } catch (workletErr) {
       console.warn('AudioWorklet playback unavailable, will use BufferSource fallback:', workletErr.message);
@@ -289,7 +315,21 @@ class GeminiLiveClient {
     let data;
     try { data = JSON.parse(text); } catch { return; }
 
-    console.log('GeminiLive ←', JSON.stringify(data).slice(0, 300));
+    // Audio chunks arrive dozens of times per second and each carries a fat base64 blob —
+    // stringify-then-slice on that hot path is pure waste. Log everything else (setup,
+    // transcripts, errors, goAway) always; flip GeminiLiveClient.debug = true in the
+    // console to see audio frames too.
+    const _isAudioFrame = !!(data.serverContent?.modelTurn || data.server_content?.model_turn);
+    if (GeminiLiveClient.debug || !_isAudioFrame) {
+      console.log('GeminiLive ←', JSON.stringify(data).slice(0, 300));
+    }
+
+    // ── GoAway: server is about to terminate the connection ──
+    const goAway = data.goAway || data.go_away;
+    if (goAway) {
+      console.warn('GeminiLive: goAway — timeLeft =', goAway.timeLeft || goAway.time_left);
+      return;
+    }
 
     // ── Setup complete ──
     if (data.setupComplete !== undefined || data.setup_complete !== undefined) {
@@ -300,16 +340,22 @@ class GeminiLiveClient {
       return;
     }
 
-    // ── Session resumption token ──
-    const resumptionUpdate = data.sessionResumptionUpdate || data.session_resumption_update;
-    if (resumptionUpdate) {
-      const token = resumptionUpdate.newHandle || resumptionUpdate.new_handle;
-      if (token) { this._resumptionToken = token; this.onSessionResumptionToken?.(token); }
-      return;
-    }
-
     const sc = data.serverContent || data.server_content;
     if (!sc) return;
+
+    // ── Barge-in: user interrupted the model ──────────────────────
+    // Handled FIRST so the rest of this event (and the next turn) starts from a clean slate.
+    // The half-spoken reply is emitted rather than dropped: the student actually heard it,
+    // so it belongs in /sessions — Step 4 eval must not see a turn where the patient was silent.
+    if (sc.interrupted) {
+      this.interruptPlayback();
+      const partial = this._pendingModelText.trim();
+      this._pendingModelText = '';
+      if (partial) this.onModelTranscript?.(partial, { interrupted: true });
+      // No turnComplete follows a cancelled turn — reset state ourselves or the UI
+      // stays stuck on 'ai-speaking' (orb animating, subtitle never cleared).
+      this.onStateChange?.('listening');
+    }
 
     // ── Audio from model ──
     const modelTurn = sc.modelTurn || sc.model_turn;
@@ -350,12 +396,6 @@ class GeminiLiveClient {
       }
       this.onStateChange?.('listening');
     }
-
-    // ── Barge-in: user interrupted model ──
-    if (sc.interrupted) {
-      this._pendingModelText = '';
-      this.interruptPlayback();
-    }
   }
 
   // ── Internal: send JSON over WebSocket ───────────────────────
@@ -365,6 +405,9 @@ class GeminiLiveClient {
     }
   }
 }
+
+// Set true in the browser console to log every frame incl. audio (very noisy)
+GeminiLiveClient.debug = false;
 
 // ── Audio helpers (module-level) ──────────────────────────────
 

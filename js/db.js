@@ -65,6 +65,14 @@ async function updateSessionCounseling(sessionId, counselingHistory) {
   await db.collection('sessions').doc(sessionId).update({ counselingHistory });
 }
 
+// บันทึกว่าเซสชันนี้หลุดจากโหมดเสียงปกติ — เขียนทับด้วยระดับล่าสุดเสมอ
+// ไม่เก็บประวัติการไล่ระดับ เพราะสิ่งที่ทีมต้องรู้คือมันจบที่ระดับไหน
+async function markSessionDegraded(sessionId, level, reason) {
+  await db.collection('sessions').doc(sessionId).update({
+    degraded: { level, reason, at: firebase.firestore.FieldValue.serverTimestamp() },
+  });
+}
+
 async function completeSession(sessionId, startedAt) {
   const endedAt     = new Date();
   const startMs     = startedAt?.toDate ? startedAt.toDate().getTime() : Date.now();

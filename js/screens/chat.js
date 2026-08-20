@@ -22,6 +22,19 @@ let _liveMode          = false;  // true = Live API active, false = Web Speech f
 let _liveConnecting    = false;  // true while awaiting Live API connect (prevents double-connect)
 let _isRandomCase      = false;  // true = entered via random case — hide case title
 
+// ── โหมดเสียงล้วน ────────────────────────────────────────────
+// true  = โหมดพิมพ์หายจาก UI ปกติ เหลือเป็นโหมดฉุกเฉินที่โผล่เองเมื่อเสียงล้ม
+// false = กลับไปเป็นแอปแบบเดิมทุกประการ (ทางถอยที่ไม่ต้อง revert commit)
+// ⚠️ ต้อง freeze ค่านี้ก่อนเก็บข้อมูลจริง ห้ามแก้กลางการทดลอง
+const VOICE_ONLY = true;
+
+let _emergencyText = false;   // true = ลงถึง L2 แล้ว ห้ามกลับไปเป็นเสียงอีกทั้งเซสชัน
+let _voiceLevel = 'L0';   // ระดับปัจจุบันของบันไดสำรอง (ดู js/voice-ladder.js)
+// panelStep ที่ถูกเปิดโหมดพิมพ์ฉุกเฉินไปแล้วจริง — _emergencyText เป็น flag ระดับเซสชัน
+// แต่การเปิด UI เป็นรายพาเนล ถ้าใช้แค่ _emergencyText คุมความ idempotent พาเนลที่ 2
+// (Step 3) จะไม่มีวันถูกเปิดเพราะพาเนล 1 เปิดไปแล้ว ทำให้เสียงค้างที่ "กำลังเชื่อมต่อ…"
+let _emergencyRevealedPanels = new Set();
+
 // Capture channel of the current turn, stored as `via` on every history entry.
 // Research-relevant: only user turns are transcribed, and Live API transcription is
 // markedly more accurate on Thai medical vocabulary than Web Speech. Without this
@@ -86,6 +99,9 @@ async function renderChat(container, params = {}) {
   _liveMode = false; _liveConnecting = false;
   _isRandomCase  = !!params.random;
   _caseStarted   = false;
+  _emergencyText = false;
+  _voiceLevel    = 'L0';
+  _emergencyRevealedPanels = new Set();
   _stopSessionTimer();
   _timerRemaining = SESSION_TIME_LIMIT_SEC;
   _timerExpired   = false;
@@ -176,7 +192,7 @@ function _renderChatUI(container, pid) {
       <div id="panel-1" class="session-panel">
 
         <!-- Conversation transcript (compact, scrollable) -->
-        <div class="transcript-wrap">
+        <div class="transcript-wrap${VOICE_ONLY ? ' hidden' : ''}">
           <div class="chat-messages" id="chat-messages"></div>
         </div>
 
@@ -198,6 +214,7 @@ function _renderChatUI(container, pid) {
           </div>
           <button class="btn btn-success" id="start-case-btn" style="margin-top:0.75rem;font-size:1rem;padding:0.55rem 1.6rem;position:relative;z-index:2;">🟢 เริ่มเคส</button>
           <div class="voice-subtitle" id="voice-subtitle-1" style="position:relative;z-index:2;"></div>
+          <div class="voice-notice" id="voice-notice-1" style="position:relative;z-index:2;"></div>
         </div>
 
         <!-- Text input row (text mode — hidden by default) -->
@@ -210,13 +227,15 @@ function _renderChatUI(container, pid) {
 
         <!-- Footer bar -->
         <div class="session-footer">
+          ${VOICE_ONLY ? '' : `
           <div class="mode-switcher">
             <button class="mode-btn active" id="tab-voice-1" onclick="_switchMode(1,'voice')">🎙️ เสียง</button>
             <button class="mode-btn" id="tab-text-1" onclick="_switchMode(1,'text')">💬 ข้อความ</button>
-          </div>
+          </div>`}
+          ${VOICE_ONLY ? '' : `
           <label class="tts-check" id="tts-label" style="display:none;">
             <input type="checkbox" id="tts-toggle" /> อ่านเสียง
-          </label>
+          </label>`}
           <button class="btn btn-ghost btn-sm" id="char-toggle-btn" title="ทดลอง: ตัวละครเคลื่อนไหว" style="font-size:0.8rem;padding:0.35rem 0.7rem;">${_charMode ? '🎭 ตัวละคร ON' : '🎭 ตัวละคร'}</button>
           <button class="btn btn-success btn-sm" id="done-history-btn">💊 เลือกและจ่ายยา →</button>
         </div>
@@ -239,7 +258,7 @@ function _renderChatUI(container, pid) {
         <div id="dispensed-summary" class="alert alert-info text-sm"></div>
 
         <!-- Conversation transcript -->
-        <div class="transcript-wrap">
+        <div class="transcript-wrap${VOICE_ONLY ? ' hidden' : ''}">
           <div class="chat-messages" id="counsel-messages"></div>
         </div>
 
@@ -260,6 +279,7 @@ function _renderChatUI(container, pid) {
             <div class="voice-status-text" id="voice-status-3">⏳ กำลังเชื่อมต่อ…</div>
           </div>
           <div class="voice-subtitle" id="voice-subtitle-3" style="position:relative;z-index:2;"></div>
+          <div class="voice-notice" id="voice-notice-3" style="position:relative;z-index:2;"></div>
         </div>
 
         <!-- Text input row (hidden by default) -->
@@ -272,10 +292,11 @@ function _renderChatUI(container, pid) {
 
         <!-- Footer bar -->
         <div class="session-footer">
+          ${VOICE_ONLY ? '' : `
           <div class="mode-switcher">
             <button class="mode-btn active" id="tab-voice-3" onclick="_switchMode(3,'voice')">🎙️ เสียง</button>
             <button class="mode-btn" id="tab-text-3" onclick="_switchMode(3,'text')">💬 ข้อความ</button>
-          </div>
+          </div>`}
           <button class="btn btn-success btn-sm" id="done-counsel-btn">✅ จบการให้บริการ →</button>
         </div>
       </div>
@@ -364,8 +385,7 @@ function _attachEvents() {
       if (profile?.role !== 'admin') {
         const count = await getTodaySessionCount(user.uid);
         if (count >= 5) {
-          _addMsg('chat-messages', 'system',
-            '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้');
+          _notify(1, '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้');
           restoreBtn();
           return;
         }
@@ -373,7 +393,7 @@ function _attachEvents() {
 
       _session = await createSession(user.uid, _caseData);
     } catch (e) {
-      _addMsg('chat-messages', 'system', `⚠️ เริ่มเคสไม่สำเร็จ: ${e.message} — กรุณาลองใหม่`);
+      _notify(1, `⚠️ เริ่มเคสไม่สำเร็จ: ${e.message} — กรุณาลองใหม่`);
       restoreBtn();
       return;
     }
@@ -411,6 +431,8 @@ function _attachEvents() {
 // ── Voice Mode (Web Speech STT + Gemini TTS) ──────────────────
 
 async function _switchMode(panelStep, mode) {
+  // โหมดเสียงล้วน: ห้ามสลับเป็นโหมดพิมพ์ด้วยมือ เข้าได้ทางเดียวคือ _revealEmergencyText
+  if (VOICE_ONLY && mode === 'text') return;
   const textTab  = document.getElementById(`tab-text-${panelStep}`);
   const voiceTab = document.getElementById(`tab-voice-${panelStep}`);
   const textRow  = document.getElementById(`text-input-row-${panelStep}`);
@@ -439,7 +461,56 @@ async function _switchMode(panelStep, mode) {
   }
 }
 
+// เปิดโหมดพิมพ์ฉุกเฉิน — ทางเดียวที่ผู้เรียนจะได้พิมพ์เมื่อ VOICE_ONLY
+// เรียกเมื่อบันไดสำรองลงถึง L2 แล้วเท่านั้น
+function _revealEmergencyText(panelStep, reason) {
+  // idempotent ต่อ "พาเนลนี้" เท่านั้น — ไม่ใช่ต่อเซสชัน เพราะ Step 1 กับ Step 3
+  // เป็นคนละ DOM panel กันคนละแผงจริง เปิดพาเนล 1 แล้วไม่ได้แปลว่าพาเนล 3 เปิดไปด้วย
+  if (_emergencyRevealedPanels.has(panelStep)) return;
+  _emergencyRevealedPanels.add(panelStep);
+  _emergencyText = true;
+  _stopVoice();
+
+  const panel = document.getElementById(`panel-${panelStep}`);
+  panel?.querySelector('.transcript-wrap')?.classList.remove('hidden');
+  document.getElementById(`text-input-row-${panelStep}`)?.classList.remove('hidden');
+  document.getElementById(`voice-input-row-${panelStep}`)?.classList.add('hidden');
+
+  // Same two things _switchMode(panelStep,'text') used to do — only matter when
+  // VOICE_ONLY is rolled back to false, the one case where the mode switcher and
+  // the TTS checkbox actually exist in the DOM. No-ops (optional chaining) otherwise.
+  document.getElementById(`tab-voice-${panelStep}`)?.classList.remove('active');
+  document.getElementById(`tab-text-${panelStep}`)?.classList.add('active');
+  const ttsLabel = document.getElementById('tts-label'); // panel 1 only
+  if (ttsLabel) ttsLabel.style.display = 'flex';
+
+  _notify(panelStep, '⚠️ ระบบเสียงใช้งานไม่ได้ กรุณาพิมพ์คุยกับผู้ป่วยแทน — ผลการฝึกยังบันทึกตามปกติ');
+  console.warn('voice ladder → L2:', reason);
+}
+
+// ประตูเดียวสำหรับ "เสียงมีปัญหา" — ตัดสินระดับถัดไป ลงมือ แล้วบันทึกไว้ให้ทีม
+function _degrade(panelStep, failureKind) {
+  const next = nextVoiceLevel(_voiceLevel, failureKind);
+  if (next === _voiceLevel) return next;   // ชั่วคราว ไม่ต้องทำอะไร
+  _voiceLevel = next;
+
+  if (_session?.id) {
+    markSessionDegraded(_session.id, next, failureKind).catch(() => {});
+  }
+  if (next === 'L2') _revealEmergencyText(panelStep, failureKind);
+  return next;
+}
+
 async function _startVoice(panelStep) {
+  // เซสชันนี้ลงถึง L2 ไปแล้ว (จากพาเนลก่อนหน้า) — ห้าม retry Live/Web Speech ซ้ำ
+  // ไม่งั้นจะติดค้างที่ "กำลังเชื่อมต่อ…" (ถ้าล้มซ้ำ) หรือฟื้นเสียงกลับมาโดยไม่ตั้งใจ
+  // (ถ้าสาเหตุเดิมใช้ไม่ได้กับพาเนลนี้ เช่น mic-denied เฉพาะพาเนล 1) ซึ่งขัดกับกติกา
+  // "ลงได้อย่างเดียว ไม่ขึ้น" — แค่เปิดโหมดพิมพ์ฉุกเฉินให้พาเนลนี้แล้วจบ
+  if (VOICE_ONLY && _emergencyText) {
+    _revealEmergencyText(panelStep, 'already-degraded');
+    return;
+  }
+
   const msgId  = panelStep === 1 ? 'chat-messages' : 'counsel-messages';
   const apiKey = getGeminiKey();
 
@@ -454,7 +525,11 @@ async function _startVoice(panelStep) {
   _setVoiceStatus(panelStep, '⏳ กำลังเชื่อมต่อ…', false);
 
   // ── Try Gemini Live API first ──────────────────────────────
-  if (apiKey && !_liveConnecting) {
+  // Gate on _voiceLevel still being L0: a session already degraded to L1 in an
+  // earlier panel must not re-attempt Live here — gemini-live.js's setup timeout is
+  // 20s of the student's 300s budget, and a successful reconnect would silently
+  // restore L0 while /sessions.degraded still says L1 ("ลงได้อย่างเดียว" would break).
+  if (apiKey && !_liveConnecting && _voiceLevel === 'L0') {
     _liveConnecting = true;
     const sysPrompt = panelStep === 1
       ? buildSystemPrompt(_caseData, true)
@@ -527,13 +602,16 @@ async function _startVoice(panelStep) {
       if (el) el.textContent += chunk;
     };
 
-    client.onModelTranscript = (text) => {
+    client.onModelTranscript = (text, meta) => {
       if (!_pharmacistSpoke || !text || !_voiceMode) return;
       const sub = document.getElementById(`voice-subtitle-${panelStep}`);
       if (sub) sub.textContent = '';
+      // Barge-in: the patient was cut off mid-sentence. Keep what the student heard —
+      // the '…' marks the truncation for both the student and the Step 4 evaluator.
+      const finalText = meta?.interrupted ? `${text}…` : text;
       const hist = panelStep === 1 ? _chatHistory : _counselingHistory;
-      hist.push({ role: 'model', text, via: 'live' });
-      _addMsg(msgId, 'model', text);
+      hist.push({ role: 'model', text: finalText, via: 'live', ...(meta?.interrupted && { interrupted: true }) });
+      _addMsg(msgId, 'model', finalText);
       if (panelStep === 1) updateSessionChat(_session.id, _chatHistory).catch(() => {});
       else                 updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
     };
@@ -541,11 +619,11 @@ async function _startVoice(panelStep) {
     client.onError = (errMsg) => {
       if (!_liveMode || !_voiceMode || _voicePanelStep !== panelStep) return;
       console.warn('GeminiLive error, falling back to Web Speech:', errMsg);
-      _addMsg(msgId, 'system', '⚠️ Live API ไม่พร้อมใช้ — สลับไป Web Speech');
+      _notify(panelStep, '⚠️ ระบบเสียงขัดข้อง กำลังสลับไปโหมดสำรอง');
       try { _liveClient?.disconnect(); } catch (_) {}
       _liveClient = null;
       _liveMode   = false;
-      _startVoiceWebSpeech(panelStep);
+      if (_degrade(panelStep, 'live-runtime-error') === 'L1') _startVoiceWebSpeech(panelStep);
     };
 
     try {
@@ -558,10 +636,15 @@ async function _startVoice(panelStep) {
       return;
     } catch (e) {
       _liveConnecting = false;
-      console.warn('GeminiLive connect failed, falling back to Web Speech:', e.message);
+      console.warn('GeminiLive connect failed:', e.message);
       try { client.disconnect(); } catch (_) {}
       if (!_voiceMode || _voicePanelStep !== panelStep) return; // already switched off
-      _addMsg(msgId, 'system', '⚠️ Live API ไม่พร้อมใช้ — สลับไป Web Speech');
+      // ไมค์ถูกปฏิเสธ = Web Speech ก็ใช้ไมค์ตัวเดียวกัน ลองไปก็ล้มซ้ำ
+      const kind = /ไมโครโฟน/.test(e.message) ? 'mic-denied' : 'live-connect-failed';
+      _notify(panelStep, kind === 'mic-denied'
+        ? '⚠️ ไม่สามารถเข้าถึงไมโครโฟนได้ กรุณาอนุญาตสิทธิ์ไมโครโฟนแล้วลองใหม่'
+        : '⚠️ เชื่อมต่อระบบเสียงไม่ได้ กำลังสลับไปโหมดสำรอง');
+      if (_degrade(panelStep, kind) === 'L2') return;
     }
   }
 
@@ -571,11 +654,10 @@ async function _startVoice(panelStep) {
 
 function _startVoiceWebSpeech(panelStep) {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-  const msgId     = panelStep === 1 ? 'chat-messages' : 'counsel-messages';
 
   if (!SpeechRec) {
-    _addMsg(msgId, 'system', '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
-    _switchMode(panelStep, 'text');
+    _notify(panelStep, '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
+    _degrade(panelStep, 'no-speech-api');
     return;
   }
 
@@ -600,8 +682,12 @@ function _startVoiceWebSpeech(panelStep) {
   };
 
   _voiceRecognition.onerror = (e) => {
-    if (e.error === 'no-speech') return; // normal — onend will restart
+    if (e.error === 'no-speech') return; // ปกติ — onend จะ restart ให้
     console.warn('SpeechRecognition error:', e.error);
+    if (e.error === 'not-allowed' || e.error === 'audio-capture') {
+      _degrade(panelStep, 'speech-not-allowed');
+      return;
+    }
     if (_voiceMode) _setVoiceStatus(panelStep, `⚠️ ไม่สามารถรับเสียงได้ (${e.error})`, false);
   };
 
@@ -615,18 +701,22 @@ function _startVoiceWebSpeech(panelStep) {
   try {
     _voiceRecognition.start();
   } catch (e) {
-    _addMsg(msgId, 'system', `⚠️ ไม่สามารถเริ่มรับเสียงได้: ${e.message}`);
-    _switchMode(panelStep, 'text');
+    _notify(panelStep, `⚠️ ไม่สามารถเริ่มรับเสียงได้: ${e.message}`);
+    _degrade(panelStep, 'speech-not-allowed');
   }
 }
 
 function _stopVoice() {
   _stopCharAnim(_voicePanelStep || 1);
+  // Teardown _liveClient BEFORE flipping _voiceMode off — GeminiLiveClient.disconnect()
+  // calls _flushUserTranscript() to emit any trailing utterance still buffered by VAD
+  // (see comment at gemini-live.js's disconnect()), and onUserTranscript's `if (!_voiceMode)
+  // return;` gate would silently discard it if _voiceMode were already false here.
+  if (_liveClient) { try { _liveClient.interruptPlayback(); _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   _voiceMode      = false;
   _voicePanelStep = 0;
   _liveMode       = false;
   _liveConnecting = false;
-  if (_liveClient) { try { _liveClient.interruptPlayback(); _liveClient.disconnect(); } catch (_) {} _liveClient = null; }
   try { _voiceRecognition?.abort(); } catch (_) {}
   _voiceRecognition = null;
   geminiTTSStop();
@@ -674,6 +764,19 @@ function _setVoiceStatus(panelStep, text, animate) {
   if (el) el.textContent = text;
   const wv = document.getElementById(`waveform-${panelStep}`);
   if (wv) wv.classList.toggle('wave-active', animate);
+}
+
+// แจ้งผู้ใช้แบบค้างจนกว่าจะมีข้อความใหม่
+// ห้ามใช้ _setVoiceStatus แทน — onStateChange เขียนทับมันตลอดเวลา ข้อความจะหายใน 2-3 วินาที
+function _notify(panelStep, msg) {
+  const el = document.getElementById(`voice-notice-${panelStep}`);
+  if (el) el.textContent = msg;
+  // เขียนต่อ DOM ไว้ด้วย (เหมือน _addMsg ทุกครั้ง) — แต่นี่คือ DOM node ของหน้านักศึกษาเอง
+  // เท่านั้น ไม่ได้ push เข้า _chatHistory/_counselingHistory และไม่ persist ไป /sessions
+  // ห้ามเข้าใจว่าทีมจะเห็นข้อความนี้ผ่าน transcript viewer — มันหายไปถ้า refresh
+  // สัญญาณการลดระดับที่ทีมใช้ติดตามจริงคือ markSessionDegraded() ซึ่งเขียน /sessions.degraded
+  // NOTIFY-EXEMPT: this is _notify()'s own call — the mechanism every other site routes through
+  _addMsg(panelStep === 1 ? 'chat-messages' : 'counsel-messages', 'system', msg);
 }
 
 // ── Session Timer ──────────────────────────────────────────────
@@ -749,13 +852,23 @@ async function _initConversation() {
   // ฉากเปิดสร้างอัตโนมัติจากเพศ/อายุ/อาชีพ/โทน (เคสเดิมที่มี sceneDesc ก็ยังใช้ได้)
   const scene = _caseData.sceneDesc || buildSceneDesc(_caseData);
   if (scene) {
-    _addMsg('chat-messages', 'system', `📍 ${scene}`);
+    _addMsg('chat-messages', 'system', `📍 ${scene}`);   // NOTIFY-EXEMPT: informational not failure/required-action, and VOICE_ONLY branch below already surfaces it visibly in #voice-notice-1
+    // VOICE_ONLY hides the transcript, so before เริ่มเคส is pressed there is nothing
+    // else on screen to tell the student who they just walked in on — surface it in
+    // the voice-notice slot too, which IS visible at that point.
+    if (VOICE_ONLY) {
+      const el = document.getElementById('voice-notice-1');
+      if (el) el.textContent = `📍 ${scene}`;
+    }
   }
   // Wait for student to press เริ่มเคส — do not auto-connect
 }
 
 async function _sendChat() {
   if (!_caseStarted) {
+    // NOTIFY-EXEMPT: unreachable under VOICE_ONLY — #text-input-row-1 (the only way to
+    // reach _sendChat) stays hidden until _caseStarted is true, so this guard can only
+    // fire when VOICE_ONLY is false, where .chat-messages is never hidden in the first place
     _addMsg('chat-messages', 'system', '⚠️ กรุณากดปุ่ม "🟢 เริ่มเคส" ก่อนเริ่มสนทนา');
     return;
   }
@@ -784,6 +897,13 @@ async function _sendChat() {
     _chatHistory.push({ role: 'model', text: reply, via: _turnVia() });
     _addMsg('chat-messages', 'model', reply);
 
+    // L1: ฟองแชทถูกซ่อน ถ้าไม่ป้อนซับไตเติลผู้เรียนจะไม่เห็นอะไรเลย
+    // ที่ L2 ไม่ต้อง เพราะฟองแชทถูกเปิดกลับมาแล้ว
+    if (VOICE_ONLY && !_emergencyText) {
+      const sub = document.getElementById('voice-subtitle-1');
+      if (sub) sub.textContent = reply;
+    }
+
     if (_voiceMode && !_liveMode) {
       // Web Speech mode: play Gemini TTS, then recognition will restart via finally
       const waveform = document.getElementById('waveform-1');
@@ -805,7 +925,7 @@ async function _sendChat() {
     updateSessionChat(_session.id, _chatHistory).catch(() => {});
   } catch (e) {
     _hideTyping('chat-messages');
-    _addMsg('chat-messages', 'system', `⚠️ ${e.message}`);
+    _notify(1, `⚠️ ${e.message}`);
   } finally {
     _aiTyping = false;
     _lockInput(false, 'chat-input', 'send-btn');
@@ -821,7 +941,7 @@ function _goStep2() {
   // ไม่มี session = ยังไม่ได้กดเริ่มเคส — เดิมข้ามไป Step 2 ได้เลยทั้งที่ยังไม่ได้ซักประวัติ
   // (และ Step 2/3 เรียก updateSession*(_session.id) ซึ่งจะพังถ้า _session ยังเป็น null)
   if (!_caseStarted || !_session) {
-    _addMsg('chat-messages', 'system', '⚠️ กรุณากดปุ่ม "🟢 เริ่มเคส" และซักประวัติก่อนไปขั้นจ่ายยา');
+    _notify(1, '⚠️ กรุณากดปุ่ม "🟢 เริ่มเคส" และซักประวัติก่อนไปขั้นจ่ายยา');
     return;
   }
   _stopVoice(); // stop voice mode if active
@@ -903,6 +1023,13 @@ async function _sendCounseling() {
     _counselingHistory.push({ role: 'model', text: reply, via: _turnVia() });
     _addMsg('counsel-messages', 'model', reply);
 
+    // L1: ฟองแชทถูกซ่อน ถ้าไม่ป้อนซับไตเติลผู้เรียนจะไม่เห็นอะไรเลย
+    // ที่ L2 ไม่ต้อง เพราะฟองแชทถูกเปิดกลับมาแล้ว
+    if (VOICE_ONLY && !_emergencyText) {
+      const sub = document.getElementById('voice-subtitle-3');
+      if (sub) sub.textContent = reply;
+    }
+
     if (_voiceMode && !_liveMode) {
       // Web Speech mode: play Gemini TTS, then recognition will restart via finally
       const waveform = document.getElementById('waveform-3');
@@ -924,7 +1051,7 @@ async function _sendCounseling() {
     updateSessionCounseling(_session.id, _counselingHistory).catch(() => {});
   } catch (e) {
     _hideTyping('counsel-messages');
-    _addMsg('counsel-messages', 'system', `⚠️ ${e.message}`);
+    _notify(3, `⚠️ ${e.message}`);
   } finally {
     _aiTyping = false;
     _lockInput(false, 'counsel-input', 'send-counsel-btn');
@@ -1051,8 +1178,8 @@ function _toApiHistory(history) {
 function _toggleVoice(inputId, btnId) {
   const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SpeechRec) {
-    const msgId = document.getElementById('counsel-messages') ? 'counsel-messages' : 'chat-messages';
-    _addMsg(msgId, 'system', '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
+    const panelStep = inputId === 'chat-input' ? 1 : 3;
+    _notify(panelStep, '⚠️ เบราว์เซอร์นี้ไม่รองรับการรู้จำเสียง กรุณาใช้ Chrome หรือ Edge');
     return;
   }
 

@@ -192,7 +192,7 @@ Required composite indexes (Firebase Console → Firestore → Indexes):
 |----------|------|-------------|
 | `buildSystemPrompt(caseData, voiceMode)` | Step 1 | 12 กฎเหล็ก, persona, secretInfo, voice overlay |
 | `buildCounselingPrompt(caseData, dispensedDrugs, voiceMode)` | Step 3 | patient รับยาแล้ว รอ counseling |
-| `buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory)` | Step 4 | AI ตัดสิน earned รายข้อ — **ไม่คิดคะแนนรวมเอง** |
+| `buildEvalPrompt(caseData, chatHistory, dispensedDrugs, counselingHistory)` | Step 4 | AI ตัดสิน earned รายข้อ — **ไม่คิดคะแนนรวมเอง** · เทิร์นที่ `via` เป็น `live`/`webspeech` ถูกกำกับ "(ถอดจากเสียง)" + แนบกฎผ่อนผัน ASR (ดู Voice Mode) |
 | `buildRubricForCase(caseData)` | eval + admin | ใช้ rubric ของเคส ถ้าไม่มีก็ seed default + migrate ของเดิม |
 | `collectGuidelineSources(caseData)` | Step 4 → summary | รวมแหล่งอ้างอิงจาก annotation ของ rubric ทั้งเคส (dedup, เรียงตาม `DOMAIN_ORDER`) |
 | `scoreRubric(caseData, itemResults, gender)` | chat.js | **คำนวณคะแนนใน JS แบบ deterministic** |
@@ -268,19 +268,49 @@ Streams mic audio (16 kHz PCM16) → receives audio (24 kHz) + text transcripts
 Transcripts push to `_chatHistory` / `_counselingHistory` → Step 4 eval works unchanged
 Voice: `Aoede` (female) / `Puck` (male). Falls back to text mode on connection failure.
 
+- **Barge-in** — เมื่อนักศึกษาพูดแทรก คำตอบผู้ป่วยส่วนที่พูดไปแล้วจะถูกบันทึกลง history พร้อม `interrupted: true` และต่อท้ายด้วย `…` (นักศึกษาได้ยินไปแล้วจริง — ถ้าทิ้ง eval จะเห็นเทิร์นที่ผู้ป่วยเงียบ)
+- **Session resumption ไม่ได้ต่อไว้โดยตั้งใจ** — session ถูกจำกัด 5 นาทีด้วย timer ต่ำกว่า connection lifetime ~10 นาที (วิธีเปิดอยู่ในคอมเมนต์ `gemini-live.js`)
+- **Debug** — `GeminiLiveClient.debug = true` ใน console เพื่อ log audio frame ด้วย (ปกติ log เฉพาะ setup/transcript/error/goAway)
+- คิวเล่นเสียงใน `audio/playback.worklet.js` จำกัด 45 วินาที ถ้าล้นจะ `console.warn` ไม่ดรอปเงียบ
+
+**⚠️ transcript ไม่ใช่สิ่งที่โมเดลได้ยิน** — โมเดล native audio กินเสียงตรงๆ ส่วน `inputAudioTranscription`
+เป็น ASR อีกสายที่วิ่งขนานกันเพื่อ log/แสดงผลเท่านั้น สองสายนี้ไม่ตรงกันได้ (ผู้ป่วยตอบถูกทั้งที่ข้อความเพี้ยน
+หรือถอดออกมาเป็นภาษาลาว/เขมร) และ **public API ไม่มีทางล็อกภาษา** — `AudioTranscriptionConfig` ไม่มี field ใดๆ เลย
+ผลคือ `buildEvalPrompt()` ต้องผ่อนผันให้ transcript ที่เพี้ยน โดยใช้ **คำตอบของผู้ป่วยเป็นหลักฐาน**
+ว่านักศึกษาถามอะไรจริง (ผู้ป่วยตอบจากเสียง ไม่ได้ตอบจากข้อความ) — ห้ามลบกฎชุดนี้ออกจาก prompt
+
+**โหมดเสียงล้วน (`VOICE_ONLY` ใน `chat.js`)** — โหมดพิมพ์ไม่อยู่ใน UI ปกติแล้ว
+ฟองแชทถูกซ่อนจากผู้เรียน (DOM ยังอยู่ครบ) ทีมดู transcript ได้ที่หน้า summary เมื่อล็อกอินเป็น admin
+
+⚠️ พลิก `VOICE_ONLY` เป็น `false` (แผนถอยกลางการทดลอง) คืนแค่ **UI ที่ผู้เรียนเห็น** (mode switcher/
+ฟองแชท/โหมดพิมพ์กลับมาเรนเดอร์) — **ไม่ใช่ทั้งแอปกลับไปเหมือนเดิม** บันไดสำรองด้านล่างทำงานไม่มีเงื่อนไข
+ไม่ได้อ่านค่า flag นี้เลย
+
+บันไดสำรอง `L0 Live → L1 Web Speech → L2 โหมดพิมพ์ฉุกเฉิน` ลงได้อย่างเดียว
+ตรรกะอยู่ใน `js/voice-ladder.js` (ฟังก์ชันบริสุทธิ์ มี unit test) การลดระดับถูกบันทึกลง
+`/sessions.degraded` ผ่าน `markSessionDegraded()` เพื่อให้ทีมคัดเซสชันที่เจอปัญหาเทคนิคออกจากการวิเคราะห์ได้
+— และเพราะ L1/L2 ใช้โมเดลข้อความ field นี้จึงเป็นบันทึก treatment fidelity ในตัว
+(หมายเหตุ: `_addMsg()`/`_notify()` เขียนแค่ DOM node ของหน้านักศึกษา ไม่ persist และไม่ใช่สัญญาณที่ทีมใช้ —
+`markSessionDegraded()` ต่างหากที่เป็นบันทึกที่ทีมอ่านได้จริง)
+
 ---
 
 ## Gemini Config
 
 Key **never in source** — stored in Firestore `/config/gemini`, loaded into `_geminiKey` after login.
 
-**Model recommendations:**
-| Use case | Model | เหตุผล |
-|---------|-------|-------|
-| Patient simulation (Steps 1,3) | `gemini-2.0-flash` | Thai ดีขึ้น, เร็ว, ราคาใกล้เคียง 1.5-flash |
-| Evaluation (Step 4) | `gemini-2.5-flash` | Thinking mode → scoring แม่นขึ้น |
+**โมเดลที่ใช้จริง** (ตรวจจาก `/config/gemini` เมื่อ 2026-08-13):
 
-ปัจจุบัน `/config/gemini` มีแค่ `model` field เดียว — ควรเพิ่ม `evalModel` (Phase 4)
+| Use case | Model | มาจากไหน |
+|---------|-------|---------|
+| Patient simulation (Steps 1,3) — โหมดพิมพ์ | `gemini-2.5-flash` | `/config/gemini.model` |
+| Evaluation (Step 4) | `gemini-2.5-flash` | `/config/gemini.evalModel` **ยังไม่ตั้ง** → fallback เป็น `model` (`gemini.js:13`) |
+| Patient simulation — โหมดเสียง | `gemini-3.1-flash-live-preview` | hardcoded ใน `gemini-live.js` (คนละ endpoint ไม่อ่านจาก config) |
+
+⚠️ `gemini-2.0-*` และ `gemini-1.5-*` **เลิกใช้แล้ว ห้ามใช้**
+
+ยังไม่มี `evalModel` แยก (Phase 4) — ตอนนี้ไม่พังเพราะ fallback แต่ถ้าจะแยกจริงต้องเซ็ตใน Firestore
+ไม่ต้องแก้โค้ด (`setGeminiConfig()` รับ 3 ตัวอยู่แล้ว)
 
 ---
 
@@ -319,13 +349,14 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 - [ ] Expert review patient behavior (อาจารย์เภสัชกร)
 
 ### Phase 4 — AI Upgrade
-- [ ] แยก `/config/gemini` เป็น `model` + `evalModel`
-- [ ] Upgrade patient → gemini-2.0-flash
-- [ ] Upgrade eval → gemini-2.5-flash (thinking mode)
+- [x] ~~Upgrade eval → gemini-2.5-flash~~ — ใช้อยู่แล้ว (ผ่าน fallback ของ `model`)
+- [ ] ตั้ง `evalModel` ใน Firestore ให้ชัด แทนการพึ่ง fallback (แยก patient/eval ออกจากกันได้จริง)
+- [ ] ตัดสินใจว่าโหมดพิมพ์ควรใช้โมเดลเดียวกับโหมดเสียงไหม — ตอนนี้คนละตัว (`gemini-2.5-flash` vs `gemini-3.1-flash-live-preview`) พฤติกรรมผู้ป่วยจึงไม่เหมือนกันเป๊ะระหว่างสองโหมด ซึ่งกระทบ treatment fidelity ถ้าผู้เรียนสลับโหมดกลางการทดลอง
 
 ### Phase 5 — Validation & Testing
-- [ ] Fix Playwright tests (chat UI + voice UI)
+- [x] Fix Playwright tests (chat UI + voice UI) — 2026-08-20
 - [ ] Inter-rater reliability: AI score vs. human expert score
+- [ ] ทดสอบโหมดฉุกเฉินด้วยมือก่อนเก็บข้อมูลจริง (ปฏิเสธสิทธิ์ไมค์ → ต้องลง L2 ทันที)
 
 ---
 
@@ -335,7 +366,7 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 - Scoring weights hardcoded ใน `prompts.js:8`
 - No `evalModel` separation — patient + evaluator ใช้ model เดียวกัน
 - No survey/questionnaire system
-- Playwright tests: `02-student-flow` (chat UI) และ `04-voice-ui` fail
+- ~~Playwright tests: `02-student-flow` (chat UI) และ `04-voice-ui` fail~~ — **2026-08-20 เขียวหมดแล้ว** 24/24 Playwright · 108/108 `setup/npm test` (`02-student-flow` ถูกเขียนใหม่ให้ตรง flow สุ่มเคส · `summary-citations.test.js` เลิกไล่หา `_escS` ที่ถูกยุบไปแล้ว)
 - ยังไม่มี UI แก้ annotation (rationale/sources) ใน admin rubric editor
 - ปุ่ม "↺ ค่าเริ่มต้น" ต่อหมวดใน rubric editor ลบ annotation ของหมวดนั้นทิ้ง (มี confirm dialog)
 - ปุ่ม "✕" ลบข้อ rubric ทีละข้อ ถ้าข้อนั้นมี annotation จะมี confirm dialog ก่อนลบ (ข้อที่ไม่มี annotation ลบได้ทันทีไม่มี confirm)
