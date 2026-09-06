@@ -155,6 +155,13 @@ All JS is **global scope**. Adding a `<script>` out of order causes "X is not de
 จากเนื้อไฟล์จริงให้ก่อน upload artifact (ค่าใน repo จึงไม่สำคัญ ของที่ deploy เป็นตัวจริง)
 ตรวจเองได้ด้วย `node scripts/stamp-assets.js --check`
 
+⚠️ **ข้อนี้เพิ่งเป็นจริงตั้งแต่ 2026-09-06** — ก่อนหน้านั้น Pages ตั้งเป็น **legacy (เสิร์ฟไฟล์ดิบจาก branch)**
+`deploy.yml` จึงรันสำเร็จแต่ artifact ที่ stamp แล้วไม่เคยขึ้นเว็บเลย ตัวที่ publish จริงคือ run
+`pages-build-deployment` ⇒ ไฟล์ที่เพิ่มใหม่ค้างที่ `?v=0` มาตลอด (`letters.js` `inbox.js` `voice-ladder.js`)
+แก้แล้วด้วย `gh api -X PUT repos/pikar10tu/PharmBot/pages -f build_type=workflow`
+**ถ้าวันไหนเห็น `?v=0` บนเว็บจริงอีก ให้เช็คค่านี้ก่อนเป็นอันดับแรก:**
+`gh api repos/pikar10tu/PharmBot/pages --jq '.build_type'` ต้องได้ `workflow`
+
 **HTML escaping** — ใช้ `escapeHtml()` เสมอเมื่อยัดค่าลง attribute, `escapeHtmlBr()` เมื่อต้องคง `\n`
 ทั้งสองอยู่ใน `js/utils.js` (เดิมมี helper ก๊อปกัน 5 ตัวและ 3 ตัวไม่ escape เครื่องหมายคำพูด)
 
