@@ -161,6 +161,10 @@ async function renderDashboard(container) {
   if (isAdm) {
     document.getElementById('btn-admin')?.addEventListener('click', () => Router.go('admin'));
   }
+
+  // จดหมายประกาศ — เด้งที่หน้านี้ที่เดียว (หน้าแรกหลังล็อกอินเสมอ)
+  // ยิงหลายหน้าจอเสี่ยงเด้งซ้อนกลางเซสชันฝึก
+  initMailbox();
 }
 
 // โควต้าเต็ม — ต้องบอกให้รู้ทั้งทางสายตาและทาง screen reader
@@ -190,6 +194,7 @@ function renderNavbar(pid) {
         Pharm From Home
       </span>
       <div class="navbar-right">
+        ${mailButtonHtml()}
         <span class="text-dim text-sm">${pid || ''}</span>
         <button class="btn btn-ghost btn-sm" id="logout-btn">ออกจากระบบ</button>
       </div>
@@ -201,5 +206,8 @@ function renderNavbar(pid) {
 // ระดับเดียว แทนการผูก listener ใหม่ทุกครั้ง (ฟังก์ชัน attachLogout() เดิมไม่เคยถูกเรียก
 // จากที่ไหนเลย — ลบทิ้งแล้ว)
 document.addEventListener('click', e => {
-  if (e.target && e.target.id === 'logout-btn') logout();
+  if (!e.target) return;
+  if (e.target.id === 'logout-btn') logout();
+  // closest() เพราะคลิกอาจโดน badge ที่ซ้อนอยู่ในปุ่ม ไม่ใช่ตัวปุ่มเอง
+  if (e.target.closest('#mail-btn')) Router.go('inbox');
 });

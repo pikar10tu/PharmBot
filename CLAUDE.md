@@ -25,6 +25,7 @@ auth domain `@pharmbot.local`, firebase project `pharmbot-8496c`,
 | เพิ่ม/แก้ cases | `setup/seed-cases.js` แล้วรัน `node seed-cases.js` |
 | Admin panel | `js/screens/admin.js` (1,093 บรรทัด — ⚠️ ใหญ่) |
 | เพิ่ม route ใหม่ | `js/router.js` + `index.html` (เพิ่ม `<script>`) |
+| เพิ่ม/แก้จดหมายประกาศถึงผู้เรียน | `js/letters.js` — แก้ array `LETTERS` แล้ว push (ดู `docs/specs/2026-09-06-letter-inbox.md`) |
 | แก้หลักฐานอ้างอิงในเฉลย (annotation) | `docs/specs/2026-08-09-static-guideline-grounding.md` |
 
 ---
@@ -131,6 +132,7 @@ auth.js             → uses db, loadGeminiConfig
 db.js               → Firestore CRUD helpers
 prompts.js          → pure prompt-builder functions (no side effects)
 drug-data.js        → DRUG_SEED array
+letters.js          → LETTERS + ตรรกะเลือกจดหมายที่จะเด้ง (pure)
 screens/*.js        → use all of the above
 router.js           → init() called LAST, after onAuthReady()
 ```
@@ -145,7 +147,7 @@ All JS is **global scope**. Adding a `<script>` out of order causes "X is not de
 
 ### Routing
 Hash-based SPA (`js/router.js`, 57 บรรทัด)
-Routes: `#login #dashboard #groups #cases #chat #summary #history #admin`
+Routes: `#login #dashboard #groups #cases #chat #summary #history #inbox #admin`
 Params ส่งผ่าน `Router.go('chat', { caseId })` — **params หายเมื่อ refresh หน้า**
 
 ### Firestore Collections
@@ -161,6 +163,7 @@ Params ส่งผ่าน `Router.go('chat', { caseId })` — **params หา
 | `/results/{id}` | score fields + feedbackJson + `guidelineRefs[]` + `groundingVersion` | linked to sessionId + userId |
 | `/guidelineIndex/{groupId}_{shard}` | `{ corpusVersion, groupId, entries[] }` | **offline เท่านั้น** — วัตถุดิบเขียน annotation ไม่มีโค้ดฝั่งเบราว์เซอร์อ่าน |
 | `/guidelineChunks/{chunkId}` | `{ docId, page, heading, text, summaryTh, hash }` | **offline เท่านั้น** — เนื้อหาเต็มสำหรับร่างเฉลย |
+| `/letterReads/{uid}` | `{ readIds[], updatedAt }` | จดหมายที่ผู้เรียนคนนี้เปิดอ่านแล้ว — **doc เดียวที่นักศึกษาเขียนเองได้** |
 | `/surveys/{id}` | **ยังไม่มี** | confidence + SUS |
 
 Required composite indexes (Firebase Console → Firestore → Indexes):
@@ -366,7 +369,7 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 - Scoring weights hardcoded ใน `prompts.js:8`
 - No `evalModel` separation — patient + evaluator ใช้ model เดียวกัน
 - No survey/questionnaire system
-- ~~Playwright tests: `02-student-flow` (chat UI) และ `04-voice-ui` fail~~ — **2026-08-20 เขียวหมดแล้ว** 24/24 Playwright · 108/108 `setup/npm test` (`02-student-flow` ถูกเขียนใหม่ให้ตรง flow สุ่มเคส · `summary-citations.test.js` เลิกไล่หา `_escS` ที่ถูกยุบไปแล้ว)
+- ~~Playwright tests: `02-student-flow` (chat UI) และ `04-voice-ui` fail~~ — **2026-08-20 เขียวหมดแล้ว** (นับล่าสุด 2026-09-06: 31/31 Playwright · 116/116 `setup/npm test`) (`02-student-flow` ถูกเขียนใหม่ให้ตรง flow สุ่มเคส · `summary-citations.test.js` เลิกไล่หา `_escS` ที่ถูกยุบไปแล้ว)
 - ยังไม่มี UI แก้ annotation (rationale/sources) ใน admin rubric editor
 - ปุ่ม "↺ ค่าเริ่มต้น" ต่อหมวดใน rubric editor ลบ annotation ของหมวดนั้นทิ้ง (มี confirm dialog)
 - ปุ่ม "✕" ลบข้อ rubric ทีละข้อ ถ้าข้อนั้นมี annotation จะมี confirm dialog ก่อนลบ (ข้อที่ไม่มี annotation ลบได้ทันทีไม่มี confirm)
