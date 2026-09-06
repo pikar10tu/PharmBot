@@ -56,6 +56,15 @@ service cloud.firestore {
                        (isAuth() && resource.data.userId == request.auth.uid);
     }
 
+    // ── Letter reads (own read/write, admin read all) ─────────
+    // doc id = uid → ตรวจเจ้าของได้ตรง ๆ ไม่ต้อง query
+    // นี่คือที่เดียวที่นักศึกษาเขียน doc ของตัวเองได้ — จงใจแยกออกจาก /users
+    // เพราะ /users มี field role ที่คุมสิทธิ์ ห้ามเปิดให้เขียน
+    match /letterReads/{userId} {
+      allow read:  if isOwner(userId) || isAdmin();
+      allow write: if isOwner(userId);
+    }
+
     // ── Results (own read/write, admin read all) ──────────────
     match /results/{resultId} {
       allow read:  if isAdmin() ||

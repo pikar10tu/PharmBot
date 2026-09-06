@@ -134,6 +134,20 @@ async function getSessionById(sessionId) {
   return snap.exists ? { id: snap.id, ...snap.data() } : null;
 }
 
+// ── Letters (กล่องจดหมายประกาศ) ───────────────────────────────
+// doc id = uid ตรง ๆ → rules ตรวจเจ้าของได้โดยไม่ต้อง query (ดู firestore.rules)
+async function getLetterReads(uid) {
+  const snap = await db.collection('letterReads').doc(uid).get();
+  return snap.exists ? (snap.data().readIds || []) : [];
+}
+
+async function markLetterRead(uid, letterId) {
+  await db.collection('letterReads').doc(uid).set({
+    readIds:   firebase.firestore.FieldValue.arrayUnion(letterId),
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+  }, { merge: true });
+}
+
 // ── Admin helpers ─────────────────────────────────────────────
 async function adminSaveCase(caseData, caseId = null) {
   if (caseId) {

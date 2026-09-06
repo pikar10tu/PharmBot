@@ -1,6 +1,6 @@
 // ============================================================
 //  router.js — Hash-based SPA routing
-//  Routes: #login, #dashboard, #groups, #cases, #chat, #summary, #history, #admin
+//  Routes: #login, #dashboard, #groups, #cases, #chat, #summary, #history, #inbox, #admin
 // ============================================================
 
 const SCREENS = {
@@ -11,6 +11,7 @@ const SCREENS = {
   chat:      { render: renderChat,      requireAuth: true  },
   summary:   { render: renderSummary,   requireAuth: true  },
   history:   { render: renderHistory,   requireAuth: true  },
+  inbox:     { render: renderInbox,     requireAuth: true  },
   admin:     { render: renderAdmin,     requireAuth: true, requireAdmin: true },
 };
 

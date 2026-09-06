@@ -1,0 +1,154 @@
+# กล่องจดหมาย + pop-up ประกาศ
+
+**วันที่:** 2026-09-06
+**สถานะ:** implement แล้ว 2026-09-06 — **ยังต้อง deploy `firestore.rules`** ก่อนถึงจะทำงานจริง
+
+## ปัญหา
+
+ต้องประกาศผลสอบ Pre-CC1 ให้ทั้งรุ่น 83 คนรับรู้ ช่องทางเดียวที่มีตอนนี้คือบอกปากต่อปาก
+แอปไม่มีที่ประกาศอะไรเลย
+
+เงื่อนไขที่ต้องได้:
+1. **เด้งครั้งเดียว** ต่อคน สำหรับคนที่ยังไม่เคยเปิด
+2. **พ้นสัปดาห์นี้แล้วต้องหยุดเด้ง** — คนที่ไม่ได้เข้าช่วงนี้ ไม่ควรโดน pop-up เรื่องเก่าตอนเดือนท้าย ๆ
+3. **จดหมายยังคาอยู่ในกล่อง** ตลอดไป กลับมาอ่านได้
+
+## สิ่งที่ไม่ทำ (YAGNI)
+
+UI จัดการจดหมายใน admin · rich text / markdown ในเนื้อจดหมาย · แจ้งเตือนอีเมล ·
+หน้าสรุปว่าใครอ่านแล้วบ้าง (rules เปิดให้ admin อ่าน `/letterReads` ไว้แล้ว
+ถ้าอยากดูภายหลังเขียน query ได้เลย ไม่ต้องแก้ schema)
+
+---
+
+## เนื้อจดหมายฉบับแรก
+
+```
+หัวเรื่อง: 📊 ผลสอบ Pre-CC1 ออกแล้ว
+วันที่:    3 ก.ย. 2026
+
+• ผ่านเกณฑ์ 47 / 83 คน (56.63%)
+• คะแนนเฉลี่ยรวม 11.19 / 16
+```
+
+ไม่มีลายเซ็นผู้ส่ง — งานสอบ Pre-CC1 เป็นคนละงานกับทีมพัฒนาแอป
+การเซ็น "ทีม Pharm From Home" จะสื่อความเป็นเจ้าของผิด
+
+`popupUntil = '2026-09-14'` (สิ้นสุดสัปดาห์ถัดไป)
+
+---
+
+## สถาปัตยกรรม
+
+### `js/letters.js` (ไฟล์ใหม่ — pure)
+
+ตามแพทเทิร์นเดียวกับ `js/voice-ladder.js`: ไม่แตะ DOM ไม่แตะ Firebase
+เพื่อให้เทสต์ได้ด้วย `new Function(SRC)` ใน `setup/test/`
+
+```js
+const LETTERS = [
+  {
+    id:         'pre-cc1-2026-09',
+    subject:    '📊 ผลสอบ Pre-CC1 ออกแล้ว',
+    date:       '2026-09-03',
+    popupUntil: '2026-09-14',   // null = ไม่เด้งเลย ขึ้นแค่ในกล่อง
+    body:       '• ผ่านเกณฑ์ 47 / 83 คน (56.63%)\n• คะแนนเฉลี่ยรวม 11.19 / 16',
+  },
+];
+
+// จดหมายฉบับแรกที่ยังไม่อ่าน และยังไม่เลย popupUntil — ไม่มีก็คืน null
+function pickPopupLetter(letters, readIds, todayISO) { … }
+
+// จำนวนที่ยังไม่อ่าน สำหรับ badge (นับทุกฉบับ ไม่สนใจ popupUntil)
+function countUnread(letters, readIds) { … }
+```
+
+เทียบวันด้วยสตริง `YYYY-MM-DD` ตรง ๆ (`todayISO <= popupUntil`) — เรียงตามพจนานุกรม
+ตรงกับเรียงตามเวลาอยู่แล้ว ไม่ต้องยุ่งกับ timezone ของ `Date`
+
+ไม่มี `from` ใน schema โดยตั้งใจ — จดหมายฉบับหลังที่อยากลงชื่อ เขียนต่อท้าย `body` ได้เลย
+
+**เนื้อ `body` เป็น plain text** เรนเดอร์ผ่าน `escapeHtmlBr()` (`js/utils.js`)
+ปลอดภัยจาก XSS แต่จัดตัวหนา/หัวข้อไม่ได้ — ยอมรับได้ ถ้าฉบับหลังต้องการจัดรูปแบบค่อยคิดใหม่
+
+### Firestore `/letterReads/{uid}`
+
+```js
+{ readIds: ['pre-cc1-2026-09'], updatedAt: <serverTimestamp> }
+```
+
+doc id = uid ตรง ๆ ทำให้ rules สั้นและไม่ต้อง query
+
+```
+match /letterReads/{userId} {
+  allow read:  if isOwner(userId) || isAdmin();
+  allow write: if isOwner(userId);
+}
+```
+
+⚠️ **ต้อง deploy rules แยกต่างหาก** (`firebase deploy --only firestore:rules` หรือแปะใน Console)
+ถ้าลืม จะเขียนไม่ผ่าน → pop-up เด้งซ้ำทุกครั้งที่เข้า dashboard
+
+เหตุที่ไม่ใช้ `/users/{uid}` ที่มีอยู่แล้ว: `firestore.rules` ปัจจุบันให้ `allow write: if isAdmin()`
+นักศึกษาเขียน doc ตัวเองไม่ได้ การเปิดสิทธิ์เขียนตรงนั้นจะกระทบ `role` ซึ่งเป็นฟิลด์ควบคุมสิทธิ์
+
+เหตุที่ไม่ใช้ localStorage: เปิดคนละเครื่อง/คนละเบราว์เซอร์แล้วจะเด้งซ้ำ
+
+### `js/db.js` — เพิ่ม 2 ฟังก์ชัน
+
+| ฟังก์ชัน | คืนค่า | หมายเหตุ |
+|---|---|---|
+| `getLetterReads(uid)` | `string[]` | ไม่มี doc = `[]` · โยน error ต่อ ให้ผู้เรียกตัดสินใจ |
+| `markLetterRead(uid, letterId)` | — | `set({ readIds: arrayUnion(id), updatedAt }, { merge: true })` |
+
+### `js/screens/inbox.js` (ไฟล์ใหม่) — route `#inbox`
+
+- **หน้ากล่องจดหมาย** — การ์ดรายฉบับเรียงใหม่สุดก่อน จุดสีหน้าหัวเรื่อง = ยังไม่อ่าน
+  กดแล้วกางเนื้อในหน้าเดียวกัน (accordion) **ไม่ทำ route ย่อย** เพราะ `Router._params`
+  หายเมื่อ refresh (`js/router.js`) — ลิงก์จดหมายรายฉบับจะพังเงียบ
+- **`showLetterPopup(letter)`** — ใช้ `.modal-overlay` / `.modal` ที่มีใน `css/main.css:396`
+  ไม่เพิ่ม CSS ใหม่ · ปุ่มเดียว "รับทราบ"
+- **ปิดทางไหนก็นับว่าอ่านแล้ว** — ปุ่ม / Esc / คลิกนอกกรอบ
+  (เห็นแล้วคือเห็นแล้ว ถ้าไม่นับจะเด้งซ้ำจนน่ารำคาญ)
+- **cache `readIds`** ในตัวแปรระดับไฟล์ → ยิง Firestore **1 read ต่อการล็อกอิน**
+  ไม่ใช่ทุกครั้งที่เปลี่ยนหน้า · `markLetterRead` สำเร็จแล้วอัปเดต cache ในหน่วยความจำด้วย
+
+### จุดเชื่อม
+
+| ไฟล์ | แก้อะไร |
+|---|---|
+| `js/screens/dashboard.js` | `renderNavbar()` เพิ่มปุ่ม ✉️ + badge · ท้าย `renderDashboard()` เรียก pop-up |
+| `js/router.js` | เพิ่ม `inbox: { render: renderInbox, requireAuth: true }` |
+| `index.html` | เพิ่ม `<script>` 2 ตัว — `js/letters.js` ก่อน `screens/`, `js/screens/inbox.js` ก่อน `router.js` |
+| `firestore.rules` | เพิ่ม block `/letterReads/{userId}` |
+
+ปุ่ม ✉️ อยู่ใน navbar ที่ถูก re-render ทุกหน้าจอ → ผูกคลิกด้วย **delegated listener ที่ `document`**
+แบบเดียวกับ `logout-btn` (`dashboard.js` ท้ายไฟล์) ไม่ผูก listener ใหม่ทุกครั้ง
+
+pop-up ยิงที่ `renderDashboard()` **ที่เดียว** — เป็นหน้าแรกหลังล็อกอินเสมอ
+(`index.html` เด้ง `#dashboard` เมื่อ hash ว่างหรือเป็น `login`) ยิงหลายที่ = เสี่ยงเด้งซ้อนกลางเซสชันฝึก
+
+## เมื่อพัง
+
+| เหตุ | พฤติกรรม | เหตุผล |
+|---|---|---|
+| อ่าน `/letterReads` ไม่ได้ | ไม่เด้ง pop-up · ไม่ขึ้น badge · `console.warn` | เงียบไว้ดีกว่าเด้งใส่คนที่อ่านไปแล้ว |
+| `markLetterRead` ไม่ผ่าน | ปิด modal ตามปกติ ไม่บล็อกผู้ใช้ | รอบหน้าเด้งซ้ำ ยอมรับได้ · ห้ามค้าง modal ทับหน้า dashboard |
+| ไม่มีจดหมายที่เข้าเงื่อนไข | ไม่ทำอะไร | — |
+
+## เทสต์
+
+`setup/test/letters.test.js` (node:test ตามแพทเทิร์น `voice-ladder.test.js`)
+
+1. ยังไม่อ่าน + ยังไม่เลย `popupUntil` → คืนจดหมายฉบับนั้น
+2. อ่านแล้ว → `null`
+3. เลย `popupUntil` แล้ว → `null` (นี่คือข้อที่คุ้มกันเงื่อนไข "ไม่เด้งเดือนท้าย ๆ")
+4. `popupUntil: null` → `null` (จดหมายที่ตั้งใจให้ขึ้นแค่ในกล่อง)
+5. `countUnread` นับถูก และ**ไม่สน** `popupUntil` (จดหมายหมดอายุเด้งแล้วยังนับว่ายังไม่อ่านอยู่)
+
+ตรวจ regression เดิม: `cd setup && npm test` (108 เทสต์) และ `npx playwright test` (24 เทสต์)
+
+## หลังสัปดาห์นี้
+
+ไม่ต้องทำอะไร — พ้น `2026-09-14` `pickPopupLetter()` คืน `null` เอง
+จดหมายยังอยู่ในกล่องและยังนับใน badge ของคนที่ยังไม่เคยเปิด
