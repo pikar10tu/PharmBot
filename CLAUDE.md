@@ -25,8 +25,21 @@ auth domain `@pharmbot.local`, firebase project `pharmbot-8496c`,
 | เพิ่ม/แก้ cases | `setup/seed-cases.js` แล้วรัน `node seed-cases.js` |
 | Admin panel | `js/screens/admin.js` (1,093 บรรทัด — ⚠️ ใหญ่) |
 | เพิ่ม route ใหม่ | `js/router.js` + `index.html` (เพิ่ม `<script>`) |
-| เพิ่ม/แก้จดหมายประกาศถึงผู้เรียน | `js/letters.js` — แก้ array `LETTERS` แล้ว push (ดู `docs/specs/2026-09-06-letter-inbox.md`) |
+| เพิ่ม/แก้จดหมายประกาศถึงผู้เรียน | `js/letters.js` — แก้ array `LETTERS` แล้ว push (ดู `docs/specs/2026-09-06-letter-inbox.md`) · **⛔ เฉพาะเรื่องของแอปนี้ — ดู "ขอบเขตของกล่องจดหมาย" ด้านล่าง** |
 | แก้หลักฐานอ้างอิงในเฉลย (annotation) | `docs/specs/2026-08-09-static-guideline-grounding.md` |
+
+### ⛔ ขอบเขตของกล่องจดหมาย (`#inbox`)
+
+กล่องจดหมายในแอปนี้ใช้ประกาศ **เรื่องของ Pharm From Home เท่านั้น** — เพิ่มเคสใหม่ · ปิดปรับปรุงระบบ ·
+วิธีใช้โหมดเสียง · เตือนโควต้า
+
+**ประกาศระดับชั้นปี (ผลสอบ · กิจกรรมรุ่น · เรื่องส่วนกลาง) ไม่ใช่ของที่นี่** — ไปที่ **dashboard รุ่น
+(RxTU10 · `D:\RXTU\rxtu10-v2`)** ซึ่งมี mailbox ครบอยู่แล้วและ**ส่งถึงทุกคนได้จากหน้า Admin โดยไม่ต้องเขียนโค้ด**
+(`buildBroadcastMail` → `src/views/AdminView.vue`)
+
+เคยพลาดมาแล้ว: ประกาศผลสอบ Pre-CC1 (ก.ย. 2026) ถูกสร้างเป็นฟีเจอร์ใหม่ในแอปนี้ทั้งที่ dashboard
+ทำได้อยู่แล้ว — จดหมายฉบับนั้นถูกถอดออกจาก `LETTERS` แล้ว แต่ตัวกล่องจดหมายเก็บไว้ใช้ต่อ
+(`LETTERS` ว่างได้ตามปกติ: กล่องจะขึ้น "ยังไม่มีจดหมาย" และ badge ไม่โผล่)
 
 ---
 
