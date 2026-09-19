@@ -32,6 +32,7 @@ async function renderAdmin(container) {
         <button class="btn btn-sm tab-btn ${_adminTab==='cases'   ? 'btn-primary' : 'btn-ghost'}" data-tab="cases">📝 เคส</button>
         <button class="btn btn-sm tab-btn ${_adminTab==='drugs'   ? 'btn-primary' : 'btn-ghost'}" data-tab="drugs">💊 ยา</button>
         <button class="btn btn-sm tab-btn ${_adminTab==='results' ? 'btn-primary' : 'btn-ghost'}" data-tab="results">📊 ผลการประเมิน</button>
+        <button class="btn btn-sm btn-ghost" id="promptlab-btn" style="margin-left:auto;">🧪 Prompt Lab</button>
       </div>
 
       <div id="admin-body">
@@ -40,6 +41,7 @@ async function renderAdmin(container) {
     </div>`;
 
   document.getElementById('back-btn').addEventListener('click', () => Router.go('dashboard'));
+  document.getElementById('promptlab-btn').addEventListener('click', () => Router.go('promptlab'));
 
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {

@@ -27,6 +27,12 @@ async function getAllCases() {
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
+// ทุกเคสไม่ว่า isActive หรือไม่ — ใช้ตอนแอดมินต้องเห็นเคสที่ยังปิดอยู่ (เช่น เคสที่กำลังจูน prompt)
+async function getAllCasesForAdmin() {
+  const snap = await db.collection('cases').get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
 // ── Drugs ─────────────────────────────────────────────────────
 async function getDrugs() {
   const snap = await db.collection('drugs').where('isActive', '==', true).get();
@@ -187,4 +193,18 @@ async function adminSaveGroup(groupData, groupId) {
 
 async function adminDeleteGroup(groupId) {
   await db.collection('diseaseGroups').doc(groupId).delete();
+}
+
+// ── Prompt Lab (admin-only — ดู js/screens/promptlab.js) ──────
+async function savePromptLabFeedback(data) {
+  const ref = await db.collection('promptLabFeedback').add({
+    ...data,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  return ref.id;
+}
+
+async function getPromptLabFeedback() {
+  const snap = await db.collection('promptLabFeedback').orderBy('createdAt', 'desc').limit(200).get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }

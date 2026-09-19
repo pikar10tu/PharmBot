@@ -50,6 +50,8 @@ const DRUGS = [
   { drugCode: 'azithromycin_250',   name: 'Azithromycin',             strength: '250mg',     form: 'เม็ด',        category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
   { drugCode: 'azithromycin_500',   name: 'Azithromycin',             strength: '500mg',     form: 'เม็ด',        category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
   { drugCode: 'cefalexin_500',      name: 'Cefalexin',                strength: '500mg',     form: 'แคปซูล',      category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
+  { drugCode: 'clindamycin_300',    name: 'Clindamycin',              strength: '300mg',     form: 'แคปซูล',      category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
+  { drugCode: 'clarithromycin_250', name: 'Clarithromycin',           strength: '250mg',     form: 'เม็ด',        category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
   { drugCode: 'doxycycline_100',    name: 'Doxycycline',              strength: '100mg',     form: 'แคปซูล',      category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
   { drugCode: 'norfloxacin_400',    name: 'Norfloxacin',              strength: '400mg',     form: 'เม็ด',        category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
   { drugCode: 'cotrimoxazole_480',  name: 'Cotrimoxazole (TMP-SMX)',  strength: '480mg',     form: 'เม็ด',        category: 'ยาปฏิชีวนะ',               isOtc: false, isActive: true },
