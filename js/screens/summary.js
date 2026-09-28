@@ -130,6 +130,13 @@ function _renderSummaryUI(container, pid, result, session = null) {
         <button class="btn btn-primary" onclick="Router.go('groups')">🩺 ฝึกเคสใหม่</button>
       </div>
 
+      <!-- EC: ช่องทางติดต่อ ลดผลกระทบทางใจกรณีคะแนนต่ำ -->
+      <div class="card mb-3 text-sm">
+        <p class="mb-1">💬 ผลการประเมินนี้ใช้เพื่อการฝึกและพัฒนาตนเองเท่านั้น ไม่มีผลต่อผลการเรียน
+          หากท่านมีข้อสงสัยเกี่ยวกับผลการประเมิน หรือต้องการคำปรึกษาเพิ่มเติม สามารถติดต่อผู้วิจัยได้ที่</p>
+        ${researchContactHtml()}
+      </div>
+
     </div>`;
 }
 

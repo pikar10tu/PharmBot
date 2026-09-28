@@ -212,6 +212,7 @@ function _renderChatUI(container, pid) {
             </div>
             <div class="voice-status-text" id="voice-status-1">พร้อมเริ่มการสนทนา</div>
           </div>
+          <div class="alert alert-warning pii-warning" id="pii-warning-1" role="note">⚠️ ${escapeHtml(PII_WARNING)}</div>
           <button class="btn btn-success" id="start-case-btn" style="margin-top:0.75rem;font-size:1rem;padding:0.55rem 1.6rem;position:relative;z-index:2;">🟢 เริ่มเคส</button>
           <div class="voice-subtitle" id="voice-subtitle-1" style="position:relative;z-index:2;"></div>
           <div class="voice-notice" id="voice-notice-1" style="position:relative;z-index:2;"></div>
@@ -278,6 +279,7 @@ function _renderChatUI(container, pid) {
             </div>
             <div class="voice-status-text" id="voice-status-3">⏳ กำลังเชื่อมต่อ…</div>
           </div>
+          <div class="pii-reminder" role="note">🔒 ${escapeHtml(PII_WARNING)}</div>
           <div class="voice-subtitle" id="voice-subtitle-3" style="position:relative;z-index:2;"></div>
           <div class="voice-notice" id="voice-notice-3" style="position:relative;z-index:2;"></div>
         </div>
@@ -402,6 +404,7 @@ function _attachEvents() {
     _caseStarted        = true;
     _refreshGuardActive = true;   // warn on accidental refresh from here on
     btn?.classList.add('hidden');
+    document.getElementById('pii-warning-1')?.classList.add('hidden');
     _startSessionTimer();
     _startVoice(1).catch(e => console.warn('start voice:', e.message));
   });

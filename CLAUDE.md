@@ -137,6 +137,7 @@ admin.firestore().collection('config').doc('gemini').set({
 ### Script Load Order (index.html — critical)
 ```
 utils.js            → escapeHtml / escapeHtmlBr (ไม่มี dependency ต้องมาก่อนสุด)
+research-info.js    → ข้อความจริยธรรมที่ EC 69PH121 ขอ (นโยบายความเป็นส่วนตัว, ช่องทางติดต่อ, PII_WARNING) — ต้องตรงกับ ScF 05_01
 firebase-config.js  → initializes firebase + auth + db globals
 gemini.js           → uses db (loadGeminiConfig)
 gemini-live.js      → WebSocket client for Gemini Live API (voice mode)

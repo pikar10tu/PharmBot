@@ -39,7 +39,10 @@ function renderLogin(container) {
           </button>
         </form>
 
-        <p class="text-center text-xs text-dim mt-2">
+        <p class="text-center text-sm mt-2">
+          <a href="#" id="privacy-link">🔒 นโยบายความเป็นส่วนตัวและสิทธิของผู้เข้าร่วมวิจัย</a>
+        </p>
+        <p class="text-center text-xs text-dim mt-1">
           Pharm From Home — สำหรับการศึกษาเท่านั้น
         </p>
       </div>
@@ -98,6 +101,11 @@ function renderLogin(container) {
   document.getElementById('login-form').addEventListener('submit', e => {
     e.preventDefault();
     doLogin();
+  });
+
+  document.getElementById('privacy-link').addEventListener('click', e => {
+    e.preventDefault();
+    showPrivacyModal();
   });
 
   idInput.focus();
