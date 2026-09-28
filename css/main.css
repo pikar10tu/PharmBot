@@ -1197,3 +1197,13 @@ p  { line-height: 1.7; color: var(--text-dim); }
 .privacy-body h4 { margin: 0.75rem 0 0.35rem; }
 .privacy-body ul { padding-left: 1.2rem; margin: 0; line-height: 1.6; }
 .privacy-body li { margin-bottom: 0.3rem; }
+
+/* ลิงก์ทั่วไป — เดิมไม่มีสไตล์ ได้สีน้ำเงินเข้มของเบราว์เซอร์ ซึ่งจมหายบนพื้นมืด */
+a { color: var(--accent); }
+.privacy-link {
+  display: inline-flex; align-items: center; gap: 0.4rem;
+  padding: 0.5rem 1rem; border-radius: 999px;
+  border: 1px solid var(--accent); color: var(--accent);
+  font-weight: 600; text-decoration: none; transition: background 0.2s;
+}
+.privacy-link:hover, .privacy-link:focus-visible { background: var(--teal-glow); text-decoration: underline; }

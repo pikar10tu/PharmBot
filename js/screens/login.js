@@ -40,7 +40,7 @@ function renderLogin(container) {
         </form>
 
         <p class="text-center text-sm mt-2">
-          <a href="#" id="privacy-link">🔒 นโยบายความเป็นส่วนตัวและสิทธิของผู้เข้าร่วมวิจัย</a>
+          <a href="#" id="privacy-link" class="privacy-link">🔒 นโยบายความเป็นส่วนตัวและสิทธิของผู้เข้าร่วมวิจัย</a>
         </p>
         <p class="text-center text-xs text-dim mt-1">
           Pharm From Home — สำหรับการศึกษาเท่านั้น
