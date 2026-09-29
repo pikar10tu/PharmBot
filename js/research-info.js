@@ -6,11 +6,12 @@
 
 // EC (69PH121 ครั้งที่ 1) ให้ตัดตำแหน่งวิชาการออก และใช้คำว่า "ผู้เข้าร่วมวิจัย" ทั้งเอกสาร
 // ⛔ ห้ามใส่เบอร์โทรส่วนตัวในไฟล์นี้ — ไฟล์ JS ทุกไฟล์เปิดอ่านได้สาธารณะบน GitHub Pages/repo (เบอร์อยู่ใน PIS แล้ว)
+// role ต้องตรงกับ PIS/หนังสือยินยอม: อาจารย์ = ผู้วิจัย, นักศึกษา = ผู้ช่วยวิจัย
 const RESEARCH_CONTACTS = [
-  { name: 'ปัทมวรรณ โกสุมา', email: 'pattamako@tu.ac.th' },
-  { name: 'นางสาวนภัสวรรณ แผลงศร', email: 'napassawan.phl@dome.tu.ac.th' },
-  { name: 'นางสาวนันตรา อินทร์น้อย', email: 'nantra.inn@dome.tu.ac.th' },
-  { name: 'นายประวิชญ์ อำนวยพันธ์วิไล', email: 'prawich.aum@dome.tu.ac.th' },
+  { name: 'ปัทมวรรณ โกสุมา', role: 'ผู้วิจัย', email: 'pattamako@tu.ac.th' },
+  { name: 'นางสาวนภัสวรรณ แผลงศร', role: 'ผู้ช่วยวิจัย', email: 'napassawan.phl@dome.tu.ac.th' },
+  { name: 'นางสาวนันตรา อินทร์น้อย', role: 'ผู้ช่วยวิจัย', email: 'nantra.inn@dome.tu.ac.th' },
+  { name: 'นายประวิชญ์ อำนวยพันธ์วิไล', role: 'ผู้ช่วยวิจัย', email: 'prawich.aum@dome.tu.ac.th' },
 ];
 
 const EC_CONTACT_TEXT = 'คณะกรรมการจริยธรรมการวิจัยในคน มหาวิทยาลัยธรรมศาสตร์ สาขาวิทยาศาสตร์ ห้อง 112 ชั้น 1 อาคารโดมบริหาร ศูนย์รังสิต โทร. 02-564-4440 ต่อ 7358 · ecsctu3@tu.ac.th';
@@ -19,7 +20,7 @@ const PII_WARNING = 'กรุณาหลีกเลี่ยงการร�
 
 function researchContactHtml() {
   return RESEARCH_CONTACTS.map(c =>
-    `<div>${escapeHtml(c.name)} (ผู้วิจัย) — <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></div>`
+    `<div>${escapeHtml(c.name)} (${escapeHtml(c.role)}) — <a href="mailto:${escapeHtml(c.email)}">${escapeHtml(c.email)}</a></div>`
   ).join('');
 }
 
