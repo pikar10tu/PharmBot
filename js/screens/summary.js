@@ -124,6 +124,8 @@ function _renderSummaryUI(container, pid, result, session = null) {
 
       ${_adminTranscriptBlock(session)}
 
+      ${_adminFeedbackBlock(result)}
+
       <!-- Actions -->
       <div class="flex gap-2 mb-3" style="justify-content:center;flex-wrap:wrap;">
         <button class="btn btn-ghost" onclick="Router.go('history')">📋 ประวัติการฝึก</button>
@@ -138,6 +140,8 @@ function _renderSummaryUI(container, pid, result, session = null) {
       </div>
 
     </div>`;
+
+  if (isAdmin()) _loadCaseFeedback(result.id);
 }
 
 function _feedbackBlock(title, feedback, missed) {
@@ -203,3 +207,102 @@ function _adminTranscriptBlock(session) {
     </details>`;
 }
 
+
+// ── กล่องฟีดแบ็คเคส (เฉพาะทีมงาน) ─────────────────────────────
+// ทีม (ผู้วิจัย/เพื่อน/อาจารย์ ที่ล็อกอินเป็น admin) ลองเคสแล้วบอกว่าตรงไหนไม่สมจริง
+// → dev ใช้ปรับ prompt · เก็บที่ /caseFeedback ผูก resultId/sessionId ไว้ย้อนดู transcript
+const CASE_FEEDBACK_TAGS = [
+  ['leak',      'ผู้ป่วยบอกข้อมูลก่อนถูกถาม'],
+  ['proactive', 'ผู้ป่วยพูดขึ้นมาเองโดยไม่มีใครถาม'],
+  ['wrongInfo', 'ตอบไม่ตรงข้อมูลเคส'],
+  ['tooLong',   'ตอบยาว/เป็นทางการเกินไป'],
+  ['unnatural', 'ภาษาไม่เป็นธรรมชาติ ไม่เหมือนคนไข้จริง'],
+  ['offRole',   'หลุดบทบาท (พูดเหมือนหมอ/AI)'],
+  ['voice',     'ปัญหาเสียง (ฟังไม่ชัด/ตัดคำ/ดีเลย์)'],
+  ['scoring',   'คะแนน/ข้อประเมินไม่ตรงกับที่ทำจริง'],
+];
+
+function _adminFeedbackBlock(result) {
+  if (!isAdmin()) return '';
+  return `
+    <div class="card mb-3" id="caseFbCard">
+      <h3 class="mb-1">📝 ฟีดแบ็คเคสนี้ (เฉพาะทีมงาน)</h3>
+      <p class="text-dim text-sm mb-2">ช่วยบอกว่าตรงไหนไม่เหมือนจริง — ทีมพัฒนาจะใช้ปรับ prompt ผู้ป่วยและเกณฑ์ประเมิน</p>
+      <div class="text-sm mb-1">ความสมจริงของผู้ป่วยโดยรวม</div>
+      <div class="flex gap-2 mb-2" style="flex-wrap:wrap;">
+        ${[1,2,3,4,5].map(n => `<label class="text-sm"><input type="radio" name="cfRealism" value="${n}"> ${n}</label>`).join('')}
+        <span class="text-dim text-xs">(1 = ไม่เหมือนเลย · 5 = เหมือนคนไข้จริง)</span>
+      </div>
+      <div class="text-sm mb-1">ปัญหาที่เจอ (เลือกได้หลายข้อ)</div>
+      <div class="mb-2">
+        ${CASE_FEEDBACK_TAGS.map(([k, label]) => `<label class="text-sm" style="display:block;"><input type="checkbox" name="cfTag" value="${k}"> ${label}</label>`).join('')}
+      </div>
+      <label class="text-sm">เกี่ยวกับผู้ป่วย / บทสนทนา — ยกตัวอย่างประโยคได้ยิ่งดี</label>
+      <textarea id="cfPatient" class="input mb-2" rows="3" style="width:100%;" placeholder="เช่น ถามแค่ว่าเป็นอะไรมา แต่ผู้ป่วยเล่าว่ามีไข้ด้วยเลย ทั้งที่ควรรอให้ถาม"></textarea>
+      <label class="text-sm">เกี่ยวกับคะแนน / เช็คลิสต์</label>
+      <textarea id="cfScoring" class="input mb-2" rows="2" style="width:100%;" placeholder="เช่น ถามเรื่องแพ้ยาแล้วแต่ไม่ได้คะแนนข้อนี้"></textarea>
+      <label class="text-sm">ผู้ให้ฟีดแบ็ค (ไม่บังคับ)</label>
+      <input id="cfName" class="input mb-2" style="width:100%;" placeholder="ชื่อ/บทบาท เช่น อ.เภสัช, เพื่อนทีมวิจัย">
+      <button class="btn btn-primary btn-sm" id="cfSave">ส่งฟีดแบ็ค</button>
+      <span id="cfStatus" class="text-sm text-dim" style="margin-left:0.5rem;"></span>
+      <div id="cfList" class="mt-2"></div>
+    </div>`;
+}
+
+async function _loadCaseFeedback(resultId) {
+  const btn = document.getElementById('cfSave');
+  if (!btn) return;
+  btn.onclick = async () => {
+    const realism = document.querySelector('input[name="cfRealism"]:checked')?.value;
+    const tags    = [...document.querySelectorAll('input[name="cfTag"]:checked')].map(i => i.value);
+    const patient = document.getElementById('cfPatient').value.trim();
+    const scoring = document.getElementById('cfScoring').value.trim();
+    const status  = document.getElementById('cfStatus');
+    if (!realism && !tags.length && !patient && !scoring) {
+      status.textContent = 'ยังไม่ได้กรอกอะไรเลย'; return;
+    }
+    btn.disabled = true; status.textContent = 'กำลังบันทึก…';
+    try {
+      const snap = await db.collection('results').doc(resultId).get();
+      const r = snap.data() || {};
+      const s = r.sessionId ? await getSessionById(r.sessionId).catch(() => null) : null;
+      await saveCaseFeedback({
+        resultId,
+        sessionId:  r.sessionId || null,
+        caseId:     s?.caseId || null,
+        caseTitle:  r.caseSnapshot?.title || null,
+        realism:    realism ? Number(realism) : null,
+        tags, patient, scoring,
+        reviewer:   document.getElementById('cfName').value.trim() || null,
+        reviewerUid: getCurrentUser()?.uid || null,
+        // ระบุว่าฟีดแบ็คนี้มาจาก prompt/โมเดลรุ่นไหน — prompt จะเปลี่ยนเรื่อยๆ
+        groundingVersion: typeof GROUNDING_VERSION !== 'undefined' ? GROUNDING_VERSION : null,
+        overallScore: r.overallScore ?? null,
+      });
+      status.textContent = '✅ บันทึกแล้ว ขอบคุณครับ';
+      ['cfPatient', 'cfScoring'].forEach(id => document.getElementById(id).value = '');
+      document.querySelectorAll('input[name="cfTag"]').forEach(i => i.checked = false);
+    } catch (e) {
+      status.textContent = '❌ บันทึกไม่สำเร็จ: ' + e.message;
+    }
+    btn.disabled = false;
+    _renderCaseFeedbackList(resultId);
+  };
+  _renderCaseFeedbackList(resultId);
+}
+
+async function _renderCaseFeedbackList(resultId) {
+  const box = document.getElementById('cfList');
+  if (!box) return;
+  const items = await getCaseFeedbackForResult(resultId).catch(() => []);
+  if (!items.length) { box.innerHTML = ''; return; }
+  const tagLabel = Object.fromEntries(CASE_FEEDBACK_TAGS);
+  box.innerHTML = `<div class="text-sm text-dim mb-1">ฟีดแบ็คที่ส่งแล้ว (${items.length})</div>` +
+    items.map(f => `
+      <div class="text-sm" style="padding:0.3rem 0 0.3rem 0.75rem;border-left:2px solid var(--primary);margin-bottom:0.4rem;">
+        ${f.realism ? `ความสมจริง ${f.realism}/5 · ` : ''}${escapeHtmlBr((f.tags || []).map(t => tagLabel[t] || t).join(', '))}
+        ${f.patient ? `<div>ผู้ป่วย: ${escapeHtmlBr(f.patient)}</div>` : ''}
+        ${f.scoring ? `<div>คะแนน: ${escapeHtmlBr(f.scoring)}</div>` : ''}
+        ${f.reviewer ? `<div class="text-dim text-xs">— ${escapeHtmlBr(f.reviewer)}</div>` : ''}
+      </div>`).join('');
+}

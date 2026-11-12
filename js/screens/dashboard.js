@@ -108,21 +108,25 @@ async function renderDashboard(container) {
     try {
       const uid   = getCurrentUser().uid;
       const count = await getTodaySessionCount(uid);
-      const max   = 5;
+      const max   = DAILY_SESSION_LIMIT;
 
-      const pips = Array.from({ length: max }, (_, i) =>
-        `<div class="rate-pip ${i < count ? (count >= max ? 'full' : 'used') : ''}"></div>`
-      ).join('');
+      if (max == null) {
+        // ห้าม return ตรงนี้ — โค้ดผูกปุ่มด้านล่างจะไม่ถูกรัน
+        document.getElementById('rate-display').innerHTML =
+          `<div class="text-sm text-dim">วันนี้ฝึกไปแล้ว ${count} ครั้ง (ไม่จำกัดจำนวนครั้ง)</div>`;
+      } else {
+        const pips = Array.from({ length: max }, (_, i) =>
+          `<div class="rate-pip ${i < count ? (count >= max ? 'full' : 'used') : ''}"></div>`
+        ).join('');
 
-      document.getElementById('rate-display').innerHTML = `
-        <div>
-          <div class="text-sm text-dim mb-1">วันนี้ใช้ไป ${count}/${max} ครั้ง</div>
-          <div class="rate-bar">${pips}</div>
-        </div>
-      `;
+        document.getElementById('rate-display').innerHTML = `
+          <div>
+            <div class="text-sm text-dim mb-1">วันนี้ใช้ไป ${count}/${max} ครั้ง</div>
+            <div class="rate-bar">${pips}</div>
+          </div>
+        `;
 
-      if (count >= max) {
-        _setStartCardDisabled(true);
+        if (isOverDailyLimit(count)) _setStartCardDisabled(true);
       }
     } catch (e) { console.warn('rate limit check failed', e); }
   }
@@ -143,7 +147,7 @@ async function renderDashboard(container) {
       const uid   = getCurrentUser().uid;
       const count = await getTodaySessionCount(uid);
       // เดิม return เงียบๆ — นักศึกษากดแล้วไม่มีอะไรเกิดขึ้น ไม่รู้ว่าพังหรือโควต้าหมด
-      if (count >= 5) { _setStartCardDisabled(true); return; }
+      if (isOverDailyLimit(count)) { _setStartCardDisabled(true); return; }
     }
     Router.go('groups');
   });

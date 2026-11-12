@@ -24,3 +24,7 @@ tests/.env.test
 # OS
 .DS_Store
 Thumbs.db
+
+# Gemini key สำหรับ sim-case.js + ผลจำลอง (มี transcript)
+setup/.env.local
+setup/sim-runs/

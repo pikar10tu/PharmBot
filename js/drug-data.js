@@ -104,6 +104,18 @@ const DRUG_SEED = [
   { drugCode: 'sumatriptan_50',    name: 'Sumatriptan',        strength: '50mg',        form: 'เม็ด',      category: 'ยาแก้ไมเกรน',           isOtc: false, isActive: true },
   { drugCode: 'cefixime_400',      name: 'Cefixime',           strength: '400mg',       form: 'แคปซูล',   category: 'ยาปฏิชีวนะ',           isOtc: false, isActive: true },
   { drugCode: 'fluticasone_nasal', name: 'Fluticasone nasal spray', strength: '27.5mcg', form: 'สเปรย์พ่นจมูก', category: 'ยาพ่นจมูก/สเตียรอยด์', isOtc: true, isActive: true },
+  // ── ยาเพิ่มสำหรับ 9 เคสจากเอกสาร 31 aug (DRAFT — รอทีมตรวจความแรง/รูปแบบ) ──
+  { drugCode: 'clindamycin_300', name: 'Clindamycin', strength: '300mg', form: 'แคปซูล', category: 'ยาปฏิชีวนะ', isOtc: false, isActive: true },
+  { drugCode: 'clarithromycin_250', name: 'Clarithromycin', strength: '250mg', form: 'เม็ด', category: 'ยาปฏิชีวนะ', isOtc: false, isActive: true },
+  { drugCode: 'naphazoline_nasal', name: 'Naphazoline nasal drop/spray', strength: '0.1%', form: 'สเปรย์พ่นจมูก', category: 'ยาลดน้ำมูก/หดหลอดเลือด', isOtc: true, isActive: true },
+  { drugCode: 'levofloxacin_500', name: 'Levofloxacin', strength: '500mg', form: 'เม็ด', category: 'ยาปฏิชีวนะ', isOtc: false, isActive: true },
+  { drugCode: 'ciprofloxacin_500', name: 'Ciprofloxacin', strength: '500mg', form: 'เม็ด', category: 'ยาปฏิชีวนะ', isOtc: false, isActive: true },
+  { drugCode: 'nitrofurantoin_100', name: 'Nitrofurantoin', strength: '100mg', form: 'แคปซูล', category: 'ยาปฏิชีวนะ', isOtc: false, isActive: true },
+  { drugCode: 'fosfomycin_3g', name: 'Fosfomycin trometamol', strength: '3g', form: 'ผงละลายน้ำ (ซอง)', category: 'ยาปฏิชีวนะ', isOtc: false, isActive: true },
+  { drugCode: 'clotrimazole_vag_100', name: 'Clotrimazole vaginal tablet', strength: '100mg', form: 'ยาเหน็บช่องคลอด', category: 'ยาต้านเชื้อรา', isOtc: true, isActive: true },
+  { drugCode: 'clotrimazole_vag_200', name: 'Clotrimazole vaginal tablet', strength: '200mg', form: 'ยาเหน็บช่องคลอด', category: 'ยาต้านเชื้อรา', isOtc: true, isActive: true },
+  { drugCode: 'clotrimazole_vag_500', name: 'Clotrimazole vaginal tablet', strength: '500mg', form: 'ยาเหน็บช่องคลอด', category: 'ยาต้านเชื้อรา', isOtc: true, isActive: true },
+  { drugCode: 'ergotamine_caffeine', name: 'Ergotamine/Caffeine', strength: '1mg/100mg', form: 'เม็ด', category: 'ยาแก้ไมเกรน', isOtc: false, isActive: true },
 ];
 
 const DRUG_CATEGORIES = [...new Set(DRUG_SEED.map(d => d.category))];

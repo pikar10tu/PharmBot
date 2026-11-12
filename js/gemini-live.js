@@ -61,14 +61,14 @@ class GeminiLiveClient {
       this._ws = new WebSocket(url);
 
       this._ws.onopen = () => {
-        console.log('GeminiLive → setup (gemini-3.1-flash-live-preview / v1beta)');
+        console.log('GeminiLive → setup (gemini-3.8-live / v1beta)');
         this._send({
           setup: {
-            model: 'models/gemini-3.1-flash-live-preview',
+            model: 'models/gemini-3.8-live',
             generationConfig: {
               responseModalities: ['AUDIO'],
-              // minimal = latency ต่ำสุด เหมาะ roleplay (พฤติกรรมคุมด้วย system prompt แล้ว)
-              thinkingConfig: { thinkingLevel: 'minimal' },
+              // ⚠️ gemini-3.8-live ห้ามส่ง thinkingConfig (reasoning ฝังในตัว ตั้งค่าไม่ได้)
+              //    proactive audio เปิดถาวร — ผู้ป่วยอาจพูดเองโดยไม่ถูกถาม ต้องคุมด้วย prompt
               temperature: 0.6,   // ให้ตรงกับโหมดข้อความ — ผู้ป่วยสม่ำเสมอขึ้นแต่ยังเป็นธรรมชาติ
               speechConfig: {
                 voiceConfig: {

@@ -1,5 +1,5 @@
 // ============================================================
-//  gemini-tts.js — Text-to-Speech via gemini-3.1-flash-tts-preview
+//  gemini-tts.js — Text-to-Speech via gemini-3.8-flash-tts
 //
 //  Public API:
 //    async geminiTTS(text, voiceName)  → plays audio, resolves when done
@@ -29,7 +29,7 @@ async function geminiTTS(text, voiceName = 'Kore') {
   // Stop any current playback first
   geminiTTSStop();
 
-  const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-flash-tts-preview:generateContent?key=${apiKey}`;
+  const url  = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.8-flash-tts:generateContent?key=${apiKey}`;
   const body = {
     contents: [{ parts: [{ text }] }],
     generationConfig: {
@@ -61,7 +61,10 @@ async function geminiTTS(text, voiceName = 'Kore') {
   if (!inlineData?.data) throw new Error('TTS: ไม่ได้รับข้อมูลเสียงจาก API');
 
   console.log(`geminiTTS: received audio (${Math.round(inlineData.data.length * 3/4)} bytes PCM)`);
-  return _playPcm16(inlineData.data);
+  // 3.8 TTS คืน WAV (มี RIFF header 44 ไบต์) เป็นค่าเริ่มต้น — ตัด header ออกให้เหลือ PCM ดิบ
+  let b64 = inlineData.data;
+  if (b64.startsWith('UklGR')) b64 = _stripWavHeader(b64);
+  return _playPcm16(b64);
 }
 
 // Stop any currently playing TTS audio immediately.
@@ -119,4 +122,12 @@ function _playPcm16(b64) {
       reject(e);
     }
   });
+}
+
+// ตัด RIFF header ออก โดยหา chunk 'data' จริง (header ไม่ได้ยาว 44 ไบต์เสมอ)
+function _stripWavHeader(b64) {
+  const bin = atob(b64);
+  const i = bin.indexOf('data');
+  const pcm = i >= 0 ? bin.slice(i + 8) : bin.slice(44);
+  return btoa(pcm);
 }

@@ -78,6 +78,11 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
+    // ── ฟีดแบ็คเคสจากทีมทดสอบ (admin-only — กล่องท้ายหน้า summary) ──
+    match /caseFeedback/{id} {
+      allow read, write: if isAdmin();
+    }
+
     // guidelineIndex / guidelineChunks — เจตนาไม่มีกฎ (default deny)
     // offline authoring material เท่านั้น; เข้าถึงผ่าน Admin SDK ใน setup/
     // ห้ามเพิ่ม allow read — เบราว์เซอร์ไม่ควรอ่านคลังนี้

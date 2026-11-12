@@ -133,11 +133,11 @@ async function renderChat(container, params = {}) {
     const isAdmin = profile?.role === 'admin';
     if (!isAdmin) {
       const count = await getTodaySessionCount(user.uid);
-      if (count >= 5) {
+      if (isOverDailyLimit(count)) {
         container.innerHTML = `
           ${renderNavbar(pid)}
           <div class="container fade-in" style="max-width:720px;">
-            <div class="alert alert-warning">⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้</div>
+            <div class="alert alert-warning">⚠️ คุณใช้ครบ ${DAILY_SESSION_LIMIT} ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้</div>
             <button class="btn btn-ghost btn-sm mt-2" onclick="Router.go('dashboard')">← กลับหน้าหลัก</button>
           </div>`;
         return;
@@ -386,8 +386,8 @@ function _attachEvents() {
       // เช็คโควต้าอีกรอบ ณ วินาทีที่เริ่มจริง — กันเปิดค้างหลายแท็บแล้วกดพร้อมกัน
       if (profile?.role !== 'admin') {
         const count = await getTodaySessionCount(user.uid);
-        if (count >= 5) {
-          _notify(1, '⚠️ คุณใช้ครบ 5 ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้');
+        if (isOverDailyLimit(count)) {
+          _notify(1, `⚠️ คุณใช้ครบ ${DAILY_SESSION_LIMIT} ครั้งสำหรับวันนี้แล้ว สามารถกลับมาฝึกใหม่ได้พรุ่งนี้`);
           restoreBtn();
           return;
         }
@@ -977,7 +977,7 @@ function _renderChips() {
 
 async function _goStep3() {
   if (_dispensedDrugs.length === 0) {
-    if (!confirm('ยังไม่ได้เลือกยาเลย\nต้องการดำเนินการต่อโดยไม่จ่ายยาหรือไม่? (คะแนนยาจะเป็น 0)')) return;
+    if (!confirm('ยังไม่ได้เลือกยาเลย\nต้องการดำเนินการต่อโดยไม่จ่ายยาหรือไม่? (เช่น กรณีต้องส่งต่อแพทย์)')) return;
   }
   _step = 3;
   _updateStepper();
@@ -1094,8 +1094,7 @@ async function _runEval() {
     const prompt  = buildEvalPrompt(_caseData, _chatHistory, _dispensedDrugs, _counselingHistory);
     const raw     = await geminiComplete(prompt);
     // Strip markdown code fences if present
-    const cleaned = raw.replace(/^```(?:json)?\s*/m, '').replace(/\s*```\s*$/m, '').trim();
-    const evalJson = JSON.parse(cleaned);
+    const evalJson = parseEvalJson(raw);
 
     // คำนวณคะแนนแบบ deterministic จากน้ำหนัก rubric (AI ให้แค่ earned รายข้อ)
     //

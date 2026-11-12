@@ -22,7 +22,7 @@ auth domain `@pharmbot.local`, firebase project `pharmbot-8496c`,
 | แก้ flow session 4 ขั้นตอน | `js/screens/chat.js` (1,058 บรรทัด — ⚠️ ใหญ่) |
 | แก้ rubric / น้ำหนักคะแนน | `prompts.js` — `DOMAIN_WEIGHTS` บรรทัด 8, `getDefaultRubric()` บรรทัด 65 |
 | แก้/เพิ่ม Firestore queries | `js/db.js` (168 บรรทัด) |
-| เพิ่ม/แก้ cases | `setup/seed-cases.js` แล้วรัน `node seed-cases.js` |
+| เพิ่ม/แก้ cases | `setup/cases-data.js` แล้วรัน `node seed-cases.js` · จำลองก่อนด้วย `node sim-case.js` |
 | Admin panel | `js/screens/admin.js` (1,093 บรรทัด — ⚠️ ใหญ่) |
 | เพิ่ม route ใหม่ | `js/router.js` + `index.html` (เพิ่ม `<script>`) |
 | เพิ่ม/แก้จดหมายประกาศถึงผู้เรียน | `js/letters.js` — แก้ array `LETTERS` แล้ว push (ดู `docs/specs/2026-09-06-letter-inbox.md`) · **⛔ เฉพาะเรื่องของแอปนี้ — ดู "ขอบเขตของกล่องจดหมาย" ด้านล่าง** |
@@ -204,7 +204,7 @@ Required composite indexes (Firebase Console → Firestore → Indexes):
 **Session timer:** 5:00 countdown spans Steps 1–3. Last 30 s blinks red. On expiry inputs lock.
 `_startSessionTimer` / `_onTimeUp` / `_lockInput` in `chat.js` — `_timerExpired` flag prevents re-enable.
 
-**Rate limit:** 5 sessions/user/day (`getTodaySessionCount` in `db.js`).
+**Rate limit:** `DAILY_SESSION_LIMIT` ใน `db.js` (เดิม 5 · **ปลดเป็น null ชั่วคราว 2026-11-12 ช่วงทีมทดสอบ — ตั้งกลับก่อนเก็บข้อมูลจริง**)
 
 **Refresh guard:** `beforeunload` warns during live session. Auto-disabled on quit/eval saved.
 
@@ -287,7 +287,7 @@ Required composite indexes (Firebase Console → Firestore → Indexes):
 
 ## Voice Mode (Gemini Live)
 
-`js/gemini-live.js` — `GeminiLiveClient` WebSocket to `models/gemini-3.1-flash-live-preview`
+`js/gemini-live.js` — `GeminiLiveClient` WebSocket to `models/gemini-3.8-live`
 Streams mic audio (16 kHz PCM16) → receives audio (24 kHz) + text transcripts
 Transcripts push to `_chatHistory` / `_counselingHistory` → Step 4 eval works unchanged
 Voice: `Aoede` (female) / `Puck` (male). Falls back to text mode on connection failure.
@@ -329,7 +329,7 @@ Key **never in source** — stored in Firestore `/config/gemini`, loaded into `_
 |---------|-------|---------|
 | Patient simulation (Steps 1,3) — โหมดพิมพ์ | `gemini-2.5-flash` | `/config/gemini.model` |
 | Evaluation (Step 4) | `gemini-2.5-flash` | `/config/gemini.evalModel` **ยังไม่ตั้ง** → fallback เป็น `model` (`gemini.js:13`) |
-| Patient simulation — โหมดเสียง | `gemini-3.1-flash-live-preview` | hardcoded ใน `gemini-live.js` (คนละ endpoint ไม่อ่านจาก config) |
+| Patient simulation — โหมดเสียง | `gemini-3.8-live` | hardcoded ใน `gemini-live.js` (คนละ endpoint ไม่อ่านจาก config) |
 
 ⚠️ `gemini-2.0-*` และ `gemini-1.5-*` **เลิกใช้แล้ว ห้ามใช้**
 
@@ -375,7 +375,7 @@ Students type code `P00001` → maps internally to `p00001@pharmbot.local` (ไ�
 ### Phase 4 — AI Upgrade
 - [x] ~~Upgrade eval → gemini-2.5-flash~~ — ใช้อยู่แล้ว (ผ่าน fallback ของ `model`)
 - [ ] ตั้ง `evalModel` ใน Firestore ให้ชัด แทนการพึ่ง fallback (แยก patient/eval ออกจากกันได้จริง)
-- [ ] ตัดสินใจว่าโหมดพิมพ์ควรใช้โมเดลเดียวกับโหมดเสียงไหม — ตอนนี้คนละตัว (`gemini-2.5-flash` vs `gemini-3.1-flash-live-preview`) พฤติกรรมผู้ป่วยจึงไม่เหมือนกันเป๊ะระหว่างสองโหมด ซึ่งกระทบ treatment fidelity ถ้าผู้เรียนสลับโหมดกลางการทดลอง
+- [ ] ตัดสินใจว่าโหมดพิมพ์ควรใช้โมเดลเดียวกับโหมดเสียงไหม — ตอนนี้คนละตัว (`gemini-2.5-flash` vs `gemini-3.8-live`) พฤติกรรมผู้ป่วยจึงไม่เหมือนกันเป๊ะระหว่างสองโหมด ซึ่งกระทบ treatment fidelity ถ้าผู้เรียนสลับโหมดกลางการทดลอง
 
 ### Phase 5 — Validation & Testing
 - [x] Fix Playwright tests (chat UI + voice UI) — 2026-08-20

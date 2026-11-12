@@ -92,6 +92,14 @@ async function completeSession(sessionId, startedAt) {
 }
 
 // ── Rate Limiting ─────────────────────────────────────────────
+// จำนวนเซสชันสูงสุดต่อคนต่อวัน (admin ไม่จำกัดเสมอ) — null = ไม่จำกัด
+// ปลดชั่วคราว 2026-11-12 ช่วงทีมทดสอบ/จูน prompt · ⚠️ ตั้งกลับ (เดิม 5) ก่อนเก็บข้อมูลจริง
+const DAILY_SESSION_LIMIT = null;
+
+function isOverDailyLimit(count) {
+  return DAILY_SESSION_LIMIT != null && count >= DAILY_SESSION_LIMIT;
+}
+
 async function getTodaySessionCount(userId) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -193,6 +201,21 @@ async function adminSaveGroup(groupData, groupId) {
 
 async function adminDeleteGroup(groupId) {
   await db.collection('diseaseGroups').doc(groupId).delete();
+}
+
+// ── ฟีดแบ็คเคสจากทีม (admin-only — กล่องท้ายหน้า summary) ─────
+// ใช้จูน prompt ผู้ป่วย/ประเมิน · ผูกกับ session เพื่อย้อนดู transcript ได้
+async function saveCaseFeedback(data) {
+  const ref = await db.collection('caseFeedback').add({
+    ...data,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+  });
+  return ref.id;
+}
+
+async function getCaseFeedbackForResult(resultId) {
+  const snap = await db.collection('caseFeedback').where('resultId', '==', resultId).get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
 // ── Prompt Lab (admin-only — ดู js/screens/promptlab.js) ──────
