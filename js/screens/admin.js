@@ -74,7 +74,7 @@ async function _loadAdminTab() {
 // ── Cases Tab ─────────────────────────────────────────────────
 
 async function _renderCasesTab(body) {
-  [_adminCases, _adminGroups, _adminDrugs] = await Promise.all([getAllCases(), getGroups(), getDrugs()]);
+  [_adminCases, _adminGroups, _adminDrugs] = await Promise.all([getAllCasesForAdmin(), getGroups(), getDrugs()]);
 
   body.innerHTML = `
     <div class="flex items-center justify-between mb-2" style="flex-wrap:wrap;gap:0.5rem;">
@@ -122,7 +122,7 @@ async function _renderCasesTab(body) {
       e.stopPropagation();
       const newState = btn.dataset.active !== 'true';
       await adminToggleCase(btn.dataset.id, newState);
-      _adminCases = await getAllCases();
+      _adminCases = await getAllCasesForAdmin();
       _loadAdminTab();
     });
   });
@@ -839,7 +839,7 @@ async function _saveCaseForm() {
     const existingId = document.getElementById('case-id').value;
     await adminSaveCase(caseData, existingId || null);
     document.getElementById('case-form-wrap').className = 'hidden mt-3';
-    _adminCases = await getAllCases();
+    _adminCases = await getAllCasesForAdmin();
     _loadAdminTab();
   } catch (e) {
     alertEl.className   = 'alert alert-error mb-2';
